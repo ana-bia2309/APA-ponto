@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [newName, setNewName] = useState("");
+  const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -87,12 +88,13 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim() });
+      .insert({ name: newName.trim(), punch_mode: newPunchMode } as any);
     if (error) {
       toast.error("Erro ao adicionar funcionário");
     } else {
       toast.success("Funcionário adicionado!");
       setNewName("");
+      setNewPunchMode("full");
       fetchEmployees();
     }
   };
@@ -172,6 +174,14 @@ export default function AdminDashboard() {
                 onChange={(e) => setNewName(e.target.value)}
                 className="flex-1"
               />
+              <select
+                value={newPunchMode}
+                onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="full">4 registros</option>
+                <option value="simple">2 registros</option>
+              </select>
               <Button type="submit">
                 <Plus className="w-4 h-4" />
               </Button>
@@ -195,11 +205,16 @@ export default function AdminDashboard() {
                         <ToggleLeft className="w-5 h-5" />
                       )}
                     </button>
-                    <span
-                      className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
-                    >
-                      {emp.name}
-                    </span>
+                    <div>
+                      <span
+                        className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
+                      >
+                        {emp.name}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {(emp as any).punch_mode === "simple" ? "2 reg." : "4 reg."}
+                      </span>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

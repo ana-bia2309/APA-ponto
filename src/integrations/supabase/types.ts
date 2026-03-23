@@ -20,18 +20,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          punch_mode: string
         }
         Insert: {
           active?: boolean
           created_at?: string
           id?: string
           name: string
+          punch_mode?: string
         }
         Update: {
           active?: boolean
           created_at?: string
           id?: string
           name?: string
+          punch_mode?: string
         }
         Relationships: []
       }

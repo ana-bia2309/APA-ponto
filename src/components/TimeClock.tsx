@@ -20,10 +20,15 @@ type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees">;
 type PunchRecord = Tables<"punch_records">;
 
-const STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
+const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "intervalo", label: "Intervalo", icon: Coffee },
   { key: "retorno", label: "Retorno", icon: RotateCcw },
+  { key: "saida", label: "Saída", icon: LogOut },
+];
+
+const SIMPLE_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
+  { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "saida", label: "Saída", icon: LogOut },
 ];
 
@@ -52,6 +57,10 @@ export default function TimeClock() {
   const [loading, setLoading] = useState(false);
   const [geoStatus, setGeoStatus] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const STEPS = selectedEmployee && (selectedEmployee as any).punch_mode === "simple"
+    ? SIMPLE_STEPS
+    : ALL_STEPS;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
