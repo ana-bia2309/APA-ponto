@@ -1,0 +1,1 @@
+ALTER TABLE public.punch_records ADD COLUMN address text;

@@ -37,6 +37,7 @@ export type Database = {
       }
       punch_records: {
         Row: {
+          address: string | null
           created_at: string
           employee_id: string
           id: string
@@ -46,6 +47,7 @@ export type Database = {
           step: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           employee_id: string
           id?: string
@@ -55,6 +57,7 @@ export type Database = {
           step: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           employee_id?: string
           id?: string
