@@ -174,6 +174,14 @@ export default function AdminDashboard() {
                 onChange={(e) => setNewName(e.target.value)}
                 className="flex-1"
               />
+              <select
+                value={newPunchMode}
+                onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="full">4 registros</option>
+                <option value="simple">2 registros</option>
+              </select>
               <Button type="submit">
                 <Plus className="w-4 h-4" />
               </Button>
