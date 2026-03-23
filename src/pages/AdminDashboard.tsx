@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [newName, setNewName] = useState("");
+  const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
