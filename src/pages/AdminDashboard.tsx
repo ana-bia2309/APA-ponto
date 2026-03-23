@@ -254,7 +254,19 @@ export default function AdminDashboard() {
                               {formatTime(rec.punched_at)}
                             </span>
                           </div>
-                          {rec.latitude && rec.longitude && (
+                          {(rec as any).address ? (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 max-w-[180px]">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <a
+                                href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate hover:text-foreground transition-colors"
+                              >
+                                {(rec as any).address}
+                              </a>
+                            </span>
+                          ) : rec.latitude && rec.longitude ? (
                             <a
                               href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
                               target="_blank"
@@ -263,7 +275,7 @@ export default function AdminDashboard() {
                             >
                               <MapPin className="w-4 h-4" />
                             </a>
-                          )}
+                          ) : null}
                         </div>
                       ))}
                     </div>
