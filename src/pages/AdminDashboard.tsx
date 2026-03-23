@@ -205,11 +205,16 @@ export default function AdminDashboard() {
                         <ToggleLeft className="w-5 h-5" />
                       )}
                     </button>
-                    <span
-                      className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
-                    >
-                      {emp.name}
-                    </span>
+                    <div>
+                      <span
+                        className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
+                      >
+                        {emp.name}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {(emp as any).punch_mode === "simple" ? "2 reg." : "4 reg."}
+                      </span>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
