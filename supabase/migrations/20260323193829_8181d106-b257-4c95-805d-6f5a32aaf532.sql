@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN punch_mode text NOT NULL DEFAULT 'full';
