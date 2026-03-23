@@ -14,7 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      employees: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      punch_records: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          punched_at: string
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          punched_at?: string
+          step: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          punched_at?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "punch_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
