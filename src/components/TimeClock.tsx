@@ -87,7 +87,24 @@ export default function TimeClock() {
     if (data) setRecords(data);
   };
 
-  const getLocation = (): Promise<{ lat: number; lng: number } | null> => {
+  const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+        { headers: { "Accept-Language": "pt-BR" } }
+      );
+      const data = await res.json();
+      if (data?.display_name) {
+        const parts = data.display_name.split(",").slice(0, 3);
+        return parts.join(",").trim();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getLocation = (): Promise<{ lat: number; lng: number; address: string | null } | null> => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         setGeoStatus("Geolocalização não suportada");
@@ -96,9 +113,13 @@ export default function TimeClock() {
       }
       setGeoStatus("Obtendo localização...");
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGeoStatus("Localização obtida ✓");
-          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setGeoStatus("Obtendo endereço...");
+          const address = await reverseGeocode(lat, lng);
+          setGeoStatus(address || "Localização obtida ✓");
+          resolve({ lat, lng, address });
         },
         () => {
           setGeoStatus("Localização não disponível");
