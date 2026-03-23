@@ -141,6 +141,7 @@ export default function TimeClock() {
         step: step.key,
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
+        address: location?.address ?? null,
       });
       if (error) throw error;
       toast.success(`${step.label} registrada!`);
