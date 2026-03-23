@@ -202,6 +202,7 @@ export default function TimeClock() {
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8">
       {/* Header */}
       <div className="text-center mb-8">
+        <img src={logo} alt="Logo" className="w-14 h-14 object-contain mb-2" />
         <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
           <Clock className="w-4 h-4" />
           Registro de Ponto
