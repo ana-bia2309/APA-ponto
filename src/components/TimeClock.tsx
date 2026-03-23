@@ -169,6 +169,7 @@ export default function TimeClock() {
             <Clock className="w-4 h-4" />
             Registro de Ponto
           </div>
+          <p className="text-2xl font-bold text-foreground">
             Selecione seu nome
           </p>
         </div>
