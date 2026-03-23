@@ -58,6 +58,10 @@ export default function TimeClock() {
   const [geoStatus, setGeoStatus] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const STEPS = selectedEmployee && (selectedEmployee as any).punch_mode === "simple"
+    ? SIMPLE_STEPS
+    : ALL_STEPS;
+
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
