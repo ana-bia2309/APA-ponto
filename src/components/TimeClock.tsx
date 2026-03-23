@@ -306,12 +306,15 @@ export default function TimeClock() {
                     {step.label}
                   </p>
                   {record && (
-                    <div className="flex items-center gap-2">
+                    <div>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {formatTime(record.punched_at)}
                       </p>
-                      {record.latitude && (
-                        <MapPin className="w-3 h-3 text-success" />
+                      {(record as any).address && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-success flex-shrink-0" />
+                          <span className="truncate max-w-[200px]">{(record as any).address}</span>
+                        </p>
                       )}
                     </div>
                   )}
