@@ -88,12 +88,13 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim() });
+      .insert({ name: newName.trim(), punch_mode: newPunchMode } as any);
     if (error) {
       toast.error("Erro ao adicionar funcionário");
     } else {
       toast.success("Funcionário adicionado!");
       setNewName("");
+      setNewPunchMode("full");
       fetchEmployees();
     }
   };
