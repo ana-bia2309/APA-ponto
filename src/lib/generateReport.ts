@@ -1,15 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Employee = Tables<"employees">;
-
-const STEP_ORDER = ["entrada", "intervalo", "retorno", "saida"];
-const STEP_LABELS: Record<string, string> = {
-  entrada: "entrada",
-  intervalo: "pausa",
-  retorno: "retorno",
-  saida: "saída",
-};
 
 const MONTHS = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -44,7 +38,6 @@ export async function generateMonthlyReport(
     .lte("punched_at", endDate)
     .order("punched_at");
 
-  // Group records by day
   const byDay: Record<number, Record<string, string>> = {};
   for (const rec of records || []) {
     const day = new Date(rec.punched_at).getDate();
@@ -53,35 +46,84 @@ export async function generateMonthlyReport(
   }
 
   const isSimple = employee.punch_mode === "simple";
-  const steps = isSimple
-    ? ["entrada", "saida"]
-    : ["entrada", "intervalo", "retorno", "saida"];
-  const stepHeaders = isSimple
-    ? ["entrada", "saída"]
-    : ["entrada", "pausa", "retorno", "saída"];
+  const steps = isSimple ? ["entrada", "saida"] : ["entrada", "intervalo", "retorno", "saida"];
+  const stepHeaders = isSimple ? ["entrada", "saída"] : ["entrada", "pausa", "retorno", "saída"];
 
-  // Build CSV
-  const lines: string[] = [];
-  lines.push(`Relatório de Ponto - ${MONTHS[month - 1]} ${year}`);
-  lines.push(`Funcionário: ${employee.name}`);
-  if ((employee as any).cpf) lines.push(`CPF: ${(employee as any).cpf}`);
-  lines.push("");
-  lines.push(["dia", ...stepHeaders, "jornada"].join(","));
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Header
+  const monthLabel = `${MONTHS[month - 1]} ${year}`;
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(monthLabel, pageWidth / 2, 20, { align: "center" });
+
+  doc.setFontSize(12);
+  doc.text(employee.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
+
+  if ((employee as any).cpf) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`CPF: ${(employee as any).cpf}`, pageWidth / 2, 36, { align: "center" });
+  }
+
+  // Build table data
+  const tableHead = [["dia", ...stepHeaders, "jornada"]];
+  const tableBody: any[][] = [];
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayData = byDay[day];
     const cols = steps.map((s) => dayData?.[s] || "-");
     const hasAny = cols.some((c) => c !== "-");
     const jornada = hasAny ? "trab." : "folga";
-    lines.push([String(day).padStart(2, "0"), ...cols, jornada].join(","));
+    tableBody.push([String(day).padStart(2, "0"), ...cols, jornada]);
   }
 
-  // Download
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const startY = (employee as any).cpf ? 42 : 36;
+
+  autoTable(doc, {
+    head: tableHead,
+    body: tableBody,
+    startY,
+    theme: "grid",
+    styles: {
+      fontSize: 9,
+      cellPadding: 2.5,
+      halign: "center",
+      valign: "middle",
+      lineColor: [200, 200, 200],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: [30, 58, 95],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    columnStyles: {
+      0: { cellWidth: 14 },
+    },
+    didParseCell: (data) => {
+      if (data.section === "body") {
+        const lastColIndex = isSimple ? 3 : 5;
+        if (data.column.index === lastColIndex) {
+          const val = data.cell.raw as string;
+          if (val === "trab.") {
+            data.cell.styles.fillColor = [39, 174, 96];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = "bold";
+          } else if (val === "folga") {
+            data.cell.styles.fillColor = [231, 76, 60];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      }
+    },
+    alternateRowStyles: {
+      fillColor: [245, 247, 250],
+    },
+  });
+
+  doc.save(`ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.pdf`);
 }
