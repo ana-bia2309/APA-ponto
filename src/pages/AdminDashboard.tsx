@@ -14,8 +14,13 @@ import {
   MapPin,
   ToggleLeft,
   ToggleRight,
+  Pencil,
+  Download,
+  X,
+  Check,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { generateMonthlyReport } from "@/lib/generateReport";
 
 type Employee = Tables<"employees">;
 type PunchRecord = Tables<"punch_records"> & { employees?: { name: string } };
@@ -32,11 +37,19 @@ export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [newName, setNewName] = useState("");
+  const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
   const [tab, setTab] = useState<"employees" | "records">("employees");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCpf, setEditCpf] = useState("");
+  const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
+  const [reportMonth, setReportMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -88,13 +101,36 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim(), punch_mode: newPunchMode } as any);
+      .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null } as any);
     if (error) {
       toast.error("Erro ao adicionar funcionário");
     } else {
       toast.success("Funcionário adicionado!");
       setNewName("");
+      setNewCpf("");
       setNewPunchMode("full");
+      fetchEmployees();
+    }
+  };
+
+  const startEditing = (emp: Employee) => {
+    setEditingId(emp.id);
+    setEditName(emp.name);
+    setEditCpf((emp as any).cpf || "");
+    setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    const { error } = await supabase
+      .from("employees")
+      .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode } as any)
+      .eq("id", editingId);
+    if (error) {
+      toast.error("Erro ao atualizar");
+    } else {
+      toast.success("Atualizado!");
+      setEditingId(null);
       fetchEmployees();
     }
   };
@@ -124,6 +160,25 @@ export default function AdminDashboard() {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  const formatCpf = (cpf: string) => {
+    const digits = cpf.replace(/\D/g, "").slice(0, 11);
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  };
+
+  const handleDownloadReport = async (emp: Employee) => {
+    const [year, month] = reportMonth.split("-").map(Number);
+    toast.info("Gerando relatório...");
+    try {
+      await generateMonthlyReport(emp, year, month);
+      toast.success("Relatório baixado!");
+    } catch {
+      toast.error("Erro ao gerar relatório");
+    }
+  };
 
   // Group records by employee
   const groupedRecords = records.reduce(
@@ -167,63 +222,140 @@ export default function AdminDashboard() {
 
         {tab === "employees" && (
           <>
-            <form onSubmit={addEmployee} className="flex gap-2 mb-4">
+            <form onSubmit={addEmployee} className="space-y-2 mb-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nome do funcionário"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="flex-1"
+                />
+                <select
+                  value={newPunchMode}
+                  onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="full">4 reg.</option>
+                  <option value="simple">2 reg.</option>
+                </select>
+                <Button type="submit">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
               <Input
-                placeholder="Nome do funcionário"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="flex-1"
+                placeholder="CPF (opcional)"
+                value={newCpf}
+                onChange={(e) => setNewCpf(formatCpf(e.target.value))}
+                className="w-48"
+                maxLength={14}
               />
-              <select
-                value={newPunchMode}
-                onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="full">4 registros</option>
-                <option value="simple">2 registros</option>
-              </select>
-              <Button type="submit">
-                <Plus className="w-4 h-4" />
-              </Button>
             </form>
+
+            {/* Report download */}
+            <div className="flex items-center gap-2 mb-4">
+              <Input
+                type="month"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                className="w-40"
+              />
+              <span className="text-xs text-muted-foreground">Relatório mensal</span>
+            </div>
 
             <div className="space-y-2">
               {employees.map((emp) => (
-                <Card
-                  key={emp.id}
-                  className="p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleEmployee(emp)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      title={emp.active ? "Desativar" : "Ativar"}
-                    >
-                      {emp.active ? (
-                        <ToggleRight className="w-5 h-5 text-success" />
-                      ) : (
-                        <ToggleLeft className="w-5 h-5" />
-                      )}
-                    </button>
-                    <div>
-                      <span
-                        className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
-                      >
-                        {emp.name}
-                      </span>
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {(emp as any).punch_mode === "simple" ? "2 reg." : "4 reg."}
-                      </span>
+                <Card key={emp.id} className="p-4">
+                  {editingId === emp.id ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Nome"
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          value={editCpf}
+                          onChange={(e) => setEditCpf(formatCpf(e.target.value))}
+                          placeholder="CPF"
+                          maxLength={14}
+                          className="flex-1"
+                        />
+                        <select
+                          value={editPunchMode}
+                          onChange={(e) => setEditPunchMode(e.target.value as "full" | "simple")}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="full">4 reg.</option>
+                          <option value="simple">2 reg.</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit}>
+                          <Check className="w-4 h-4 mr-1" /> Salvar
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                          <X className="w-4 h-4 mr-1" /> Cancelar
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteEmployee(emp.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleEmployee(emp)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title={emp.active ? "Desativar" : "Ativar"}
+                        >
+                          {emp.active ? (
+                            <ToggleRight className="w-5 h-5 text-success" />
+                          ) : (
+                            <ToggleLeft className="w-5 h-5" />
+                          )}
+                        </button>
+                        <div>
+                          <span
+                            className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
+                          >
+                            {emp.name}
+                          </span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
+                          </span>
+                          {(emp as any).cpf && (
+                            <p className="text-xs text-muted-foreground">
+                              CPF: {(emp as any).cpf}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReport(emp)}
+                          title="Baixar relatório"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditing(emp)}
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteEmployee(emp.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </Card>
               ))}
               {employees.length === 0 && (
@@ -269,7 +401,7 @@ export default function AdminDashboard() {
                               {formatTime(rec.punched_at)}
                             </span>
                           </div>
-                          {(rec as any).address ? (
+                          {rec.address ? (
                             <span className="text-xs text-muted-foreground flex items-center gap-1 max-w-[180px]">
                               <MapPin className="w-3 h-3 flex-shrink-0" />
                               <a
@@ -278,7 +410,7 @@ export default function AdminDashboard() {
                                 rel="noopener noreferrer"
                                 className="truncate hover:text-foreground transition-colors"
                               >
-                                {(rec as any).address}
+                                {rec.address}
                               </a>
                             </span>
                           ) : rec.latitude && rec.longitude ? (

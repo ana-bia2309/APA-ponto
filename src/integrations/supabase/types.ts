@@ -17,6 +17,7 @@ export type Database = {
       employees: {
         Row: {
           active: boolean
+          cpf: string | null
           created_at: string
           id: string
           name: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          cpf?: string | null
           created_at?: string
           id?: string
           name: string
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          cpf?: string | null
           created_at?: string
           id?: string
           name?: string
