@@ -18,6 +18,7 @@ import {
   Download,
   X,
   Check,
+  Camera,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport } from "@/lib/generateReport";

@@ -8,6 +8,7 @@ import {
   Check,
   MapPin,
   ChevronDown,
+  Camera,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import CameraCapture from "@/components/CameraCapture";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees">;
@@ -57,8 +59,9 @@ export default function TimeClock() {
   const [loading, setLoading] = useState(false);
   const [geoStatus, setGeoStatus] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
-  const STEPS = selectedEmployee && (selectedEmployee as any).punch_mode === "simple"
+  const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
     ? SIMPLE_STEPS
     : ALL_STEPS;
 
@@ -139,11 +142,30 @@ export default function TimeClock() {
     });
   };
 
-  const handlePunch = async () => {
+  const uploadPhoto = async (blob: Blob, employeeId: string): Promise<string | null> => {
+    const fileName = `${employeeId}/${Date.now()}.jpg`;
+    const { error } = await supabase.storage
+      .from("punch-photos")
+      .upload(fileName, blob, { contentType: "image/jpeg" });
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+    const { data: urlData } = supabase.storage
+      .from("punch-photos")
+      .getPublicUrl(fileName);
+    return urlData.publicUrl;
+  };
+
+  const handlePunchWithPhoto = async (photoBlob: Blob) => {
+    setShowCamera(false);
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
     setLoading(true);
     try {
-      const location = await getLocation();
+      const [location, photoUrl] = await Promise.all([
+        getLocation(),
+        uploadPhoto(photoBlob, selectedEmployee.id),
+      ]);
       const step = STEPS[currentStepIndex];
       const { error } = await supabase.from("punch_records").insert({
         employee_id: selectedEmployee.id,
@@ -151,11 +173,12 @@ export default function TimeClock() {
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
         address: location?.address ?? null,
+        photo_url: photoUrl,
       });
       if (error) throw error;
-      toast.success(`${step.label} registrada!`);
+      toast.success(`${step.label} registrada com foto!`);
       fetchTodayRecords(selectedEmployee.id);
-    } catch (err: any) {
+    } catch {
       toast.error("Erro ao registrar ponto");
     } finally {
       setLoading(false);
@@ -189,6 +212,16 @@ export default function TimeClock() {
     const minutes = Math.floor((totalMs % 3600000) / 60000);
     return `${hours.toString().padStart(2, "0")}h ${minutes.toString().padStart(2, "0")}m`;
   };
+
+  // Camera overlay
+  if (showCamera) {
+    return (
+      <CameraCapture
+        onCapture={handlePunchWithPhoto}
+        onCancel={() => setShowCamera(false)}
+      />
+    );
+  }
 
   // Employee selection screen
   if (!selectedEmployee) {
@@ -319,10 +352,16 @@ export default function TimeClock() {
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {formatTime(record.punched_at)}
                       </p>
-                      {(record as any).address && (
+                      {record.address && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 text-success flex-shrink-0" />
-                          <span className="truncate max-w-[200px]">{(record as any).address}</span>
+                          <span className="truncate max-w-[200px]">{record.address}</span>
+                        </p>
+                      )}
+                      {record.photo_url && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Camera className="w-3 h-3 text-success flex-shrink-0" />
+                          <span>Foto registrada ✓</span>
                         </p>
                       )}
                     </div>
@@ -359,7 +398,7 @@ export default function TimeClock() {
       <div className="w-full max-w-md">
         {!allDone ? (
           <Button
-            onClick={handlePunch}
+            onClick={() => setShowCamera(true)}
             size="lg"
             className="w-full h-14 text-base font-semibold shadow-md"
             disabled={loading}
@@ -368,10 +407,7 @@ export default function TimeClock() {
               "Registrando..."
             ) : (
               <>
-                {(() => {
-                  const Icon = STEPS[currentStepIndex].icon;
-                  return <Icon className="w-5 h-5 mr-2" />;
-                })()}
+                <Camera className="w-5 h-5 mr-2" />
                 Registrar {STEPS[currentStepIndex].label}
               </>
             )}
