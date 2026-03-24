@@ -49,6 +49,7 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          photo_url: string | null
           punched_at: string
           step: string
         }
@@ -59,6 +60,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          photo_url?: string | null
           punched_at?: string
           step: string
         }
@@ -69,6 +71,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          photo_url?: string | null
           punched_at?: string
           step?: string
         }
