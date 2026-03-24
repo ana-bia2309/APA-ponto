@@ -392,7 +392,7 @@ export default function AdminDashboard() {
                       {recs.map((rec) => (
                         <div
                           key={rec.id}
-                          className="flex items-center justify-between text-sm"
+                          className="flex items-start justify-between text-sm gap-2"
                         >
                           <div className="flex items-center gap-2">
                             <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs font-medium">
@@ -401,6 +401,17 @@ export default function AdminDashboard() {
                             <span className="text-foreground tabular-nums">
                               {formatTime(rec.punched_at)}
                             </span>
+                            {(rec as any).photo_url && (
+                              <a
+                                href={(rec as any).photo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary/80 transition-colors"
+                                title="Ver foto"
+                              >
+                                <Camera className="w-4 h-4" />
+                              </a>
+                            )}
                           </div>
                           {rec.address ? (
                             <span className="text-xs text-muted-foreground flex items-center gap-1 max-w-[180px]">
