@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      absence_justifications: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          file_url: string | null
+          id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          employee_id: string
+          file_url?: string | null
+          id?: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          file_url?: string | null
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absence_justifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
@@ -40,6 +75,41 @@ export type Database = {
           punch_mode?: string
         }
         Relationships: []
+      }
+      manual_punches: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          punched_at: string
+          reason: string | null
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          punched_at: string
+          reason?: string | null
+          step: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          punched_at?: string
+          reason?: string | null
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_punches_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       punch_records: {
         Row: {
