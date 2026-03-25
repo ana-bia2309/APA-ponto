@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import CameraCapture from "@/components/CameraCapture";
+import ManualPunch from "@/components/ManualPunch";
+import AbsenceJustification from "@/components/AbsenceJustification";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees">;
@@ -60,6 +62,8 @@ export default function TimeClock() {
   const [geoStatus, setGeoStatus] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [showManualPunch, setShowManualPunch] = useState(false);
+  const [showJustification, setShowJustification] = useState(false);
 
   const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
     ? SIMPLE_STEPS
@@ -213,12 +217,32 @@ export default function TimeClock() {
     return `${hours.toString().padStart(2, "0")}h ${minutes.toString().padStart(2, "0")}m`;
   };
 
-  // Camera overlay
+  // Fullscreen overlays
   if (showCamera) {
     return (
       <CameraCapture
         onCapture={handlePunchWithPhoto}
         onCancel={() => setShowCamera(false)}
+      />
+    );
+  }
+
+  if (showManualPunch && selectedEmployee) {
+    return (
+      <ManualPunch
+        employee={selectedEmployee}
+        onClose={() => setShowManualPunch(false)}
+        onSuccess={() => fetchTodayRecords(selectedEmployee.id)}
+      />
+    );
+  }
+
+  if (showJustification && selectedEmployee) {
+    return (
+      <AbsenceJustification
+        employee={selectedEmployee}
+        onClose={() => setShowJustification(false)}
+        onSuccess={() => {}}
       />
     );
   }
@@ -395,7 +419,7 @@ export default function TimeClock() {
       )}
 
       {/* Action button */}
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-3">
         {!allDone ? (
           <Button
             onClick={() => setShowCamera(true)}
@@ -423,6 +447,26 @@ export default function TimeClock() {
             </p>
           </div>
         )}
+
+        {/* Secondary actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-11 text-sm"
+            onClick={() => setShowManualPunch(true)}
+          >
+            <Pencil className="w-4 h-4 mr-1.5" />
+            Ponto Manual
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 h-11 text-sm"
+            onClick={() => setShowJustification(true)}
+          >
+            <FileText className="w-4 h-4 mr-1.5" />
+            Justificativa
+          </Button>
+        </div>
       </div>
     </div>
   );
