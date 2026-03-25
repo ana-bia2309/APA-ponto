@@ -9,6 +9,8 @@ import {
   MapPin,
   ChevronDown,
   Camera,
+  Pencil,
+  FileText,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
