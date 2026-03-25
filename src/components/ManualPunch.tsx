@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, TouchEvent } from "react";
 import { LogIn, Coffee, RotateCcw, LogOut, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
@@ -26,17 +25,71 @@ interface ManualPunchProps {
   onSuccess: () => void;
 }
 
+function ScrollPicker({ value, max, onChange }: { value: number; max: number; onChange: (v: number) => void }) {
+  const touchStartY = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const prev = (value - 1 + max) % max;
+  const next = (value + 1) % max;
+
+  const handleTouchStart = (e: TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const diff = touchStartY.current - e.changedTouches[0].clientY;
+    if (Math.abs(diff) > 20) {
+      onChange(diff > 0 ? next : prev);
+    }
+    touchStartY.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    onChange(e.deltaY > 0 ? next : prev);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex flex-col items-center select-none cursor-ns-resize"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+    >
+      <button
+        type="button"
+        onClick={() => onChange(prev)}
+        className="text-3xl font-light text-muted-foreground/40 tabular-nums h-12 flex items-center"
+      >
+        {prev.toString().padStart(2, "0")}
+      </button>
+      <div className="border-t border-b border-border my-1 py-2">
+        <span className="text-5xl font-bold text-accent tabular-nums">
+          {value.toString().padStart(2, "0")}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(next)}
+        className="text-3xl font-light text-muted-foreground/40 tabular-nums h-12 flex items-center"
+      >
+        {next.toString().padStart(2, "0")}
+      </button>
+    </div>
+  );
+}
+
 export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunchProps) {
   const [selectedStep, setSelectedStep] = useState<PunchStep | null>(null);
-  const [hours, setHours] = useState("00");
-  const [minutes, setMinutes] = useState("00");
+  const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(0);
+  const [nightShift, setNightShift] = useState(false);
   const [remainingCorrections, setRemainingCorrections] = useState(5);
   const [loading, setLoading] = useState(false);
   const [existingTimes, setExistingTimes] = useState<Record<PunchStep, string | null>>({
-    entrada: null,
-    intervalo: null,
-    retorno: null,
-    saida: null,
+    entrada: null, intervalo: null, retorno: null, saida: null,
   });
 
   const STEPS = employee.punch_mode === "simple" ? SIMPLE_STEPS : ALL_STEPS;
@@ -53,14 +106,12 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-
     const { count } = await supabase
       .from("manual_punches")
       .select("*", { count: "exact", head: true })
       .eq("employee_id", employee.id)
       .gte("created_at", startOfMonth)
       .lte("created_at", endOfMonth);
-
     setRemainingCorrections(5 - (count || 0));
   };
 
@@ -72,7 +123,6 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
       .eq("employee_id", employee.id)
       .gte("punched_at", `${todayStr}T00:00:00`)
       .lte("punched_at", `${todayStr}T23:59:59`);
-
     if (data) {
       const times: Record<string, string | null> = { entrada: null, intervalo: null, retorno: null, saida: null };
       data.forEach((r) => {
@@ -87,27 +137,25 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
     setLoading(true);
     try {
       const now = new Date();
-      const punchedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes));
+      const punchedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
 
-      // Insert into manual_punches for tracking the limit
       const { error: manualError } = await supabase.from("manual_punches").insert({
         employee_id: employee.id,
         step: selectedStep,
         punched_at: punchedAt.toISOString(),
-        reason: "Correção manual",
+        reason: nightShift ? "Correção manual (jornada noturna)" : "Correção manual",
       });
       if (manualError) throw manualError;
 
-      // Also insert into punch_records so it shows in timeline
       const { error: punchError } = await supabase.from("punch_records").insert({
         employee_id: employee.id,
         step: selectedStep,
         punched_at: punchedAt.toISOString(),
-        address: "Registro manual",
+        address: nightShift ? "Registro manual (noturno)" : "Registro manual",
       });
       if (punchError) throw punchError;
 
-      toast.success(`${selectedStep} manual registrada às ${hours}:${minutes}`);
+      toast.success(`${selectedStep} manual registrada às ${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`);
       onSuccess();
       onClose();
     } catch {
@@ -117,23 +165,10 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
     }
   };
 
-  const scrollHours = (dir: number) => {
-    let h = (parseInt(hours) + dir + 24) % 24;
-    setHours(h.toString().padStart(2, "0"));
-  };
-
-  const scrollMinutes = (dir: number) => {
-    let m = (parseInt(minutes) + dir + 60) % 60;
-    setMinutes(m.toString().padStart(2, "0"));
-  };
-
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
-      {/* Header */}
       <div className="flex justify-end p-4">
-        <button onClick={onClose} className="text-foreground">
-          <X className="w-6 h-6" />
-        </button>
+        <button onClick={onClose} className="text-foreground"><X className="w-6 h-6" /></button>
       </div>
 
       <div className="flex-1 flex flex-col items-center px-6">
@@ -149,7 +184,6 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
           <>
             <p className="text-sm text-foreground mb-4">qual o tipo e horário do ponto?</p>
 
-            {/* Step selector */}
             <div className="flex gap-4 mb-8">
               {STEPS.map((step) => {
                 const Icon = step.icon;
@@ -170,30 +204,26 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
               })}
             </div>
 
-            {/* Time picker */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="flex flex-col items-center">
-                <button onClick={() => scrollHours(1)} className="text-muted-foreground hover:text-foreground p-2">
-                  <div className="w-16 border-t border-border" />
-                </button>
-                <span className="text-5xl font-bold text-accent tabular-nums">{hours}</span>
-                <button onClick={() => scrollHours(-1)} className="text-muted-foreground hover:text-foreground p-2">
-                  <div className="w-16 border-t border-border" />
-                </button>
-              </div>
+            {/* Scroll wheel time picker */}
+            <div className="flex items-center gap-6 mb-6">
+              <ScrollPicker value={hours} max={24} onChange={setHours} />
               <span className="text-5xl font-bold text-accent">:</span>
-              <div className="flex flex-col items-center">
-                <button onClick={() => scrollMinutes(1)} className="text-muted-foreground hover:text-foreground p-2">
-                  <div className="w-16 border-t border-border" />
-                </button>
-                <span className="text-5xl font-bold text-accent tabular-nums">{minutes}</span>
-                <button onClick={() => scrollMinutes(-1)} className="text-muted-foreground hover:text-foreground p-2">
-                  <div className="w-16 border-t border-border" />
-                </button>
-              </div>
+              <ScrollPicker value={minutes} max={60} onChange={setMinutes} />
             </div>
 
-            {/* Remaining corrections */}
+            {/* Night shift toggle */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-sm font-semibold text-foreground">jornada noturna</span>
+              <button
+                onClick={() => setNightShift(!nightShift)}
+                className={`relative w-12 h-7 rounded-full transition-colors ${nightShift ? "bg-destructive" : "bg-muted"}`}
+              >
+                <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-background shadow transition-transform ${nightShift ? "left-[calc(100%-1.625rem)]" : "left-0.5"}`}>
+                  {nightShift && <X className="w-4 h-4 text-destructive absolute top-1 left-1" />}
+                </span>
+              </button>
+            </div>
+
             <p className="text-sm text-muted-foreground mb-4">
               Correções restantes: <span className="font-semibold text-foreground">{remainingCorrections}/5</span>
             </p>
@@ -201,11 +231,8 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex border-t border-border">
-        <button onClick={onClose} className="flex-1 py-4 text-destructive font-medium text-center">
-          Voltar
-        </button>
+        <button onClick={onClose} className="flex-1 py-4 text-destructive font-medium text-center">Voltar</button>
         <button
           onClick={handleConfirm}
           disabled={!selectedStep || loading || remainingCorrections <= 0}
