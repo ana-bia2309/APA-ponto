@@ -324,7 +324,7 @@ export default function AdminDashboard() {
                           </span>
                           {(emp as any).cpf && (
                             <p className="text-xs text-muted-foreground">
-                              CPF: {(emp as any).cpf}
+                              CPF: {(emp as any).cpf.replace(/^(\d{3})\.\d{3}\.\d{3}-(\d{2})$/, "$1.***.***-$2").replace(/^(\d{3})\d{6}(\d{2})$/, "$1******$2")}
                             </p>
                           )}
                         </div>
