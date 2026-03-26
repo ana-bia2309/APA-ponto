@@ -66,6 +66,9 @@ export default function TimeClock() {
   const [showCamera, setShowCamera] = useState(false);
   const [showManualPunch, setShowManualPunch] = useState(false);
   const [showJustification, setShowJustification] = useState(false);
+  const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
+  const [cpfInput, setCpfInput] = useState("");
+  const [cpfError, setCpfError] = useState("");
 
   const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
     ? SIMPLE_STEPS
@@ -271,8 +274,14 @@ export default function TimeClock() {
               variant="outline"
               className="w-full h-14 text-base justify-start"
               onClick={() => {
-                setSelectedEmployee(emp);
-                setShowDropdown(false);
+                if (!emp.cpf) {
+                  setSelectedEmployee(emp);
+                  setShowDropdown(false);
+                } else {
+                  setPendingEmployee(emp);
+                  setCpfInput("");
+                  setCpfError("");
+                }
               }}
             >
               {emp.name}
