@@ -53,10 +53,14 @@ export async function generateMonthlyReport(
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Header
-  const monthLabel = `${MONTHS[month - 1]} ${year}`;
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(monthLabel, pageWidth / 2, 20, { align: "center" });
+  doc.text("APA Ponto - Refrigeração e Climatização", pageWidth / 2, 15, { align: "center" });
+
+  const monthLabel = `${MONTHS[month - 1]} ${year}`;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text(monthLabel, pageWidth / 2, 22, { align: "center" });
 
   doc.setFontSize(12);
   doc.text(employee.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
