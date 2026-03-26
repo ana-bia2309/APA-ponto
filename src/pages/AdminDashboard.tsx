@@ -452,6 +452,8 @@ export default function AdminDashboard() {
             )}
           </>
         )}
+
+        {tab === "justifications" && <JustificationsTab />}
       </div>
     </div>
   );
