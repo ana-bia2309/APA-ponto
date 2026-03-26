@@ -282,7 +282,7 @@ export default function TimeClock() {
           <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
           <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Clock className="w-4 h-4" />
-            Verificação de Identidade
+            APA Ponto
           </div>
           <p className="text-xl font-bold text-foreground mb-1">{pendingEmployee.name}</p>
           <p className="text-sm text-muted-foreground">Informe seu CPF para continuar</p>
@@ -326,8 +326,9 @@ export default function TimeClock() {
           <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
           <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Clock className="w-4 h-4" />
-            Registro de Ponto
+            APA Ponto
           </div>
+          <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
           <p className="text-2xl font-bold text-foreground">
             Selecione seu nome
           </p>
@@ -371,8 +372,9 @@ export default function TimeClock() {
         <img src={logo} alt="Logo" className="w-14 h-14 object-contain mb-2" />
         <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
           <Clock className="w-4 h-4" />
-          Registro de Ponto
+          APA Ponto
         </div>
+        <p className="text-xs text-muted-foreground -mt-2 mb-2">Refrigeração e Climatização</p>
         <p className="text-5xl font-bold tracking-tight text-foreground tabular-nums">
           {formatTime(now)}
         </p>

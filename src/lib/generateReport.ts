@@ -53,18 +53,23 @@ export async function generateMonthlyReport(
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Header
-  const monthLabel = `${MONTHS[month - 1]} ${year}`;
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(monthLabel, pageWidth / 2, 20, { align: "center" });
+  doc.text("APA Ponto - Refrigeração e Climatização", pageWidth / 2, 15, { align: "center" });
+
+  const monthLabel = `${MONTHS[month - 1]} ${year}`;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text(monthLabel, pageWidth / 2, 22, { align: "center" });
 
   doc.setFontSize(12);
-  doc.text(employee.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text(employee.name.toUpperCase(), pageWidth / 2, 32, { align: "center" });
 
   if ((employee as any).cpf) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`CPF: ${(employee as any).cpf}`, pageWidth / 2, 36, { align: "center" });
+    doc.text(`CPF: ${(employee as any).cpf}`, pageWidth / 2, 38, { align: "center" });
   }
 
   // Build table data
@@ -79,7 +84,7 @@ export async function generateMonthlyReport(
     tableBody.push([String(day).padStart(2, "0"), ...cols, jornada]);
   }
 
-  const startY = (employee as any).cpf ? 42 : 36;
+  const startY = (employee as any).cpf ? 44 : 38;
 
   autoTable(doc, {
     head: tableHead,
