@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport } from "@/lib/generateReport";
+import JustificationsTab from "@/components/admin/JustificationsTab";
 
 type Employee = Tables<"employees">;
 type PunchRecord = Tables<"punch_records"> & { employees?: { name: string } };
@@ -43,7 +44,7 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const [tab, setTab] = useState<"employees" | "records">("employees");
+  const [tab, setTab] = useState<"employees" | "records" | "justifications">("employees");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
@@ -218,6 +219,13 @@ export default function AdminDashboard() {
             onClick={() => setTab("records")}
           >
             <Clock className="w-4 h-4 mr-1" /> Registros
+          </Button>
+          <Button
+            variant={tab === "justifications" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("justifications")}
+          >
+            <Download className="w-4 h-4 mr-1" /> Atestados
           </Button>
         </div>
 
