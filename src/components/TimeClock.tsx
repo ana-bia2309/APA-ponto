@@ -252,6 +252,72 @@ export default function TimeClock() {
     );
   }
 
+  const formatCpfInput = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
+
+  const verifyCpf = () => {
+    if (!pendingEmployee) return;
+    const inputDigits = cpfInput.replace(/\D/g, "");
+    const storedDigits = (pendingEmployee.cpf || "").replace(/\D/g, "");
+    if (inputDigits === storedDigits) {
+      setSelectedEmployee(pendingEmployee);
+      setPendingEmployee(null);
+      setCpfInput("");
+      setCpfError("");
+    } else {
+      setCpfError("CPF incorreto. Tente novamente.");
+    }
+  };
+
+  // CPF verification screen
+  if (pendingEmployee) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <div className="text-center mb-8">
+          <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
+          <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+            <Clock className="w-4 h-4" />
+            Verificação de Identidade
+          </div>
+          <p className="text-xl font-bold text-foreground mb-1">{pendingEmployee.name}</p>
+          <p className="text-sm text-muted-foreground">Informe seu CPF para continuar</p>
+        </div>
+        <div className="w-full max-w-sm space-y-4">
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            value={cpfInput}
+            onChange={(e) => {
+              setCpfInput(formatCpfInput(e.target.value));
+              setCpfError("");
+            }}
+            onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
+            className="flex h-14 w-full rounded-md border border-input bg-background px-4 py-2 text-lg text-center tracking-widest ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+          {cpfError && (
+            <p className="text-sm text-destructive text-center font-medium">{cpfError}</p>
+          )}
+          <Button onClick={verifyCpf} size="lg" className="w-full h-14 text-base font-semibold">
+            Confirmar
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => { setPendingEmployee(null); setCpfInput(""); setCpfError(""); }}
+          >
+            Voltar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Employee selection screen
   if (!selectedEmployee) {
     return (
