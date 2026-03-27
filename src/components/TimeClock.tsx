@@ -328,9 +328,19 @@ export default function TimeClock() {
   const autoLogout = () => {
     setTimeout(() => {
       setShowSuccess(false);
+      setSuccessMessage("");
       setSelectedEmployee(null);
       setSelectedShift(null);
       setRecords([]);
+      setPendingEmployee(null);
+      setCpfInput("");
+      setCpfError("");
+      setGeoStatus("");
+      setShowConfirm(false);
+      setShowHistory(false);
+      setHistoryRecords([]);
+      setShowDropdown(false);
+      setLoading(false);
     }, 3000);
   };
 
