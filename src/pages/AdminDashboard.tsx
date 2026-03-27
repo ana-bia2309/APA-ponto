@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,135 +6,53 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
-  LogOut,
-  Plus,
-  Trash2,
-  Users,
-  Clock,
-  MapPin,
-  ToggleLeft,
-  ToggleRight,
-  Pencil,
-  Download,
-  X,
-  Check,
-  Camera,
-  Sun,
-  Moon,
-  Activity,
+  LogOut, Plus, Trash2, Users, Clock, ToggleLeft, ToggleRight,
+  Pencil, Download, X, Check, Sun, Moon, Activity, FileText, Shield,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import JustificationsTab from "@/components/admin/JustificationsTab";
 import DashboardTab from "@/components/admin/DashboardTab";
-import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
+import RecordsTab from "@/components/admin/RecordsTab";
+import AuditTab from "@/components/admin/AuditTab";
 
 type Employee = Tables<"employees">;
-type PunchRecord = DisplayPunchRecord & { employees?: { name: string } };
-
-const STEP_LABELS: Record<string, string> = {
-  entrada: "Entrada",
-  intervalo: "Intervalo",
-  retorno: "Retorno",
-  saida: "Saída",
-};
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [records, setRecords] = useState<PunchRecord[]>([]);
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit">("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
-  const [reportMonth, setReportMonth] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [authReady, setAuthReady] = useState(false);
 
+  // Auth check with proper loading
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) navigate("/admin/login");
-    };
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!session) navigate("/admin/login");
-      }
-    );
+      else setAuthReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) navigate("/admin/login");
+    });
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  useEffect(() => {
-    fetchRecords();
-  }, [selectedDate]);
+    if (authReady) fetchEmployees();
+  }, [authReady]);
 
   const fetchEmployees = async () => {
-    const { data } = await supabase
-      .from("employees")
-      .select("*")
-      .order("name");
+    const { data } = await supabase.from("employees").select("*").order("name");
     if (data) setEmployees(data);
-  };
-
-  const fetchRecords = async () => {
-    const startOfDay = `${selectedDate}T00:00:00.000Z`;
-    const endOfDay = `${selectedDate}T23:59:59.999Z`;
-
-    // Fetch time_records
-    const { data, error } = await (supabase as any)
-      .from("time_records")
-      .select("*, employees(name)")
-      .gte("recorded_at", startOfDay)
-      .lte("recorded_at", endOfDay)
-      .order("recorded_at", { ascending: true });
-
-    // Fetch punch_records for photos and addresses
-    const { data: punchData } = await (supabase as any)
-      .from("punch_records")
-      .select("employee_id, step, photo_url, address, punched_at")
-      .gte("punched_at", startOfDay)
-      .lte("punched_at", endOfDay);
-
-    if (error) {
-      console.error("Erro ao buscar registros:", error);
-    }
-    if (data) {
-      const mapped = (data as TimeRecordRow[]).map((record) => {
-        const display = mapTimeRecordToPunchRecord(record);
-        // Try to find matching punch_record for photo/address
-        if (punchData) {
-          const match = (punchData as any[]).find(
-            (p: any) =>
-              p.employee_id === record.employee_id &&
-              p.step === record.record_type &&
-              Math.abs(new Date(p.punched_at).getTime() - new Date(record.recorded_at).getTime()) < 60000
-          );
-          if (match) {
-            display.photo_url = match.photo_url || null;
-            display.address = match.address || null;
-          }
-        }
-        return display;
-      });
-      setRecords(mapped as PunchRecord[]);
-    }
   };
 
   const addEmployee = async (e: React.FormEvent) => {
@@ -143,16 +61,10 @@ export default function AdminDashboard() {
     const { error } = await supabase
       .from("employees")
       .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift } as any);
-    if (error) {
-      toast.error("Erro ao adicionar funcionário");
-    } else {
-      toast.success("Funcionário adicionado!");
-      setNewName("");
-      setNewCpf("");
-      setNewPunchMode("full");
-      setNewShift("diurno");
-      fetchEmployees();
-    }
+    if (error) { toast.error("Erro ao adicionar funcionário"); return; }
+    toast.success("Funcionário adicionado!");
+    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno");
+    fetchEmployees();
   };
 
   const startEditing = (emp: Employee) => {
@@ -169,44 +81,49 @@ export default function AdminDashboard() {
       .from("employees")
       .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift } as any)
       .eq("id", editingId);
-    if (error) {
-      toast.error("Erro ao atualizar");
-    } else {
-      toast.success("Atualizado!");
-      setEditingId(null);
-      fetchEmployees();
-    }
+    if (error) { toast.error("Erro ao atualizar"); return; }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("audit_logs").insert({
+      admin_user_id: user?.id, action: "update_employee", target_type: "employees",
+      target_id: editingId, details: { name: editName.trim() },
+    } as any);
+
+    toast.success("Atualizado!");
+    setEditingId(null);
+    fetchEmployees();
   };
 
   const toggleEmployee = async (emp: Employee) => {
-    await supabase
-      .from("employees")
-      .update({ active: !emp.active })
-      .eq("id", emp.id);
+    await supabase.from("employees").update({ active: !emp.active }).eq("id", emp.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("audit_logs").insert({
+      admin_user_id: user?.id, action: "toggle_employee", target_type: "employees",
+      target_id: emp.id, details: { name: emp.name, active: !emp.active },
+    } as any);
     fetchEmployees();
   };
 
   const deleteEmployee = async (id: string) => {
     if (!confirm("Tem certeza? Os registros de ponto serão excluídos.")) return;
     try {
-      // Delete related records first to avoid foreign key constraint errors
+      const emp = employees.find(e => e.id === id);
       await supabase.from("time_records").delete().eq("employee_id", id);
       await supabase.from("punch_records").delete().eq("employee_id", id);
       await supabase.from("manual_punches").delete().eq("employee_id", id);
       await supabase.from("absence_justifications").delete().eq("employee_id", id);
       const { error } = await supabase.from("employees").delete().eq("id", id);
-      if (error) {
-        console.error("Erro ao excluir funcionário:", error);
-        toast.error("Erro ao excluir funcionário: " + error.message);
-        return;
-      }
-      toast.success("Funcionário excluído com sucesso!");
+      if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("audit_logs").insert({
+        admin_user_id: user?.id, action: "delete_employee", target_type: "employees",
+        target_id: id, details: { name: emp?.name },
+      } as any);
+
+      toast.success("Funcionário excluído!");
       fetchEmployees();
-      fetchRecords();
-    } catch (err: any) {
-      console.error("Erro ao excluir:", err);
-      toast.error("Erro ao excluir funcionário.");
-    }
+    } catch { toast.error("Erro ao excluir funcionário."); }
   };
 
   const logout = async () => {
@@ -214,45 +131,39 @@ export default function AdminDashboard() {
     navigate("/admin/login");
   };
 
-  const formatTime = (dateStr: string) =>
-    new Date(dateStr).toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
   const formatCpf = (cpf: string) => {
     const digits = cpf.replace(/\D/g, "").slice(0, 11);
-    return digits
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
   const handleDownloadReport = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
     const [year, month] = reportMonth.split("-").map(Number);
     toast.info("Gerando relatório...");
     try {
-      if (format === "excel") {
-        await generateMonthlyExcel(emp, year, month);
-      } else {
-        await generateMonthlyReport(emp, year, month);
-      }
+      if (format === "excel") await generateMonthlyExcel(emp, year, month);
+      else await generateMonthlyReport(emp, year, month);
       toast.success("Relatório baixado!");
-    } catch {
-      toast.error("Erro ao gerar relatório");
-    }
+    } catch { toast.error("Erro ao gerar relatório"); }
   };
 
-  // Group records by employee
-  const groupedRecords = records.reduce(
-    (acc, record) => {
-      const name = record.employees?.name || "Desconhecido";
-      if (!acc[name]) acc[name] = [];
-      acc[name].push(record);
-      return acc;
-    },
-    {} as Record<string, PunchRecord[]>
-  );
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Carregando painel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { key: "dashboard" as const, label: "Dashboard", icon: Activity },
+    { key: "employees" as const, label: "Funcionários", icon: Users },
+    { key: "records" as const, label: "Registros", icon: Clock },
+    { key: "justifications" as const, label: "Atestados", icon: FileText },
+    { key: "audit" as const, label: "Auditoria", icon: Shield },
+  ];
 
   return (
     <div className="min-h-screen bg-background px-4 py-6">
@@ -266,74 +177,38 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <Button
-            variant={tab === "dashboard" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("dashboard")}
-          >
-            <Activity className="w-4 h-4 mr-1" /> Dashboard
-          </Button>
-          <Button
-            variant={tab === "employees" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("employees")}
-          >
-            <Users className="w-4 h-4 mr-1" /> Funcionários
-          </Button>
-          <Button
-            variant={tab === "records" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("records")}
-          >
-            <Clock className="w-4 h-4 mr-1" /> Registros
-          </Button>
-          <Button
-            variant={tab === "justifications" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("justifications")}
-          >
-            <Download className="w-4 h-4 mr-1" /> Atestados
-          </Button>
+        <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
+          {tabs.map((t) => (
+            <Button key={t.key} variant={tab === t.key ? "default" : "outline"} size="sm"
+              onClick={() => setTab(t.key)} className="flex-shrink-0">
+              <t.icon className="w-4 h-4 mr-1" /> {t.label}
+            </Button>
+          ))}
         </div>
 
         {tab === "dashboard" && <DashboardTab />}
+        {tab === "records" && <RecordsTab employees={employees} />}
+        {tab === "justifications" && <JustificationsTab />}
+        {tab === "audit" && <AuditTab />}
 
         {tab === "employees" && (
           <>
             <form onSubmit={addEmployee} className="space-y-2 mb-4">
               <div className="flex gap-2">
-                <Input
-                  placeholder="Nome do funcionário"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="flex-1"
-                />
-                <Button type="submit">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                <Input placeholder="Nome do funcionário" value={newName}
+                  onChange={(e) => setNewName(e.target.value)} className="flex-1" />
+                <Button type="submit"><Plus className="w-4 h-4" /></Button>
               </div>
               <div className="flex gap-2">
-                <Input
-                  placeholder="CPF (opcional)"
-                  value={newCpf}
-                  onChange={(e) => setNewCpf(formatCpf(e.target.value))}
-                  className="flex-1"
-                  maxLength={14}
-                />
-                <select
-                  value={newPunchMode}
-                  onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                >
+                <Input placeholder="CPF (opcional)" value={newCpf}
+                  onChange={(e) => setNewCpf(formatCpf(e.target.value))} className="flex-1" maxLength={14} />
+                <select value={newPunchMode} onChange={(e) => setNewPunchMode(e.target.value as any)}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="full">4 reg.</option>
                   <option value="simple">2 reg.</option>
                 </select>
-                <select
-                  value={newShift}
-                  onChange={(e) => setNewShift(e.target.value as "diurno" | "noturno")}
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                >
+                <select value={newShift} onChange={(e) => setNewShift(e.target.value as any)}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="diurno">☀ Diurno</option>
                   <option value="noturno">🌙 Noturno</option>
                 </select>
@@ -342,12 +217,7 @@ export default function AdminDashboard() {
 
             {/* Report download */}
             <div className="flex items-center gap-2 mb-4">
-              <Input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="w-40"
-              />
+              <Input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-40" />
               <span className="text-xs text-muted-foreground">Relatório mensal</span>
             </div>
 
@@ -356,40 +226,23 @@ export default function AdminDashboard() {
                 <Card key={emp.id} className="p-4">
                   {editingId === emp.id ? (
                     <div className="space-y-2">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Nome"
-                      />
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
                       <div className="flex gap-2">
-                        <Input
-                          value={editCpf}
-                          onChange={(e) => setEditCpf(formatCpf(e.target.value))}
-                          placeholder="CPF"
-                          maxLength={14}
-                          className="flex-1"
-                        />
-                        <select
-                          value={editPunchMode}
-                          onChange={(e) => setEditPunchMode(e.target.value as "full" | "simple")}
-                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        >
+                        <Input value={editCpf} onChange={(e) => setEditCpf(formatCpf(e.target.value))}
+                          placeholder="CPF" maxLength={14} className="flex-1" />
+                        <select value={editPunchMode} onChange={(e) => setEditPunchMode(e.target.value as any)}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                           <option value="full">4 reg.</option>
                           <option value="simple">2 reg.</option>
                         </select>
-                        <select
-                          value={editShift}
-                          onChange={(e) => setEditShift(e.target.value as "diurno" | "noturno")}
-                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        >
+                        <select value={editShift} onChange={(e) => setEditShift(e.target.value as any)}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                           <option value="diurno">☀ Diurno</option>
                           <option value="noturno">🌙 Noturno</option>
                         </select>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit}>
-                          <Check className="w-4 h-4 mr-1" /> Salvar
-                        </Button>
+                        <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" /> Salvar</Button>
                         <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
                           <X className="w-4 h-4 mr-1" /> Cancelar
                         </Button>
@@ -398,21 +251,13 @@ export default function AdminDashboard() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => toggleEmployee(emp)}
+                        <button onClick={() => toggleEmployee(emp)}
                           className="text-muted-foreground hover:text-foreground transition-colors"
-                          title={emp.active ? "Desativar" : "Ativar"}
-                        >
-                          {emp.active ? (
-                            <ToggleRight className="w-5 h-5 text-success" />
-                          ) : (
-                            <ToggleLeft className="w-5 h-5" />
-                          )}
+                          title={emp.active ? "Desativar" : "Ativar"}>
+                          {emp.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
                         </button>
                         <div>
-                          <span
-                            className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}
-                          >
+                          <span className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}>
                             {emp.name}
                           </span>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -420,11 +265,7 @@ export default function AdminDashboard() {
                               {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                              {(emp as any).shift === "noturno" ? (
-                                <><Moon className="w-3 h-3" /> Noturno</>
-                              ) : (
-                                <><Sun className="w-3 h-3" /> Diurno</>
-                              )}
+                              {(emp as any).shift === "noturno" ? <><Moon className="w-3 h-3" /> Noturno</> : <><Sun className="w-3 h-3" /> Diurno</>}
                             </span>
                           </div>
                           {(emp as any).cpf && (
@@ -435,37 +276,18 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadReport(emp, "pdf")}
-                          title="Baixar PDF"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(emp, "pdf")} title="PDF">
                           <Download className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadReport(emp, "excel")}
-                          title="Baixar Excel"
-                          className="text-green-500 hover:text-green-400"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(emp, "excel")} title="Excel"
+                          className="text-emerald-500 hover:text-emerald-400">
                           <Download className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEditing(emp)}
-                          title="Editar"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteEmployee(emp.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => deleteEmployee(emp.id)}
+                          className="text-destructive hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -474,99 +296,11 @@ export default function AdminDashboard() {
                 </Card>
               ))}
               {employees.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum funcionário cadastrado
-                </p>
+                <p className="text-center text-muted-foreground py-8">Nenhum funcionário cadastrado</p>
               )}
             </div>
           </>
         )}
-
-        {tab === "records" && (
-          <>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="mb-4 w-48"
-            />
-
-            {Object.keys(groupedRecords).length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum registro nesta data
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(groupedRecords).map(([name, recs]) => (
-                  <Card key={name} className="p-4">
-                    <h3 className="font-semibold text-foreground mb-3">
-                      {name}
-                    </h3>
-                    <div className="space-y-2">
-                      {recs.map((rec) => (
-                        <div
-                          key={rec.id}
-                          className="flex items-start justify-between text-sm gap-2"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs font-medium">
-                              {STEP_LABELS[rec.step] || rec.step}
-                            </span>
-                            <span className="text-foreground tabular-nums">
-                              {formatTime(rec.punched_at)}
-                            </span>
-                            {(rec as any).photo_url && (
-                              <button
-                                onClick={async () => {
-                                  const path = (rec as any).photo_url;
-                                  const { data } = await supabase.storage
-                                    .from("punch-photos")
-                                    .createSignedUrl(path, 300);
-                                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                                }}
-                                className="text-primary hover:text-primary/80 transition-colors"
-                                title="Ver foto"
-                              >
-                                <Camera className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                          {rec.address ? (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1 max-w-[180px]">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <a
-                                href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="truncate hover:text-foreground transition-colors"
-                              >
-                                {rec.address}
-                              </a>
-                            </span>
-                          ) : rec.latitude && rec.longitude ? (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <a
-                                href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-foreground transition-colors"
-                              >
-                                {rec.latitude.toFixed(4)}, {rec.longitude.toFixed(4)}
-                              </a>
-                            </span>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "justifications" && <JustificationsTab />}
       </div>
     </div>
   );

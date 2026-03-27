@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, FileText, Eye, Calendar, User, CheckCircle, XCircle, MessageSquare } from "lucide-react";
+import { Download, FileText, Eye, Calendar, User, CheckCircle, XCircle, MessageSquare, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,6 +17,7 @@ interface Justification {
   created_at: string;
   status: string;
   admin_notes: string | null;
+  reviewed_at: string | null;
   employees?: { name: string };
 }
 
@@ -30,36 +31,53 @@ export default function JustificationsTab() {
   const [justifications, setJustifications] = useState<Justification[]>([]);
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [notesId, setNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchJustifications();
+  const fetchJustifications = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const startDate = `${filterMonth}-01`;
+      const [year, month] = filterMonth.split("-").map(Number);
+      const endDate = new Date(year, month, 0).toISOString().split("T")[0];
+
+      const { data, error } = await supabase
+        .from("absence_justifications")
+        .select("*, employees(name)")
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: false });
+
+      if (error) throw error;
+      setJustifications((data as unknown as Justification[]) || []);
+    } catch (err: any) {
+      setError(err?.message || "Erro ao carregar atestados");
+    } finally {
+      setLoading(false);
+    }
   }, [filterMonth]);
 
-  const fetchJustifications = async () => {
-    const startDate = `${filterMonth}-01`;
-    const [year, month] = filterMonth.split("-").map(Number);
-    const endDate = new Date(year, month, 0).toISOString().split("T")[0];
-
-    const { data, error } = await supabase
-      .from("absence_justifications")
-      .select("*, employees(name)")
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .order("date", { ascending: false });
-
-    if (error) {
-      toast.error("Erro ao carregar atestados");
-    } else {
-      setJustifications((data as unknown as Justification[]) || []);
-    }
-  };
+  useEffect(() => { fetchJustifications(); }, [fetchJustifications]);
 
   const updateStatus = async (id: string, status: string, notes?: string) => {
+    if (status === "desaprovado" && (!notes || !notes.trim())) {
+      toast.error("Observação obrigatória ao desaprovar");
+      return;
+    }
+
     setActionLoading(id);
-    const updateData: any = { status };
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const updateData: any = {
+      status,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: user?.id || null,
+    };
     if (notes !== undefined) updateData.admin_notes = notes;
 
     const { error } = await supabase
@@ -70,6 +88,16 @@ export default function JustificationsTab() {
     if (error) {
       toast.error("Erro ao atualizar status");
     } else {
+      // Audit log
+      const j = justifications.find(j => j.id === id);
+      await supabase.from("audit_logs").insert({
+        admin_user_id: user?.id,
+        action: status === "aprovado" ? "approve_justification" : "reject_justification",
+        target_type: "absence_justifications",
+        target_id: id,
+        details: { employee_name: j?.employees?.name, notes: notes || null },
+      } as any);
+
       toast.success(status === "aprovado" ? "Atestado aprovado!" : "Atestado desaprovado!");
       setNotesId(null);
       setNotesText("");
@@ -78,14 +106,16 @@ export default function JustificationsTab() {
     setActionLoading(null);
   };
 
-  const filtered = filterEmployee
+  let filtered = filterEmployee
     ? justifications.filter((j) =>
-        (j.employees?.name || "").toLowerCase().includes(filterEmployee.toLowerCase())
-      )
+        (j.employees?.name || "").toLowerCase().includes(filterEmployee.toLowerCase()))
     : justifications;
 
-  const pendingCount = filtered.filter((j) => j.status === "pendente").length;
+  if (filterStatus !== "all") {
+    filtered = filtered.filter((j) => j.status === filterStatus);
+  }
 
+  const pendingCount = justifications.filter((j) => j.status === "pendente").length;
   const formatDate = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
   const getSignedUrl = async (filePath: string): Promise<string | null> => {
@@ -114,28 +144,41 @@ export default function JustificationsTab() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <AlertTriangle className="w-8 h-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">{error}</p>
+        <Button variant="outline" size="sm" onClick={fetchJustifications}>
+          <RefreshCw className="w-4 h-4 mr-1" /> Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Input
-            type="month"
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-40"
-          />
+          <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-40" />
         </div>
-        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2 flex-1 min-w-[150px]">
           <User className="w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Filtrar por funcionário"
-            value={filterEmployee}
-            onChange={(e) => setFilterEmployee(e.target.value)}
-            className="flex-1"
-          />
+          <Input placeholder="Filtrar funcionário" value={filterEmployee}
+            onChange={(e) => setFilterEmployee(e.target.value)} className="flex-1" />
         </div>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+          <option value="all">Todos</option>
+          <option value="pendente">Pendentes</option>
+          <option value="aprovado">Aprovados</option>
+          <option value="desaprovado">Desaprovados</option>
+        </select>
+        <Button variant="ghost" size="sm" onClick={fetchJustifications}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Summary */}
@@ -147,7 +190,13 @@ export default function JustificationsTab() {
       </div>
 
       {/* List */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-4 animate-pulse"><div className="h-16 bg-muted rounded" /></Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">Nenhum atestado neste período</p>
       ) : (
         <div className="space-y-3">
@@ -174,10 +223,15 @@ export default function JustificationsTab() {
                         <MessageSquare className="w-3 h-3" /> {j.admin_notes}
                       </p>
                     )}
+                    {j.reviewed_at && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Analisado em {new Date(j.reviewed_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {j.file_url && (
+                    {j.file_url ? (
                       <>
                         <Button variant="ghost" size="sm" title="Visualizar" onClick={async () => {
                           const url = await getSignedUrl(j.file_url!);
@@ -192,8 +246,7 @@ export default function JustificationsTab() {
                           <Download className="w-4 h-4" />
                         </Button>
                       </>
-                    )}
-                    {!j.file_url && (
+                    ) : (
                       <span className="text-xs text-muted-foreground italic flex items-center gap-1">
                         <FileText className="w-3 h-3" /> Sem anexo
                       </span>
@@ -206,61 +259,30 @@ export default function JustificationsTab() {
                   <div className="mt-3 pt-3 border-t border-border">
                     {!isExpanded ? (
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => updateStatus(j.id, "aprovado")}
-                          disabled={actionLoading === j.id}
-                          className="gap-1"
-                        >
+                        <Button size="sm" onClick={() => updateStatus(j.id, "aprovado")}
+                          disabled={actionLoading === j.id} className="gap-1">
                           <CheckCircle className="w-4 h-4" /> Aprovar
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => updateStatus(j.id, "desaprovado")}
-                          disabled={actionLoading === j.id}
-                          className="gap-1"
-                        >
-                          <XCircle className="w-4 h-4" /> Desaprovar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { setNotesId(j.id); setNotesText(""); }}
-                          className="gap-1"
-                        >
+                        <Button size="sm" variant="outline"
+                          onClick={() => { setNotesId(j.id); setNotesText(""); }} className="gap-1">
                           <MessageSquare className="w-4 h-4" /> Com observação
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <Textarea
-                          placeholder="Observação do administrador..."
-                          value={notesText}
-                          onChange={(e) => setNotesText(e.target.value)}
-                          rows={2}
-                        />
+                        <Textarea placeholder="Observação (obrigatória para desaprovar)..."
+                          value={notesText} onChange={(e) => setNotesText(e.target.value)} rows={2} />
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => updateStatus(j.id, "aprovado", notesText)}
-                            disabled={actionLoading === j.id}
-                            className="gap-1"
-                          >
+                          <Button size="sm" onClick={() => updateStatus(j.id, "aprovado", notesText)}
+                            disabled={actionLoading === j.id} className="gap-1">
                             <CheckCircle className="w-4 h-4" /> Aprovar
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
+                          <Button size="sm" variant="destructive"
                             onClick={() => updateStatus(j.id, "desaprovado", notesText)}
-                            disabled={actionLoading === j.id}
-                            className="gap-1"
-                          >
+                            disabled={actionLoading === j.id} className="gap-1">
                             <XCircle className="w-4 h-4" /> Desaprovar
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setNotesId(null)}>
-                            Cancelar
-                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setNotesId(null)}>Cancelar</Button>
                         </div>
                       </div>
                     )}
