@@ -11,8 +11,8 @@ import {
   Camera,
   Pencil,
   FileText,
-  Sun,
-  Moon,
+
+
   ArrowLeft,
   WifiOff,
   Wifi,
