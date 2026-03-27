@@ -21,6 +21,7 @@ import {
   Camera,
   Sun,
   Moon,
+  Activity,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
