@@ -19,6 +19,8 @@ import {
   X,
   Check,
   Camera,
+  Sun,
+  Moon,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport } from "@/lib/generateReport";
@@ -41,6 +43,7 @@ export default function AdminDashboard() {
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
+  const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -49,6 +52,7 @@ export default function AdminDashboard() {
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
+  const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
   const [reportMonth, setReportMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
@@ -103,7 +107,7 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null } as any);
+      .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift } as any);
     if (error) {
       toast.error("Erro ao adicionar funcionário");
     } else {
@@ -111,6 +115,7 @@ export default function AdminDashboard() {
       setNewName("");
       setNewCpf("");
       setNewPunchMode("full");
+      setNewShift("diurno");
       fetchEmployees();
     }
   };
@@ -120,13 +125,14 @@ export default function AdminDashboard() {
     setEditName(emp.name);
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
+    setEditShift((emp as any).shift === "noturno" ? "noturno" : "diurno");
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode } as any)
+      .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift } as any)
       .eq("id", editingId);
     if (error) {
       toast.error("Erro ao atualizar");
@@ -239,6 +245,18 @@ export default function AdminDashboard() {
                   onChange={(e) => setNewName(e.target.value)}
                   className="flex-1"
                 />
+                <Button type="submit">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="CPF (opcional)"
+                  value={newCpf}
+                  onChange={(e) => setNewCpf(formatCpf(e.target.value))}
+                  className="flex-1"
+                  maxLength={14}
+                />
                 <select
                   value={newPunchMode}
                   onChange={(e) => setNewPunchMode(e.target.value as "full" | "simple")}
@@ -247,17 +265,15 @@ export default function AdminDashboard() {
                   <option value="full">4 reg.</option>
                   <option value="simple">2 reg.</option>
                 </select>
-                <Button type="submit">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                <select
+                  value={newShift}
+                  onChange={(e) => setNewShift(e.target.value as "diurno" | "noturno")}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="diurno">☀ Diurno</option>
+                  <option value="noturno">🌙 Noturno</option>
+                </select>
               </div>
-              <Input
-                placeholder="CPF (opcional)"
-                value={newCpf}
-                onChange={(e) => setNewCpf(formatCpf(e.target.value))}
-                className="w-48"
-                maxLength={14}
-              />
             </form>
 
             {/* Report download */}
@@ -297,6 +313,14 @@ export default function AdminDashboard() {
                           <option value="full">4 reg.</option>
                           <option value="simple">2 reg.</option>
                         </select>
+                        <select
+                          value={editShift}
+                          onChange={(e) => setEditShift(e.target.value as "diurno" | "noturno")}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="diurno">☀ Diurno</option>
+                          <option value="noturno">🌙 Noturno</option>
+                        </select>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEdit}>
@@ -327,9 +351,18 @@ export default function AdminDashboard() {
                           >
                             {emp.name}
                           </span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
-                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-muted-foreground">
+                              {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                              {(emp as any).shift === "noturno" ? (
+                                <><Moon className="w-3 h-3" /> Noturno</>
+                              ) : (
+                                <><Sun className="w-3 h-3" /> Diurno</>
+                              )}
+                            </span>
+                          </div>
                           {(emp as any).cpf && (
                             <p className="text-xs text-muted-foreground">
                               CPF: {(emp as any).cpf.replace(/^(\d{3})\.\d{3}\.\d{3}-(\d{2})$/, "$1.***.***-$2").replace(/^(\d{3})\d{6}(\d{2})$/, "$1******$2")}

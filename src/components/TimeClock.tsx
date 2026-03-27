@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Clock,
   LogIn,
@@ -11,6 +11,11 @@ import {
   Camera,
   Pencil,
   FileText,
+  Sun,
+  Moon,
+  ArrowLeft,
+  WifiOff,
+  Wifi,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
@@ -55,9 +60,74 @@ const formatDate = (date: Date) =>
     year: "numeric",
   });
 
+// ---- Offline queue ----
+const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
+
+interface OfflinePunch {
+  id: string;
+  employee_id: string;
+  step: string;
+  latitude: number | null;
+  longitude: number | null;
+  address: string | null;
+  photo_url: string | null;
+  punched_at: string;
+}
+
+function getOfflineQueue(): OfflinePunch[] {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function addToOfflineQueue(punch: OfflinePunch) {
+  const queue = getOfflineQueue();
+  queue.push(punch);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function clearOfflineQueue() {
+  localStorage.removeItem(OFFLINE_QUEUE_KEY);
+}
+
+async function syncOfflineQueue(): Promise<number> {
+  const queue = getOfflineQueue();
+  if (queue.length === 0) return 0;
+
+  let synced = 0;
+  const remaining: OfflinePunch[] = [];
+
+  for (const punch of queue) {
+    const { error } = await supabase.from("punch_records").insert({
+      employee_id: punch.employee_id,
+      step: punch.step,
+      latitude: punch.latitude,
+      longitude: punch.longitude,
+      address: punch.address,
+      photo_url: punch.photo_url,
+      punched_at: punch.punched_at,
+    });
+    if (error) {
+      remaining.push(punch);
+    } else {
+      synced++;
+    }
+  }
+
+  if (remaining.length > 0) {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+  } else {
+    clearOfflineQueue();
+  }
+  return synced;
+}
+
 export default function TimeClock() {
   const [now, setNow] = useState(new Date());
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedShift, setSelectedShift] = useState<"diurno" | "noturno" | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,10 +139,39 @@ export default function TimeClock() {
   const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
   const [cpfInput, setCpfInput] = useState("");
   const [cpfError, setCpfError] = useState("");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const filteredEmployees = selectedShift
+    ? employees.filter((e) => (e as any).shift === selectedShift)
+    : employees;
 
   const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
     ? SIMPLE_STEPS
     : ALL_STEPS;
+
+  // Online/offline listeners
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      const synced = await syncOfflineQueue();
+      if (synced > 0) {
+        toast.success(`${synced} registro(s) sincronizado(s)!`);
+        if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("Sem internet — registros serão salvos offline");
+    };
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    // Try to sync on mount
+    if (navigator.onLine) syncOfflineQueue();
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [selectedEmployee]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -88,6 +187,7 @@ export default function TimeClock() {
   }, [selectedEmployee]);
 
   const fetchEmployees = async () => {
+    if (!navigator.onLine) return;
     const { data } = await supabase
       .from("employees")
       .select("*")
@@ -97,6 +197,7 @@ export default function TimeClock() {
   };
 
   const fetchTodayRecords = async (employeeId: string) => {
+    if (!navigator.onLine) return;
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("punch_records")
@@ -152,6 +253,7 @@ export default function TimeClock() {
   };
 
   const uploadPhoto = async (blob: Blob, employeeId: string): Promise<string | null> => {
+    if (!navigator.onLine) return null;
     const fileName = `${employeeId}/${Date.now()}.jpg`;
     const { error } = await supabase.storage
       .from("punch-photos")
@@ -176,17 +278,39 @@ export default function TimeClock() {
         uploadPhoto(photoBlob, selectedEmployee.id),
       ]);
       const step = STEPS[currentStepIndex];
-      const { error } = await supabase.from("punch_records").insert({
+      const punchData = {
         employee_id: selectedEmployee.id,
         step: step.key,
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
         address: location?.address ?? null,
         photo_url: photoUrl,
-      });
-      if (error) throw error;
-      toast.success(`${step.label} registrada com foto!`);
-      fetchTodayRecords(selectedEmployee.id);
+      };
+
+      if (navigator.onLine) {
+        const { error } = await supabase.from("punch_records").insert(punchData);
+        if (error) throw error;
+        toast.success(`${step.label} registrada com foto!`);
+        fetchTodayRecords(selectedEmployee.id);
+      } else {
+        // Save offline
+        addToOfflineQueue({
+          id: crypto.randomUUID(),
+          ...punchData,
+          punched_at: new Date().toISOString(),
+        });
+        // Add to local records for UI
+        setRecords((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            ...punchData,
+            punched_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        toast.info("Registro salvo offline — será sincronizado quando a internet voltar");
+      }
     } catch {
       toast.error("Erro ao registrar ponto");
     } finally {
@@ -274,10 +398,19 @@ export default function TimeClock() {
     }
   };
 
+  // Offline indicator
+  const OfflineBanner = () =>
+    !isOnline ? (
+      <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground text-center text-xs py-1 flex items-center justify-center gap-1">
+        <WifiOff className="w-3 h-3" /> Sem internet — modo offline
+      </div>
+    ) : null;
+
   // CPF verification screen
   if (pendingEmployee) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <OfflineBanner />
         <div className="text-center mb-8">
           <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
           <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
@@ -318,10 +451,11 @@ export default function TimeClock() {
     );
   }
 
-  // Employee selection screen
-  if (!selectedEmployee) {
+  // ---- SHIFT SELECTION SCREEN ----
+  if (!selectedShift) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <OfflineBanner />
         <div className="text-center mb-8">
           <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
           <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
@@ -329,13 +463,84 @@ export default function TimeClock() {
             APA Ponto
           </div>
           <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-2xl font-bold text-foreground">Selecione sua equipe</p>
+        </div>
+
+        <div className="w-full max-w-md grid grid-cols-2 gap-4">
+          {/* Equipe Diurna */}
+          <Card
+            className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
+            onClick={() => setSelectedShift("diurno")}
+          >
+            <div className="w-20 h-20 rounded-2xl bg-amber-100 flex items-center justify-center">
+              <Sun className="w-10 h-10 text-amber-500" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-foreground text-sm">EQUIPE DIURNA</p>
+              <p className="text-xs text-muted-foreground">Turno: 08:00 - 18:00</p>
+            </div>
+            <Button size="sm" className="w-full mt-1">
+              Entrar <LogIn className="w-4 h-4 ml-1" />
+            </Button>
+          </Card>
+
+          {/* Equipe Noturna */}
+          <Card
+            className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
+            onClick={() => setSelectedShift("noturno")}
+          >
+            <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center">
+              <Moon className="w-10 h-10 text-indigo-500" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-foreground text-sm">EQUIPE NOTURNA</p>
+              <p className="text-xs text-muted-foreground">Turno: 20:00 - 06:00</p>
+            </div>
+            <Button size="sm" className="w-full mt-1">
+              Entrar <LogIn className="w-4 h-4 ml-1" />
+            </Button>
+          </Card>
+        </div>
+
+        <p className="text-4xl font-bold tracking-tight text-foreground tabular-nums mt-8">
+          {formatTime(now)}
+        </p>
+        <p className="text-muted-foreground mt-1 capitalize text-sm">
+          {formatDate(now)}
+        </p>
+      </div>
+    );
+  }
+
+  // ---- EMPLOYEE LIST SCREEN (filtered by shift) ----
+  if (!selectedEmployee) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <OfflineBanner />
+        <div className="text-center mb-8">
+          <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
+          <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+            <Clock className="w-4 h-4" />
+            APA Ponto
+          </div>
+          <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {selectedShift === "diurno" ? (
+              <Sun className="w-5 h-5 text-amber-500" />
+            ) : (
+              <Moon className="w-5 h-5 text-indigo-500" />
+            )}
+            <p className="text-lg font-bold text-foreground">
+              Equipe {selectedShift === "diurno" ? "Diurna" : "Noturna"}
+            </p>
+          </div>
+          <p className="text-base text-muted-foreground">
             Selecione seu nome
           </p>
         </div>
 
         <div className="w-full max-w-sm space-y-2">
-          {employees.map((emp) => (
+          {filteredEmployees.map((emp) => (
             <Button
               key={emp.id}
               variant="outline"
@@ -354,12 +559,18 @@ export default function TimeClock() {
               {emp.name}
             </Button>
           ))}
-          {employees.length === 0 && (
+          {filteredEmployees.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
-              Nenhum funcionário cadastrado. Peça ao administrador para
-              cadastrar.
+              Nenhum funcionário neste turno.
             </p>
           )}
+          <Button
+            variant="ghost"
+            className="w-full mt-4"
+            onClick={() => setSelectedShift(null)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
+          </Button>
         </div>
       </div>
     );
@@ -367,6 +578,7 @@ export default function TimeClock() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8">
+      <OfflineBanner />
       {/* Header */}
       <div className="text-center mb-8">
         <img src={logo} alt="Logo" className="w-14 h-14 object-contain mb-2" />
@@ -393,19 +605,37 @@ export default function TimeClock() {
           </button>
           {showDropdown && (
             <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[200px]">
-              {employees.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <button
                   key={emp.id}
                   onClick={() => {
-                    setSelectedEmployee(emp);
-                    setRecords([]);
-                    setShowDropdown(false);
+                    if (!emp.cpf) {
+                      setSelectedEmployee(emp);
+                      setRecords([]);
+                      setShowDropdown(false);
+                    } else {
+                      setPendingEmployee(emp);
+                      setCpfInput("");
+                      setCpfError("");
+                      setShowDropdown(false);
+                    }
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-secondary first:rounded-t-lg last:rounded-b-lg transition-colors"
                 >
                   {emp.name}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setSelectedEmployee(null);
+                  setSelectedShift(null);
+                  setRecords([]);
+                  setShowDropdown(false);
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:bg-secondary border-t border-border rounded-b-lg transition-colors"
+              >
+                <ArrowLeft className="w-3 h-3 inline mr-1" /> Trocar equipe
+              </button>
             </div>
           )}
         </div>
