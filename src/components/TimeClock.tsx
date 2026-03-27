@@ -303,16 +303,12 @@ export default function TimeClock() {
       return;
     }
 
-    // Fetch full employee data including CPF for offline cache
-    const { data: fullData, error: fullError } = await (supabase as any)
-      .from("employees")
-      .select("id, name, cpf, shift, punch_mode")
-      .eq("active", true)
-      .order("name");
+    // Fetch employees via SECURITY DEFINER RPC (does not expose CPF via table policy)
+    const { data: fullData, error: fullError } = await supabase.rpc("get_active_employees_with_cpf" as any);
 
     if (fullError) {
       console.error("Erro ao buscar colaboradores:", fullError);
-      // Try RPC fallback
+      // Fallback to public RPC without CPF
       const { data: rpcData, error: rpcError } = await supabase.rpc("get_active_employees_public");
       if (rpcError) {
         toast.error("Erro ao carregar colaboradores");

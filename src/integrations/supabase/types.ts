@@ -237,6 +237,16 @@ export type Database = {
           shift: string
         }[]
       }
+      get_active_employees_with_cpf: {
+        Args: never
+        Returns: {
+          cpf: string
+          id: string
+          name: string
+          punch_mode: string
+          shift: string
+        }[]
+      }
       is_active_employee: { Args: { p_employee_id: string }; Returns: boolean }
       validate_employee_cpf: {
         Args: { p_cpf: string; p_employee_id: string }
