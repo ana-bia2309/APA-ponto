@@ -443,6 +443,7 @@ export default function TimeClock() {
     }
     // Return the file path (not public URL) — signed URLs generated on demand
     return fileName;
+  };
 
   const currentStepIndex = records.length;
   const allDone = currentStepIndex >= STEPS.length;
