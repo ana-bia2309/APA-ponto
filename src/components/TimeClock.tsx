@@ -188,6 +188,27 @@ export default function TimeClock() {
     ? SIMPLE_STEPS
     : ALL_STEPS;
 
+  const resetToStart = useCallback(() => {
+    setShowSuccess(false);
+    setSuccessMessage("");
+    setSelectedEmployee(null);
+    setSelectedShift(null);
+    setRecords([]);
+    setPendingEmployee(null);
+    setCpfInput("");
+    setCpfError("");
+    setGeoStatus("");
+    setShowConfirm(false);
+    setShowHistory(false);
+    setHistoryRecords([]);
+    setShowDropdown(false);
+    setShowCamera(false);
+    setShowManualPunch(false);
+    setShowJustification(false);
+    setLoading(false);
+    navigate("/", { replace: true });
+  }, [navigate]);
+
   // Online/offline listeners
   useEffect(() => {
     const handleOnline = async () => {
@@ -230,11 +251,10 @@ export default function TimeClock() {
 
     const successTimer = window.setTimeout(() => {
       resetToStart();
-      navigate("/", { replace: true, state: { resetAt: Date.now() } });
     }, 2000);
 
     return () => window.clearTimeout(successTimer);
-  }, [showSuccess, navigate, resetToStart]);
+  }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
     if (!navigator.onLine) {
@@ -338,27 +358,6 @@ export default function TimeClock() {
   const currentStepIndex = records.length;
   const allDone = currentStepIndex >= STEPS.length;
 
-  const resetToStart = () => {
-    setShowSuccess(false);
-    setSuccessMessage("");
-    setSelectedEmployee(null);
-    setSelectedShift(null);
-    setRecords([]);
-    setPendingEmployee(null);
-    setCpfInput("");
-    setCpfError("");
-    setGeoStatus("");
-    setShowConfirm(false);
-    setShowHistory(false);
-    setHistoryRecords([]);
-    setShowDropdown(false);
-    setLoading(false);
-  };
-
-  const autoLogout = () => {
-    window.setTimeout(resetToStart, 3000);
-  };
-
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
@@ -383,7 +382,6 @@ export default function TimeClock() {
         if (error) throw error;
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
-        autoLogout();
       } else {
         // Save offline
         addToOfflineQueue({
@@ -404,7 +402,6 @@ export default function TimeClock() {
         toast.info("Registro salvo offline — será sincronizado quando a internet voltar");
         setSuccessMessage(`${step.label} salva offline!`);
         setShowSuccess(true);
-        autoLogout();
       }
     } catch (err: any) {
       console.error("Punch error:", err);
