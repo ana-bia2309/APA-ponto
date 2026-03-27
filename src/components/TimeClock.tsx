@@ -69,20 +69,7 @@ const formatDate = (date: Date) =>
 
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
-const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
-
-function cacheEmployees(employees: Employee[]) {
-  try {
-    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
-  } catch {}
-}
-
-function getCachedEmployees(): Employee[] {
-  try {
-    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
-  } catch {
-    return [];
   }
 }
 
@@ -510,23 +497,7 @@ export default function TimeClock() {
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
     if (!navigator.onLine) {
-      // Offline fallback: use cached CPF if available
-      const cached = getCachedEmployees();
-      const cachedEmp = cached.find(e => e.id === pendingEmployee.id);
-      if (cachedEmp?.cpf) {
-        const inputDigits = cpfInput.replace(/\D/g, "");
-        const storedDigits = (cachedEmp.cpf || "").replace(/\D/g, "");
-        if (inputDigits === storedDigits) {
-          setSelectedEmployee(pendingEmployee);
-          setPendingEmployee(null);
-          setCpfInput("");
-          setCpfError("");
-        } else {
-          setCpfError("CPF incorreto. Tente novamente.");
-        }
-      } else {
-        setCpfError("Sem conexão para validar CPF.");
-      }
+      setCpfError("Sem conexão para validar CPF.");
       return;
     }
     const { data } = await supabase.rpc("validate_employee_cpf", {
