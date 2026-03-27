@@ -16,28 +16,34 @@ export type Database = {
     Tables: {
       absence_justifications: {
         Row: {
+          admin_notes: string | null
           created_at: string
           date: string
           employee_id: string
           file_url: string | null
           id: string
           reason: string
+          status: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           date: string
           employee_id: string
           file_url?: string | null
           id?: string
           reason: string
+          status?: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           date?: string
           employee_id?: string
           file_url?: string | null
           id?: string
           reason?: string
+          status?: string
         }
         Relationships: [
           {
