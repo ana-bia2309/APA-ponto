@@ -208,6 +208,9 @@ export default function TimeClock() {
   const [historyRecords, setHistoryRecords] = useState<PunchRecord[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
@@ -244,7 +247,9 @@ export default function TimeClock() {
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
+      setIsSyncing(true);
       const synced = await syncOfflineQueue();
+      setIsSyncing(false);
       if (synced > 0) {
         toast.success(`${synced} registro(s) sincronizado(s)!`);
         if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
@@ -256,7 +261,6 @@ export default function TimeClock() {
     };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    // Try to sync on mount
     if (navigator.onLine) syncOfflineQueue();
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -269,9 +273,34 @@ export default function TimeClock() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchEmployees();
+  // Initial data load with error handling and retry
+  const loadInitialData = useCallback(async () => {
+    setInitialLoading(true);
+    setLoadError(null);
+    try {
+      await fetchEmployees();
+    } catch (err: any) {
+      setLoadError(err?.message || "Erro ao carregar dados iniciais");
+    } finally {
+      setInitialLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Revalidate on app focus (returning from background)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        fetchEmployees();
+        if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [selectedEmployee]);
 
   useEffect(() => {
     if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
