@@ -409,18 +409,22 @@ export default function TimeClock() {
   // CPF verification screen
   if (pendingEmployee) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
         <OfflineBanner />
-        <div className="text-center mb-8">
-          <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
-          <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+        <div className="text-center mb-8 relative z-10">
+          <div className="relative inline-block mb-4">
+            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
+            <img src={logo} alt="Logo" className="w-20 h-20 object-contain relative drop-shadow-lg" />
+          </div>
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
             APA Ponto
           </div>
-          <p className="text-xl font-bold text-foreground mb-1">{pendingEmployee.name}</p>
-          <p className="text-sm text-muted-foreground">Informe seu CPF para continuar</p>
+          <p className="text-xl font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>{pendingEmployee.name}</p>
+          <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>Informe seu CPF para continuar</p>
         </div>
-        <div className="w-full max-w-sm space-y-4">
+        <div className="w-full max-w-sm space-y-4 relative z-10">
           <input
             type="text"
             inputMode="numeric"
@@ -431,21 +435,26 @@ export default function TimeClock() {
               setCpfError("");
             }}
             onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
-            className="flex h-14 w-full rounded-md border border-input bg-background px-4 py-2 text-lg text-center tracking-widest ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-white/15 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all"
+            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 92%)" }}
           />
           {cpfError && (
-            <p className="text-sm text-destructive text-center font-medium">{cpfError}</p>
+            <p className="text-sm text-red-400 text-center font-medium">{cpfError}</p>
           )}
-          <Button onClick={verifyCpf} size="lg" className="w-full h-14 text-base font-semibold">
+          <button
+            onClick={verifyCpf}
+            className="w-full h-14 rounded-xl text-base font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+          >
             Confirmar
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full"
+          </button>
+          <button
+            className="w-full py-3 text-sm font-medium rounded-xl transition-colors"
+            style={{ color: "hsl(210 20% 60%)" }}
             onClick={() => { setPendingEmployee(null); setCpfInput(""); setCpfError(""); }}
           >
             Voltar
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -523,29 +532,33 @@ export default function TimeClock() {
   // ---- EMPLOYEE LIST SCREEN (filtered by shift) ----
   if (!selectedEmployee) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
         <OfflineBanner />
-        <div className="text-center mb-8">
-          <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
-          <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+        <div className="text-center mb-8 relative z-10">
+          <div className="relative inline-block mb-4">
+            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
+            <img src={logo} alt="Logo" className="w-20 h-20 object-contain relative drop-shadow-lg" />
+          </div>
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
             APA Ponto
           </div>
-          <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
-           <p className="text-lg font-bold text-foreground mb-2">
-              Equipe {selectedShift === "diurno" ? "Diurna" : "Noturna"}
-            </p>
-          <p className="text-base text-muted-foreground">
+          <p className="text-sm tracking-wider mb-4" style={{ color: "hsl(210 20% 55%)" }}>Refrigeração e Climatização</p>
+          <p className="text-lg font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>
+            Equipe {selectedShift === "diurno" ? "Diurna" : "Noturna"}
+          </p>
+          <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>
             Selecione seu nome
           </p>
         </div>
 
-        <div className="w-full max-w-sm space-y-2">
+        <div className="w-full max-w-sm space-y-2 relative z-10">
           {filteredEmployees.map((emp) => (
-            <Button
+            <button
               key={emp.id}
-              variant="outline"
-              className="w-full h-14 text-base justify-start"
+              className="w-full h-14 text-base text-left px-5 rounded-xl border border-white/10 transition-all duration-200 hover:-translate-y-0.5 font-medium"
+              style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", color: "hsl(0 0% 90%)", boxShadow: "0 4px 16px hsl(220 40% 5% / 0.4)" }}
               onClick={() => {
                 if (!emp.cpf) {
                   setSelectedEmployee(emp);
@@ -558,40 +571,44 @@ export default function TimeClock() {
               }}
             >
               {emp.name}
-            </Button>
+            </button>
           ))}
           {filteredEmployees.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center py-8" style={{ color: "hsl(210 20% 50%)" }}>
               Nenhum funcionário neste turno.
             </p>
           )}
-          <Button
-            variant="ghost"
-            className="w-full mt-4"
+          <button
+            className="w-full mt-4 py-3 text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-1"
+            style={{ color: "hsl(210 20% 60%)" }}
             onClick={() => setSelectedShift(null)}
           >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
-          </Button>
+            <ArrowLeft className="w-4 h-4" /> Voltar
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8">
+    <div className="min-h-screen flex flex-col items-center px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
       <OfflineBanner />
       {/* Header */}
-      <div className="text-center mb-8">
-        <img src={logo} alt="Logo" className="w-14 h-14 object-contain mb-2" />
-        <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
-          <Clock className="w-4 h-4" />
+      <div className="text-center mb-8 relative z-10">
+        <div className="relative inline-block mb-3">
+          <div className="absolute inset-0 rounded-2xl opacity-15 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
+          <img src={logo} alt="Logo" className="w-16 h-16 object-contain relative drop-shadow-lg" />
+        </div>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
+          <Clock className="w-3 h-3" />
           APA Ponto
         </div>
-        <p className="text-xs text-muted-foreground -mt-2 mb-2">Refrigeração e Climatização</p>
-        <p className="text-5xl font-bold tracking-tight text-foreground tabular-nums">
+        <p className="text-xs tracking-wider mb-3" style={{ color: "hsl(210 20% 50%)" }}>Refrigeração e Climatização</p>
+        <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
           {formatTime(now)}
         </p>
-        <p className="text-muted-foreground mt-2 capitalize">
+        <p className="mt-2 capitalize text-sm" style={{ color: "hsl(210 15% 50%)" }}>
           {formatDate(now)}
         </p>
 
@@ -599,13 +616,14 @@ export default function TimeClock() {
         <div className="relative mt-4">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-white/10"
+            style={{ background: "hsl(210 30% 16%)", color: "hsl(0 0% 88%)" }}
           >
             {selectedEmployee.name}
             <ChevronDown className="w-4 h-4" />
           </button>
           {showDropdown && (
-            <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[200px]">
+            <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 rounded-xl shadow-2xl z-10 min-w-[200px] border border-white/10 overflow-hidden" style={{ background: "hsl(210 30% 14%)" }}>
               {filteredEmployees.map((emp) => (
                 <button
                   key={emp.id}
@@ -621,7 +639,8 @@ export default function TimeClock() {
                       setShowDropdown(false);
                     }
                   }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-secondary first:rounded-t-lg last:rounded-b-lg transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
+                  style={{ color: "hsl(0 0% 88%)" }}
                 >
                   {emp.name}
                 </button>
@@ -633,7 +652,8 @@ export default function TimeClock() {
                   setRecords([]);
                   setShowDropdown(false);
                 }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:bg-secondary border-t border-border rounded-b-lg transition-colors"
+                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5 border-t border-white/10"
+                style={{ color: "hsl(210 20% 55%)" }}
               >
                 <ArrowLeft className="w-3 h-3 inline mr-1" /> Trocar equipe
               </button>
@@ -643,7 +663,7 @@ export default function TimeClock() {
       </div>
 
       {/* Steps timeline */}
-      <Card className="w-full max-w-md p-6 mb-6 shadow-lg border-border">
+      <div className="w-full max-w-md p-6 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5)" }}>
         <div className="space-y-4">
           {STEPS.map((step, index) => {
             const record = getRecordForStep(step.key);
@@ -654,13 +674,14 @@ export default function TimeClock() {
             return (
               <div key={step.key} className="flex items-center gap-4">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                  style={
                     isDone
-                      ? "bg-success text-success-foreground"
+                      ? { background: "hsl(152 55% 42%)", color: "white" }
                       : isActive
-                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                        : "bg-muted text-muted-foreground"
-                  }`}
+                        ? { background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 0 16px hsl(210 70% 40% / 0.4)" }
+                        : { background: "hsl(210 20% 20%)", color: "hsl(210 15% 45%)" }
+                  }
                 >
                   {isDone ? (
                     <Check className="w-5 h-5" />
@@ -671,30 +692,31 @@ export default function TimeClock() {
 
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`font-semibold text-sm ${
-                      isDone
-                        ? "text-success"
+                    className="font-semibold text-sm"
+                    style={{
+                      color: isDone
+                        ? "hsl(152 55% 55%)"
                         : isActive
-                          ? "text-foreground"
-                          : "text-muted-foreground"
-                    }`}
+                          ? "hsl(0 0% 92%)"
+                          : "hsl(210 15% 45%)",
+                    }}
                   >
                     {step.label}
                   </p>
                   {record && (
                     <div>
-                      <p className="text-xs text-muted-foreground tabular-nums">
+                      <p className="text-xs tabular-nums" style={{ color: "hsl(210 15% 50%)" }}>
                         {formatTime(record.punched_at)}
                       </p>
                       {record.address && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-success flex-shrink-0" />
+                        <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "hsl(210 15% 50%)" }}>
+                          <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: "hsl(152 55% 50%)" }} />
                           <span className="truncate max-w-[200px]">{record.address}</span>
                         </p>
                       )}
                       {record.photo_url && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Camera className="w-3 h-3 text-success flex-shrink-0" />
+                        <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "hsl(210 15% 50%)" }}>
+                          <Camera className="w-3 h-3 flex-shrink-0" style={{ color: "hsl(152 55% 50%)" }} />
                           <span>Foto registrada ✓</span>
                         </p>
                       )}
@@ -705,54 +727,54 @@ export default function TimeClock() {
             );
           })}
         </div>
-      </Card>
+      </div>
 
       {/* Worked time */}
       {records.length > 0 && (
-        <Card className="w-full max-w-md p-4 mb-6 border-border bg-card">
+        <div className="w-full max-w-md p-4 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "hsl(210 30% 13%)" }}>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground font-medium">
+            <span className="text-sm font-medium" style={{ color: "hsl(210 15% 50%)" }}>
               Horas trabalhadas
             </span>
-            <span className="text-lg font-bold text-foreground tabular-nums">
+            <span className="text-lg font-bold tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
               {getWorkedTime()}
             </span>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Geo status */}
       {geoStatus && (
-        <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+        <p className="text-xs mb-3 flex items-center gap-1 relative z-10" style={{ color: "hsl(210 15% 50%)" }}>
           <MapPin className="w-3 h-3" /> {geoStatus}
         </p>
       )}
 
       {/* Action button */}
-      <div className="w-full max-w-md space-y-3">
+      <div className="w-full max-w-md space-y-3 relative z-10">
         {!allDone ? (
-          <Button
+          <button
             onClick={() => setShowCamera(true)}
-            size="lg"
-            className="w-full h-14 text-base font-semibold shadow-md"
             disabled={loading}
+            className="w-full h-14 text-base font-semibold rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 20px hsl(210 70% 40% / 0.35)" }}
           >
             {loading ? (
               "Registrando..."
             ) : (
               <>
-                <Camera className="w-5 h-5 mr-2" />
+                <Camera className="w-5 h-5" />
                 Registrar {STEPS[currentStepIndex].label}
               </>
             )}
-          </Button>
+          </button>
         ) : (
           <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 text-success font-semibold">
+            <div className="inline-flex items-center gap-2 font-semibold" style={{ color: "hsl(152 55% 55%)" }}>
               <Check className="w-5 h-5" />
               Jornada completa!
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm mt-1" style={{ color: "hsl(210 15% 50%)" }}>
               Total: {getWorkedTime()}
             </p>
           </div>
@@ -760,22 +782,22 @@ export default function TimeClock() {
 
         {/* Secondary actions */}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1 h-11 text-sm"
+          <button
+            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
             onClick={() => setShowManualPunch(true)}
           >
-            <Pencil className="w-4 h-4 mr-1.5" />
+            <Pencil className="w-4 h-4" />
             Ponto Manual
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 h-11 text-sm"
+          </button>
+          <button
+            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
             onClick={() => setShowJustification(true)}
           >
-            <FileText className="w-4 h-4 mr-1.5" />
+            <FileText className="w-4 h-4" />
             Justificativa
-          </Button>
+          </button>
         </div>
       </div>
     </div>
