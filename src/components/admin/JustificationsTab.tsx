@@ -139,15 +139,18 @@ export default function JustificationsTab() {
 
                 {j.file_url && (
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <a
-                      href={j.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Visualizar"
+                      onClick={async () => {
+                        const url = await getSignedUrl(j.file_url!, "justifications");
+                        if (url) window.open(url, "_blank");
+                        else toast.error("Erro ao gerar link");
+                      }}
                     >
-                      <Button variant="ghost" size="sm" title="Visualizar">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </a>
+                      <Eye className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
