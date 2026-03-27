@@ -413,9 +413,9 @@ export default function TimeClock() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
         <OfflineBanner />
         <div className="text-center mb-8 relative z-10">
-          <div className="relative inline-block mb-4">
-            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative drop-shadow-lg" />
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
+            <img src={logo} alt="Logo" className="w-48 h-48 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
@@ -471,9 +471,9 @@ export default function TimeClock() {
 
         <div className="text-center mb-10 relative z-10">
           {/* Logo with subtle glow */}
-          <div className="relative inline-block mb-4">
-            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="APA Refrigeração e Climatização" className="w-48 h-48 object-contain relative drop-shadow-lg" />
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-[-20px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
+            <img src={logo} alt="APA Refrigeração e Climatização" className="w-56 h-56 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
           </div>
 
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
@@ -536,9 +536,9 @@ export default function TimeClock() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
         <OfflineBanner />
         <div className="text-center mb-8 relative z-10">
-          <div className="relative inline-block mb-4">
-            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative drop-shadow-lg" />
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
+            <img src={logo} alt="Logo" className="w-48 h-48 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
@@ -596,9 +596,9 @@ export default function TimeClock() {
       <OfflineBanner />
       {/* Header */}
       <div className="text-center mb-8 relative z-10">
-        <div className="relative inline-block mb-3">
-          <div className="absolute inset-0 rounded-2xl opacity-15 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-          <img src={logo} alt="Logo" className="w-32 h-32 object-contain relative drop-shadow-lg" />
+        <div className="relative inline-block mb-4">
+          <div className="absolute inset-[-12px] rounded-full opacity-25 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
+          <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative" style={{ filter: "drop-shadow(0 4px 20px hsl(200 70% 50% / 0.3))" }} />
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
           <Clock className="w-3 h-3" />
