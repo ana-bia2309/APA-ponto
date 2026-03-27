@@ -17,7 +17,10 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["logo.jpg"],
+      includeAssets: ["logo.jpg", "favicon.jpg"],
+      devOptions: {
+        enabled: false,
+      },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}"],
         runtimeCaching: [

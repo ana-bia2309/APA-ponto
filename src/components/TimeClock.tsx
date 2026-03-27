@@ -60,8 +60,40 @@ const formatDate = (date: Date) =>
     year: "numeric",
   });
 
-// ---- Offline queue ----
+// ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
+const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
+
+function cacheEmployees(employees: Employee[]) {
+  try {
+    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
+  } catch {}
+}
+
+function getCachedEmployees(): Employee[] {
+  try {
+    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function cacheRecords(employeeId: string, records: PunchRecord[]) {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    localStorage.setItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`, JSON.stringify(records));
+  } catch {}
+}
+
+function getCachedRecords(employeeId: string): PunchRecord[] {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    return JSON.parse(localStorage.getItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`) || "[]");
+  } catch {
+    return [];
+  }
+}
 
 interface OfflinePunch {
   id: string;
@@ -187,17 +219,28 @@ export default function TimeClock() {
   }, [selectedEmployee]);
 
   const fetchEmployees = async () => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      const cached = getCachedEmployees();
+      if (cached.length > 0) setEmployees(cached);
+      return;
+    }
     const { data } = await supabase
       .from("employees")
       .select("*")
       .eq("active", true)
       .order("name");
-    if (data) setEmployees(data);
+    if (data) {
+      setEmployees(data);
+      cacheEmployees(data);
+    }
   };
 
   const fetchTodayRecords = async (employeeId: string) => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      const cached = getCachedRecords(employeeId);
+      if (cached.length > 0) setRecords(cached);
+      return;
+    }
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("punch_records")
@@ -206,7 +249,10 @@ export default function TimeClock() {
       .gte("punched_at", `${today}T00:00:00`)
       .lte("punched_at", `${today}T23:59:59`)
       .order("punched_at");
-    if (data) setRecords(data);
+    if (data) {
+      setRecords(data);
+      cacheRecords(employeeId, data);
+    }
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
