@@ -177,11 +177,15 @@ export default function AdminDashboard() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
-  const handleDownloadReport = async (emp: Employee) => {
+  const handleDownloadReport = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
     const [year, month] = reportMonth.split("-").map(Number);
     toast.info("Gerando relatório...");
     try {
-      await generateMonthlyReport(emp, year, month);
+      if (format === "excel") {
+        await generateMonthlyExcel(emp, year, month);
+      } else {
+        await generateMonthlyReport(emp, year, month);
+      }
       toast.success("Relatório baixado!");
     } catch {
       toast.error("Erro ao gerar relatório");
