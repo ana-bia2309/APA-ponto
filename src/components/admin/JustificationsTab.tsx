@@ -118,8 +118,19 @@ export default function JustificationsTab() {
   const pendingCount = justifications.filter((j) => j.status === "pendente").length;
   const formatDate = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
-  const getSignedUrl = async (filePath: string): Promise<string | null> => {
-    const { data } = await supabase.storage.from("justifications").createSignedUrl(filePath, 300);
+  const extractStoragePath = (fileUrl: string): string => {
+    // Handle full URLs stored before buckets were made private
+    const publicPrefix = "/storage/v1/object/public/justifications/";
+    const idx = fileUrl.indexOf(publicPrefix);
+    if (idx !== -1) return decodeURIComponent(fileUrl.substring(idx + publicPrefix.length));
+    // Already a relative path
+    return fileUrl;
+  };
+
+  const getSignedUrl = async (fileUrl: string): Promise<string | null> => {
+    const path = extractStoragePath(fileUrl);
+    const { data, error } = await supabase.storage.from("justifications").createSignedUrl(path, 300);
+    if (error) console.error("Signed URL error:", error, "path:", path);
     return data?.signedUrl ?? null;
   };
 
