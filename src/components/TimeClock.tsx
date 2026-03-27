@@ -509,6 +509,7 @@ export default function TimeClock() {
       p_cpf: cpfInput,
     });
     if (data === true) {
+      console.log("DEBUG PONTO: CPF validado para:", pendingEmployee.name, "ID:", pendingEmployee.id);
       setSelectedEmployee(pendingEmployee);
       setPendingEmployee(null);
       setCpfInput("");
