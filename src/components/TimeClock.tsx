@@ -27,10 +27,16 @@ import type { Tables } from "@/integrations/supabase/types";
 import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
+import {
+  mapTimeRecordToPunchRecord,
+  type DisplayPunchRecord,
+  type TimeRecordInsert,
+  type TimeRecordRow,
+} from "@/lib/time-records";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
-type PunchRecord = Tables<"punch_records">;
+type PunchRecord = DisplayPunchRecord;
 
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
@@ -99,12 +105,14 @@ function getCachedRecords(employeeId: string): PunchRecord[] {
 interface OfflinePunch {
   id: string;
   employee_id: string;
-  step: string;
+  record_type?: string;
+  step?: string;
   latitude: number | null;
   longitude: number | null;
-  address: string | null;
-  photo_url: string | null;
-  punched_at: string;
+  recorded_at?: string;
+  punched_at?: string;
+  mode?: string;
+  sync_status?: string;
 }
 
 function getOfflineQueue(): OfflinePunch[] {
@@ -133,16 +141,17 @@ async function syncOfflineQueue(): Promise<number> {
   const remaining: OfflinePunch[] = [];
 
   for (const punch of queue) {
-    const { error } = await supabase.from("punch_records").insert({
+    const { error } = await (supabase as any).from("time_records").insert({
       employee_id: punch.employee_id,
-      step: punch.step,
+      record_type: punch.record_type ?? punch.step,
       latitude: punch.latitude,
       longitude: punch.longitude,
-      address: punch.address,
-      photo_url: punch.photo_url,
-      punched_at: punch.punched_at,
+      recorded_at: punch.recorded_at ?? punch.punched_at,
+      mode: punch.mode ?? "offline",
+      sync_status: "synced",
     });
     if (error) {
+      console.error("DEBUG: offline time_records insert error:", error);
       remaining.push(punch);
     } else {
       synced++;
@@ -283,17 +292,37 @@ export default function TimeClock() {
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    const { data } = await supabase
-      .from("punch_records")
+    const { data } = await (supabase as any)
+      .from("time_records")
       .select("*")
       .eq("employee_id", employeeId)
-      .gte("punched_at", `${today}T00:00:00`)
-      .lte("punched_at", `${today}T23:59:59`)
-      .order("punched_at");
+      .gte("recorded_at", `${today}T00:00:00`)
+      .lte("recorded_at", `${today}T23:59:59`)
+      .order("recorded_at");
     if (data) {
-      setRecords(data);
-      cacheRecords(employeeId, data);
+      const mapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
+      setRecords(mapped);
+      cacheRecords(employeeId, mapped);
     }
+  };
+
+  const resolveEmployeeId = async (employeeId: string) => {
+    const { data, error } = await (supabase as any).rpc("get_active_employee_public_by_id", {
+      p_employee_id: employeeId,
+    });
+
+    if (error) {
+      console.error("DEBUG: employee lookup error:", error);
+      throw new Error(error.message || "Erro ao validar colaborador no banco.");
+    }
+
+    const employee = Array.isArray(data) ? data[0] : null;
+
+    if (!employee?.id) {
+      throw new Error("Colaborador não encontrado na tabela public.employees.");
+    }
+
+    return employee.id as string;
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
@@ -363,48 +392,52 @@ export default function TimeClock() {
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
     setLoading(true);
     try {
-      const [location, photoUrl] = await Promise.all([
-        getLocation(),
-        uploadPhoto(photoBlob, selectedEmployee.id),
-      ]);
+      void photoBlob;
+      const location = await getLocation();
       const step = STEPS[currentStepIndex];
-      const punchData = {
-        employee_id: selectedEmployee.id,
-        step: step.key,
+      const employeeId = await resolveEmployeeId(selectedEmployee.id);
+      const recordedAt = new Date().toISOString();
+      const punchData: TimeRecordInsert = {
+        employee_id: employeeId,
+        record_type: step.key,
+        recorded_at: recordedAt,
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
-        address: location?.address ?? null,
-        photo_url: photoUrl,
+        mode: navigator.onLine ? "online" : "offline",
+        sync_status: navigator.onLine ? "synced" : "pending",
       };
 
+      console.log("DEBUG: time_records employee_id:", punchData.employee_id);
+      console.log("DEBUG: time_records record_type:", punchData.record_type);
+
       if (navigator.onLine) {
-        const { error } = await supabase.from("punch_records").insert(punchData);
-        if (error) throw error;
+        const { error } = await (supabase as any).from("time_records").insert(punchData);
+        if (error) {
+          console.error("DEBUG: time_records insert error:", error);
+          throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
+        }
+
+        await fetchTodayRecords(employeeId);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
       } else {
-        // Save offline
         addToOfflineQueue({
           id: crypto.randomUUID(),
           ...punchData,
-          punched_at: new Date().toISOString(),
         });
-        // Add to local records for UI
         setRecords((prev) => [
           ...prev,
-          {
+          mapTimeRecordToPunchRecord({
             id: crypto.randomUUID(),
             ...punchData,
-            punched_at: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-          },
+            created_at: recordedAt,
+          }),
         ]);
-        toast.info("Registro salvo offline — será sincronizado quando a internet voltar");
-        setSuccessMessage(`${step.label} salva offline!`);
-        setShowSuccess(true);
+        toast.info("Sem internet: registro pendente para sincronização no banco.");
       }
     } catch (err: any) {
       console.error("Punch error:", err);
+      console.error("DEBUG: time_records returned error:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
       toast.error(`Erro ao registrar ponto: ${msg}`);
     } finally {
@@ -517,13 +550,13 @@ export default function TimeClock() {
     if (!selectedEmployee) return;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const { data } = await supabase
-      .from("punch_records")
+    const { data } = await (supabase as any)
+      .from("time_records")
       .select("*")
       .eq("employee_id", selectedEmployee.id)
-      .gte("punched_at", thirtyDaysAgo.toISOString())
-      .order("punched_at", { ascending: false });
-    if (data) setHistoryRecords(data);
+      .gte("recorded_at", thirtyDaysAgo.toISOString())
+      .order("recorded_at", { ascending: false });
+    if (data) setHistoryRecords((data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord));
     setShowHistory(true);
   };
 

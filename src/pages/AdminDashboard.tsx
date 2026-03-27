@@ -25,9 +25,10 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import JustificationsTab from "@/components/admin/JustificationsTab";
+import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
 
 type Employee = Tables<"employees">;
-type PunchRecord = Tables<"punch_records"> & { employees?: { name: string } };
+type PunchRecord = DisplayPunchRecord & { employees?: { name: string } };
 
 const STEP_LABELS: Record<string, string> = {
   entrada: "Entrada",
@@ -93,13 +94,15 @@ export default function AdminDashboard() {
   const fetchRecords = async () => {
     const startOfDay = `${selectedDate}T00:00:00`;
     const endOfDay = `${selectedDate}T23:59:59`;
-    const { data } = await supabase
-      .from("punch_records")
+    const { data } = await (supabase as any)
+      .from("time_records")
       .select("*, employees(name)")
-      .gte("punched_at", startOfDay)
-      .lte("punched_at", endOfDay)
-      .order("punched_at", { ascending: true });
-    if (data) setRecords(data as PunchRecord[]);
+      .gte("recorded_at", startOfDay)
+      .lte("recorded_at", endOfDay)
+      .order("recorded_at", { ascending: true });
+    if (data) {
+      setRecords((data as TimeRecordRow[]).map((record) => mapTimeRecordToPunchRecord(record)) as PunchRecord[]);
+    }
   };
 
   const addEmployee = async (e: React.FormEvent) => {
