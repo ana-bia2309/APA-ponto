@@ -70,8 +70,6 @@ const formatDate = (date: Date) =>
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
-  }
-}
 
 function cacheRecords(employeeId: string, records: PunchRecord[]) {
   try {
