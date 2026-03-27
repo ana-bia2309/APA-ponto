@@ -17,6 +17,7 @@ import {
   History,
   CheckCircle2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-apa.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -177,6 +178,7 @@ export default function TimeClock() {
   const [historyRecords, setHistoryRecords] = useState<PunchRecord[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -185,6 +187,27 @@ export default function TimeClock() {
   const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
     ? SIMPLE_STEPS
     : ALL_STEPS;
+
+  const resetToStart = useCallback(() => {
+    setShowSuccess(false);
+    setSuccessMessage("");
+    setSelectedEmployee(null);
+    setSelectedShift(null);
+    setRecords([]);
+    setPendingEmployee(null);
+    setCpfInput("");
+    setCpfError("");
+    setGeoStatus("");
+    setShowConfirm(false);
+    setShowHistory(false);
+    setHistoryRecords([]);
+    setShowDropdown(false);
+    setShowCamera(false);
+    setShowManualPunch(false);
+    setShowJustification(false);
+    setLoading(false);
+    navigate("/", { replace: true });
+  }, [navigate]);
 
   // Online/offline listeners
   useEffect(() => {
@@ -222,6 +245,16 @@ export default function TimeClock() {
   useEffect(() => {
     if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
   }, [selectedEmployee]);
+
+  useEffect(() => {
+    if (!showSuccess) return;
+
+    const successTimer = window.setTimeout(() => {
+      resetToStart();
+    }, 2000);
+
+    return () => window.clearTimeout(successTimer);
+  }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
     if (!navigator.onLine) {
@@ -325,27 +358,6 @@ export default function TimeClock() {
   const currentStepIndex = records.length;
   const allDone = currentStepIndex >= STEPS.length;
 
-  const resetToStart = () => {
-    setShowSuccess(false);
-    setSuccessMessage("");
-    setSelectedEmployee(null);
-    setSelectedShift(null);
-    setRecords([]);
-    setPendingEmployee(null);
-    setCpfInput("");
-    setCpfError("");
-    setGeoStatus("");
-    setShowConfirm(false);
-    setShowHistory(false);
-    setHistoryRecords([]);
-    setShowDropdown(false);
-    setLoading(false);
-  };
-
-  const autoLogout = () => {
-    window.setTimeout(resetToStart, 3000);
-  };
-
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
@@ -370,7 +382,6 @@ export default function TimeClock() {
         if (error) throw error;
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
-        autoLogout();
       } else {
         // Save offline
         addToOfflineQueue({
@@ -391,7 +402,6 @@ export default function TimeClock() {
         toast.info("Registro salvo offline — será sincronizado quando a internet voltar");
         setSuccessMessage(`${step.label} salva offline!`);
         setShowSuccess(true);
-        autoLogout();
       }
     } catch (err: any) {
       console.error("Punch error:", err);
