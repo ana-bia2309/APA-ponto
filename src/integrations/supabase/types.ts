@@ -57,6 +57,7 @@ export type Database = {
           id: string
           name: string
           punch_mode: string
+          shift: string
         }
         Insert: {
           active?: boolean
@@ -65,6 +66,7 @@ export type Database = {
           id?: string
           name: string
           punch_mode?: string
+          shift?: string
         }
         Update: {
           active?: boolean
@@ -73,6 +75,7 @@ export type Database = {
           id?: string
           name?: string
           punch_mode?: string
+          shift?: string
         }
         Relationships: []
       }
