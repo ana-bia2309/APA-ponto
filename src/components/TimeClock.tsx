@@ -369,8 +369,10 @@ export default function TimeClock() {
         setShowSuccess(true);
         autoLogout();
       }
-    } catch {
-      toast.error("Erro ao registrar ponto");
+    } catch (err: any) {
+      console.error("Punch error:", err);
+      const msg = err?.message || err?.details || "Erro desconhecido";
+      toast.error(`Erro ao registrar ponto: ${msg}`);
     } finally {
       setLoading(false);
     }
