@@ -219,17 +219,28 @@ export default function TimeClock() {
   }, [selectedEmployee]);
 
   const fetchEmployees = async () => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      const cached = getCachedEmployees();
+      if (cached.length > 0) setEmployees(cached);
+      return;
+    }
     const { data } = await supabase
       .from("employees")
       .select("*")
       .eq("active", true)
       .order("name");
-    if (data) setEmployees(data);
+    if (data) {
+      setEmployees(data);
+      cacheEmployees(data);
+    }
   };
 
   const fetchTodayRecords = async (employeeId: string) => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      const cached = getCachedRecords(employeeId);
+      if (cached.length > 0) setRecords(cached);
+      return;
+    }
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("punch_records")
@@ -238,7 +249,10 @@ export default function TimeClock() {
       .gte("punched_at", `${today}T00:00:00`)
       .lte("punched_at", `${today}T23:59:59`)
       .order("punched_at");
-    if (data) setRecords(data);
+    if (data) {
+      setRecords(data);
+      cacheRecords(employeeId, data);
+    }
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
