@@ -684,6 +684,12 @@ export default function TimeClock() {
     setShowHistory(true);
   };
 
+  // Punch confirmation handler
+  const confirmPunch = () => {
+    setShowConfirm(false);
+    setShowCamera(true);
+  };
+
   // Get offline pending count
   const pendingCount = getOfflineQueue().length;
 
