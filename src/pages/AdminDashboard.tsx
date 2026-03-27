@@ -23,7 +23,7 @@ import {
   Moon,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import { generateMonthlyReport } from "@/lib/generateReport";
+import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import JustificationsTab from "@/components/admin/JustificationsTab";
 
 type Employee = Tables<"employees">;
@@ -177,11 +177,15 @@ export default function AdminDashboard() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
-  const handleDownloadReport = async (emp: Employee) => {
+  const handleDownloadReport = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
     const [year, month] = reportMonth.split("-").map(Number);
     toast.info("Gerando relatório...");
     try {
-      await generateMonthlyReport(emp, year, month);
+      if (format === "excel") {
+        await generateMonthlyExcel(emp, year, month);
+      } else {
+        await generateMonthlyReport(emp, year, month);
+      }
       toast.success("Relatório baixado!");
     } catch {
       toast.error("Erro ao gerar relatório");
@@ -374,8 +378,17 @@ export default function AdminDashboard() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDownloadReport(emp)}
-                          title="Baixar relatório"
+                          onClick={() => handleDownloadReport(emp, "pdf")}
+                          title="Baixar PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReport(emp, "excel")}
+                          title="Baixar Excel"
+                          className="text-green-500 hover:text-green-400"
                         >
                           <Download className="w-4 h-4" />
                         </Button>
