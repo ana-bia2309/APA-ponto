@@ -303,9 +303,7 @@ export default function TimeClock() {
       return;
     }
 
-    // When online, fetch full employee data including CPF for offline cache
-    const { data, error } = await supabase.rpc("get_active_employee_by_cpf", { p_cpf: "" });
-    // Fallback: use direct query to get all active employees with CPF
+    // Fetch full employee data including CPF for offline cache
     const { data: fullData, error: fullError } = await (supabase as any)
       .from("employees")
       .select("id, name, cpf, shift, punch_mode")
