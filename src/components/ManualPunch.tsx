@@ -83,7 +83,7 @@ function ScrollPicker({ value, max, onChange }: { value: number; max: number; on
   );
 }
 
-export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunchProps) {
+export default function ManualPunch({ employee, cpf, onClose, onSuccess }: ManualPunchProps) {
   const [selectedStep, setSelectedStep] = useState<PunchStep | null>(null);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
