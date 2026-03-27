@@ -378,8 +378,14 @@ export default function TimeClock() {
       void photoBlob;
       const location = await getLocation();
       const step = STEPS[currentStepIndex];
-      const employeeId = await resolveEmployeeId(selectedEmployee.id);
+      // Use the employee ID directly from the validated selectedEmployee state
+      const employeeId = selectedEmployee.id;
       const recordedAt = new Date().toISOString();
+
+      console.log("DEBUG PONTO: Colaborador selecionado:", selectedEmployee.name);
+      console.log("DEBUG PONTO: employee_id usado no insert:", employeeId);
+      console.log("DEBUG PONTO: record_type:", step.key);
+
       const punchData: TimeRecordInsert = {
         employee_id: employeeId,
         record_type: step.key,
