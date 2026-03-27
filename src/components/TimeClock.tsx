@@ -17,6 +17,7 @@ import {
   History,
   CheckCircle2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-apa.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -177,6 +178,7 @@ export default function TimeClock() {
   const [historyRecords, setHistoryRecords] = useState<PunchRecord[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -222,6 +224,17 @@ export default function TimeClock() {
   useEffect(() => {
     if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
   }, [selectedEmployee]);
+
+  useEffect(() => {
+    if (!showSuccess) return;
+
+    const successTimer = window.setTimeout(() => {
+      resetToStart();
+      navigate("/", { replace: true, state: { resetAt: Date.now() } });
+    }, 2000);
+
+    return () => window.clearTimeout(successTimer);
+  }, [showSuccess, navigate, resetToStart]);
 
   const fetchEmployees = async () => {
     if (!navigator.onLine) {
