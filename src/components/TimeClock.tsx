@@ -582,11 +582,34 @@ export default function TimeClock() {
 
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
+
+    // OFFLINE: validate CPF using local cache
     if (!navigator.onLine) {
-      setCpfError("Sem conexão para validar CPF.");
+      const offlineMatch = findEmployeeByCpfOffline(cpfInput);
+      if (!offlineMatch) {
+        setCpfError("CPF não encontrado nos dados locais.");
+        return;
+      }
+      if (offlineMatch.id !== pendingEmployee.id) {
+        setValidatedEmployee(null);
+        setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        return;
+      }
+      const empFromCache = {
+        ...offlineMatch,
+        active: true,
+        created_at: "",
+      } as Employee;
+      setSelectedEmployee(empFromCache);
+      setValidatedEmployee(empFromCache);
+      setPendingEmployee(null);
+      setCpfInput("");
+      setCpfError("");
+      toast.info("CPF validado offline ✓");
       return;
     }
 
+    // ONLINE: validate CPF via database
     try {
       console.log("DEBUG PONTO: CPF digitado:", cpfInput);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
