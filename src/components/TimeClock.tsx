@@ -70,6 +70,40 @@ const formatDate = (date: Date) =>
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
+const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+
+interface CachedEmployee {
+  id: string;
+  name: string;
+  cpf: string | null;
+  shift: string;
+  punch_mode: string;
+  has_cpf: boolean;
+}
+
+function cacheEmployees(employees: CachedEmployee[]) {
+  try {
+    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
+  } catch {}
+}
+
+function getCachedEmployees(): CachedEmployee[] {
+  try {
+    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function findEmployeeByCpfOffline(cpf: string): CachedEmployee | null {
+  const normalized = cpf.replace(/\D/g, "");
+  if (!normalized) return null;
+  const cached = getCachedEmployees();
+  const matches = cached.filter(
+    (e) => e.cpf && e.cpf.replace(/\D/g, "") === normalized
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
 
 function cacheRecords(employeeId: string, records: PunchRecord[]) {
   try {
