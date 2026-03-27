@@ -16,6 +16,7 @@ import {
   Wifi,
   History,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-apa.png";
@@ -208,6 +209,9 @@ export default function TimeClock() {
   const [historyRecords, setHistoryRecords] = useState<PunchRecord[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
@@ -244,7 +248,9 @@ export default function TimeClock() {
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
+      setIsSyncing(true);
       const synced = await syncOfflineQueue();
+      setIsSyncing(false);
       if (synced > 0) {
         toast.success(`${synced} registro(s) sincronizado(s)!`);
         if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
@@ -256,7 +262,6 @@ export default function TimeClock() {
     };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    // Try to sync on mount
     if (navigator.onLine) syncOfflineQueue();
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -269,9 +274,34 @@ export default function TimeClock() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchEmployees();
+  // Initial data load with error handling and retry
+  const loadInitialData = useCallback(async () => {
+    setInitialLoading(true);
+    setLoadError(null);
+    try {
+      await fetchEmployees();
+    } catch (err: any) {
+      setLoadError(err?.message || "Erro ao carregar dados iniciais");
+    } finally {
+      setInitialLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Revalidate on app focus (returning from background)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        fetchEmployees();
+        if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [selectedEmployee]);
 
   useEffect(() => {
     if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
@@ -654,29 +684,52 @@ export default function TimeClock() {
     setShowHistory(true);
   };
 
-  // Get offline pending count
-  const pendingCount = getOfflineQueue().length;
-
-
   // Punch confirmation handler
   const confirmPunch = () => {
     setShowConfirm(false);
     setShowCamera(true);
   };
 
+  // Get offline pending count
+  const pendingCount = getOfflineQueue().length;
+
+  const handleManualSync = async () => {
+    if (!navigator.onLine) { toast.error("Sem conexão"); return; }
+    setIsSyncing(true);
+    const synced = await syncOfflineQueue();
+    setIsSyncing(false);
+    if (synced > 0) {
+      toast.success(`${synced} registro(s) sincronizado(s)!`);
+      if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+    } else {
+      toast.info("Nenhum registro pendente");
+    }
+  };
+
   // Connection status indicator (always visible)
   const ConnectionIndicator = () => (
     <div className="fixed top-0 left-0 right-0 z-50 text-center text-xs py-1 flex items-center justify-center gap-1.5 transition-colors duration-300"
       style={{
-        background: isOnline
-          ? "linear-gradient(90deg, hsl(150 60% 15% / 0.85), hsl(160 50% 18% / 0.85))"
-          : "linear-gradient(90deg, hsl(0 70% 20% / 0.9), hsl(10 60% 22% / 0.9))",
-        color: isOnline ? "hsl(150 70% 75%)" : "hsl(0 80% 85%)",
+        background: isSyncing
+          ? "linear-gradient(90deg, hsl(210 70% 20% / 0.9), hsl(200 60% 25% / 0.9))"
+          : isOnline
+            ? "linear-gradient(90deg, hsl(150 60% 15% / 0.85), hsl(160 50% 18% / 0.85))"
+            : "linear-gradient(90deg, hsl(0 70% 20% / 0.9), hsl(10 60% 22% / 0.9))",
+        color: isSyncing ? "hsl(200 80% 75%)" : isOnline ? "hsl(150 70% 75%)" : "hsl(0 80% 85%)",
         backdropFilter: "blur(8px)",
       }}
     >
-      {isOnline ? (
-        <><Wifi className="w-3 h-3" /> Online</>
+      {isSyncing ? (
+        <><RefreshCw className="w-3 h-3 animate-spin" /> Sincronizando...</>
+      ) : isOnline ? (
+        <>
+          <Wifi className="w-3 h-3" /> Online
+          {pendingCount > 0 && (
+            <button onClick={handleManualSync} className="ml-2 underline opacity-80 hover:opacity-100">
+              {pendingCount} pendente(s) — sincronizar
+            </button>
+          )}
+        </>
       ) : (
         <>
           <WifiOff className="w-3 h-3" /> Sem conexão
@@ -685,6 +738,40 @@ export default function TimeClock() {
       )}
     </div>
   );
+
+  // Initial loading screen
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+        <div className="text-center space-y-4">
+          <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm" style={{ color: "hsl(210 20% 60%)" }}>Carregando sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error screen with retry
+  if (loadError && employees.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 gap-4" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: "hsl(0 50% 20%)" }}>
+            <WifiOff className="w-8 h-8" style={{ color: "hsl(0 80% 70%)" }} />
+          </div>
+          <p className="text-base font-semibold" style={{ color: "hsl(0 0% 90%)" }}>Erro ao carregar dados</p>
+          <p className="text-sm max-w-xs" style={{ color: "hsl(210 15% 50%)" }}>{loadError}</p>
+          <button
+            onClick={loadInitialData}
+            className="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))" }}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Success overlay
   if (showSuccess) {

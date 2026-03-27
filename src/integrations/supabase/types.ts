@@ -23,6 +23,8 @@ export type Database = {
           file_url: string | null
           id: string
           reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
         }
         Insert: {
@@ -33,6 +35,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
         }
         Update: {
@@ -43,6 +47,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
         }
         Relationships: [
@@ -54,6 +60,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          admin_user_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          admin_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
       }
       employees: {
         Row: {
