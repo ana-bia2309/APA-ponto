@@ -368,6 +368,7 @@ export default function TimeClock() {
         setSuccessMessage(`${step.label} salva offline!`);
         setShowSuccess(true);
         autoLogout();
+      }
     } catch {
       toast.error("Erro ao registrar ponto");
     } finally {
