@@ -60,8 +60,40 @@ const formatDate = (date: Date) =>
     year: "numeric",
   });
 
-// ---- Offline queue ----
+// ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
+const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
+
+function cacheEmployees(employees: Employee[]) {
+  try {
+    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
+  } catch {}
+}
+
+function getCachedEmployees(): Employee[] {
+  try {
+    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function cacheRecords(employeeId: string, records: PunchRecord[]) {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    localStorage.setItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`, JSON.stringify(records));
+  } catch {}
+}
+
+function getCachedRecords(employeeId: string): PunchRecord[] {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    return JSON.parse(localStorage.getItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`) || "[]");
+  } catch {
+    return [];
+  }
+}
 
 interface OfflinePunch {
   id: string;
