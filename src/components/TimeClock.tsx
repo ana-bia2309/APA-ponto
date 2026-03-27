@@ -322,7 +322,19 @@ export default function TimeClock() {
     return urlData.publicUrl;
   };
 
-  const handlePunchWithPhoto = async (photoBlob: Blob) => {
+  const currentStepIndex = records.length;
+  const allDone = currentStepIndex >= STEPS.length;
+
+  const autoLogout = () => {
+    setTimeout(() => {
+      setShowSuccess(false);
+      setSelectedEmployee(null);
+      setSelectedShift(null);
+      setRecords([]);
+    }, 3000);
+  };
+
+
     setShowCamera(false);
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
     setLoading(true);
