@@ -23,7 +23,7 @@ import {
   Moon,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import { generateMonthlyReport } from "@/lib/generateReport";
+import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import JustificationsTab from "@/components/admin/JustificationsTab";
 
 type Employee = Tables<"employees">;
