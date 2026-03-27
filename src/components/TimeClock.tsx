@@ -28,7 +28,7 @@ import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
-type Employee = Tables<"employees">;
+type Employee = Tables<"employees"> & { has_cpf?: boolean };
 type PunchRecord = Tables<"punch_records">;
 
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
@@ -224,14 +224,17 @@ export default function TimeClock() {
       if (cached.length > 0) setEmployees(cached);
       return;
     }
-    const { data } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("active", true)
-      .order("name");
+    const { data } = await supabase.rpc("get_active_employees_public");
     if (data) {
-      setEmployees(data);
-      cacheEmployees(data);
+      // Map RPC result to Employee-compatible shape
+      const mapped = (data as any[]).map((e: any) => ({
+        ...e,
+        active: true,
+        created_at: "",
+        cpf: null, // CPF not exposed publicly
+      })) as Employee[];
+      setEmployees(mapped);
+      cacheEmployees(mapped);
     }
   };
 
@@ -430,11 +433,33 @@ export default function TimeClock() {
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
   };
 
-  const verifyCpf = () => {
+  const verifyCpf = async () => {
     if (!pendingEmployee) return;
-    const inputDigits = cpfInput.replace(/\D/g, "");
-    const storedDigits = (pendingEmployee.cpf || "").replace(/\D/g, "");
-    if (inputDigits === storedDigits) {
+    if (!navigator.onLine) {
+      // Offline fallback: use cached CPF if available
+      const cached = getCachedEmployees();
+      const cachedEmp = cached.find(e => e.id === pendingEmployee.id);
+      if (cachedEmp?.cpf) {
+        const inputDigits = cpfInput.replace(/\D/g, "");
+        const storedDigits = (cachedEmp.cpf || "").replace(/\D/g, "");
+        if (inputDigits === storedDigits) {
+          setSelectedEmployee(pendingEmployee);
+          setPendingEmployee(null);
+          setCpfInput("");
+          setCpfError("");
+        } else {
+          setCpfError("CPF incorreto. Tente novamente.");
+        }
+      } else {
+        setCpfError("Sem conexão para validar CPF.");
+      }
+      return;
+    }
+    const { data } = await supabase.rpc("validate_employee_cpf", {
+      p_employee_id: pendingEmployee.id,
+      p_cpf: cpfInput,
+    });
+    if (data === true) {
       setSelectedEmployee(pendingEmployee);
       setPendingEmployee(null);
       setCpfInput("");
@@ -606,7 +631,7 @@ export default function TimeClock() {
               className="w-full h-14 text-base text-left px-5 rounded-xl border border-white/10 transition-all duration-200 hover:-translate-y-0.5 font-medium"
               style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", color: "hsl(0 0% 90%)", boxShadow: "0 4px 16px hsl(220 40% 5% / 0.4)" }}
               onClick={() => {
-                if (!emp.cpf) {
+                if (!emp.has_cpf) {
                   setSelectedEmployee(emp);
                   setShowDropdown(false);
                 } else {
