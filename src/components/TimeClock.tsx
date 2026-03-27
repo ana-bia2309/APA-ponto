@@ -70,6 +70,40 @@ const formatDate = (date: Date) =>
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
+const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+
+interface CachedEmployee {
+  id: string;
+  name: string;
+  cpf: string | null;
+  shift: string;
+  punch_mode: string;
+  has_cpf: boolean;
+}
+
+function cacheEmployees(employees: CachedEmployee[]) {
+  try {
+    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
+  } catch {}
+}
+
+function getCachedEmployees(): CachedEmployee[] {
+  try {
+    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function findEmployeeByCpfOffline(cpf: string): CachedEmployee | null {
+  const normalized = cpf.replace(/\D/g, "");
+  if (!normalized) return null;
+  const cached = getCachedEmployees();
+  const matches = cached.filter(
+    (e) => e.cpf && e.cpf.replace(/\D/g, "") === normalized
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
 
 function cacheRecords(employeeId: string, records: PunchRecord[]) {
   try {
@@ -253,18 +287,65 @@ export default function TimeClock() {
   }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
-    const { data, error } = await supabase.rpc("get_active_employees_public");
-    if (error) {
-      console.error("Erro ao buscar colaboradores:", error);
-      toast.error("Erro ao carregar colaboradores");
+    if (!navigator.onLine) {
+      // Load from cache when offline
+      const cached = getCachedEmployees();
+      if (cached.length > 0) {
+        const mapped = cached.map((e) => ({
+          ...e,
+          active: true,
+          created_at: "",
+        })) as Employee[];
+        setEmployees(mapped);
+      } else {
+        toast.error("Sem internet e sem dados em cache.");
+      }
       return;
     }
-    if (data) {
-      const mapped = (data as any[]).map((e: any) => ({
+
+    // Fetch full employee data including CPF for offline cache
+    const { data: fullData, error: fullError } = await (supabase as any)
+      .from("employees")
+      .select("id, name, cpf, shift, punch_mode")
+      .eq("active", true)
+      .order("name");
+
+    if (fullError) {
+      console.error("Erro ao buscar colaboradores:", fullError);
+      // Try RPC fallback
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_active_employees_public");
+      if (rpcError) {
+        toast.error("Erro ao carregar colaboradores");
+        return;
+      }
+      if (rpcData) {
+        const mapped = (rpcData as any[]).map((e: any) => ({
+          ...e,
+          active: true,
+          created_at: "",
+          cpf: null,
+        })) as Employee[];
+        setEmployees(mapped);
+      }
+      return;
+    }
+
+    if (fullData) {
+      // Cache full employee data for offline use
+      const cachedList: CachedEmployee[] = (fullData as any[]).map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        cpf: e.cpf,
+        shift: e.shift,
+        punch_mode: e.punch_mode,
+        has_cpf: !!(e.cpf && e.cpf.trim()),
+      }));
+      cacheEmployees(cachedList);
+
+      const mapped = cachedList.map((e) => ({
         ...e,
         active: true,
         created_at: "",
-        cpf: null,
       })) as Employee[];
       setEmployees(mapped);
     }
@@ -421,7 +502,8 @@ export default function TimeClock() {
             created_at: recordedAt,
           }),
         ]);
-        toast.info("Sem internet: registro pendente para sincronização no banco.");
+        setSuccessMessage(`${step.label} salva offline — será sincronizada automaticamente.`);
+        setShowSuccess(true);
       }
     } catch (err: any) {
       console.error("Punch error:", err);
@@ -499,11 +581,34 @@ export default function TimeClock() {
 
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
+
+    // OFFLINE: validate CPF using local cache
     if (!navigator.onLine) {
-      setCpfError("Sem conexão para validar CPF.");
+      const offlineMatch = findEmployeeByCpfOffline(cpfInput);
+      if (!offlineMatch) {
+        setCpfError("CPF não encontrado nos dados locais.");
+        return;
+      }
+      if (offlineMatch.id !== pendingEmployee.id) {
+        setValidatedEmployee(null);
+        setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        return;
+      }
+      const empFromCache = {
+        ...offlineMatch,
+        active: true,
+        created_at: "",
+      } as Employee;
+      setSelectedEmployee(empFromCache);
+      setValidatedEmployee(empFromCache);
+      setPendingEmployee(null);
+      setCpfInput("");
+      setCpfError("");
+      toast.info("CPF validado offline ✓");
       return;
     }
 
+    // ONLINE: validate CPF via database
     try {
       console.log("DEBUG PONTO: CPF digitado:", cpfInput);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
