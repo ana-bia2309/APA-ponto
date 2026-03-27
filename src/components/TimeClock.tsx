@@ -1007,7 +1007,7 @@ export default function TimeClock() {
       <div className="w-full max-w-md space-y-3 relative z-10">
         {!allDone ? (
           <button
-            onClick={() => setShowCamera(true)}
+            onClick={() => setShowConfirm(true)}
             disabled={loading}
             className="w-full h-14 text-base font-semibold rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 20px hsl(210 70% 40% / 0.35)" }}
@@ -1041,7 +1041,15 @@ export default function TimeClock() {
             onClick={() => setShowManualPunch(true)}
           >
             <Pencil className="w-4 h-4" />
-            Ponto Manual
+            Manual
+          </button>
+          <button
+            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
+            onClick={fetchHistory}
+          >
+            <History className="w-4 h-4" />
+            Histórico
           </button>
           <button
             className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
@@ -1049,7 +1057,7 @@ export default function TimeClock() {
             onClick={() => setShowJustification(true)}
           >
             <FileText className="w-4 h-4" />
-            Justificativa
+            Atestado
           </button>
         </div>
       </div>
