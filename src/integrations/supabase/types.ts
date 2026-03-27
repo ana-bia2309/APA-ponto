@@ -158,6 +158,50 @@ export type Database = {
           },
         ]
       }
+      time_records: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          mode: string
+          record_type: string
+          recorded_at: string
+          sync_status: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          mode?: string
+          record_type: string
+          recorded_at?: string
+          sync_status?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          mode?: string
+          record_type?: string
+          recorded_at?: string
+          sync_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
