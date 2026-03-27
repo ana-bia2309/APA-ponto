@@ -37,8 +37,8 @@ export default function AbsenceJustification({ employee, cpf, onClose, onSuccess
           .from("justifications")
           .upload(fileName, file);
         if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from("justifications").getPublicUrl(fileName);
-        fileUrl = urlData.publicUrl;
+        // Store file path, not public URL
+        fileUrl = fileName;
       }
 
       const cpfDigits = cpf.replace(/\D/g, "");
