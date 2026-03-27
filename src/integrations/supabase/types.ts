@@ -207,6 +207,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_active_employee_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          cpf: string
+          id: string
+          name: string
+          punch_mode: string
+          shift: string
+        }[]
+      }
       get_active_employee_public_by_id: {
         Args: { p_employee_id: string }
         Returns: {
