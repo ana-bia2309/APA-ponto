@@ -265,7 +265,14 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <Button
+            variant={tab === "dashboard" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("dashboard")}
+          >
+            <Activity className="w-4 h-4 mr-1" /> Dashboard
+          </Button>
           <Button
             variant={tab === "employees" ? "default" : "outline"}
             size="sm"
@@ -288,6 +295,8 @@ export default function AdminDashboard() {
             <Download className="w-4 h-4 mr-1" /> Atestados
           </Button>
         </div>
+
+        {tab === "dashboard" && <DashboardTab />}
 
         {tab === "employees" && (
           <>
