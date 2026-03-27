@@ -156,6 +156,7 @@ export default function TimeClock() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedShift, setSelectedShift] = useState<"diurno" | "noturno" | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [validatedEmployee, setValidatedEmployee] = useState<Employee | null>(null);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [geoStatus, setGeoStatus] = useState<string>("");
