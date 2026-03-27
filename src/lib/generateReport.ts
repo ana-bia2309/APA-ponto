@@ -132,3 +132,57 @@ export async function generateMonthlyReport(
 
   doc.save(`ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.pdf`);
 }
+
+export async function generateMonthlyExcel(
+  employee: Employee,
+  year: number,
+  month: number
+) {
+  const daysInMonth = getDaysInMonth(year, month);
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
+  const endDate = `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
+
+  const { data: records } = await supabase
+    .from("punch_records")
+    .select("*")
+    .eq("employee_id", employee.id)
+    .gte("punched_at", startDate)
+    .lte("punched_at", endDate)
+    .order("punched_at");
+
+  const byDay: Record<number, Record<string, string>> = {};
+  for (const rec of records || []) {
+    const day = new Date(rec.punched_at).getDate();
+    if (!byDay[day]) byDay[day] = {};
+    byDay[day][rec.step] = formatTime(rec.punched_at);
+  }
+
+  const isSimple = employee.punch_mode === "simple";
+  const steps = isSimple ? ["entrada", "saida"] : ["entrada", "intervalo", "retorno", "saida"];
+  const stepHeaders = isSimple ? ["Entrada", "Saída"] : ["Entrada", "Pausa", "Retorno", "Saída"];
+
+  const monthLabel = `${MONTHS[month - 1]} ${year}`;
+  const rows: string[][] = [];
+  rows.push(["APA Ponto - Registro de Ponto"]);
+  rows.push([`Colaborador: ${employee.name}`]);
+  rows.push([`Período: ${monthLabel}`]);
+  rows.push([]);
+  rows.push(["Dia", ...stepHeaders, "Jornada"]);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayData = byDay[day];
+    const cols = steps.map((s) => dayData?.[s] || "-");
+    const hasAny = cols.some((c) => c !== "-");
+    rows.push([String(day).padStart(2, "0"), ...cols, hasAny ? "Trabalhado" : "Folga"]);
+  }
+
+  const csvContent = rows.map((row) => row.map((cell) => `"${cell}"`).join(";")).join("\n");
+  const BOM = "\uFEFF";
+  const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
