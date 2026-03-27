@@ -11,6 +11,7 @@ type Employee = Tables<"employees">;
 
 interface AbsenceJustificationProps {
   employee: Employee;
+  cpf: string;
   onClose: () => void;
   onSuccess: () => void;
 }

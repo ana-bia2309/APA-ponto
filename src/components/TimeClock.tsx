@@ -124,6 +124,7 @@ function getCachedRecords(employeeId: string): PunchRecord[] {
 interface OfflinePunch {
   id: string;
   employee_id: string;
+  cpf?: string;
   record_type?: string;
   step?: string;
   latitude: number | null;

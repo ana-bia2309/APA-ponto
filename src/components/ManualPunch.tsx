@@ -22,6 +22,7 @@ const SIMPLE_STEPS: { key: PunchStep; label: string; icon: typeof LogIn }[] = [
 
 interface ManualPunchProps {
   employee: Employee;
+  cpf: string;
   onClose: () => void;
   onSuccess: () => void;
 }
