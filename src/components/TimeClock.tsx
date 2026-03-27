@@ -11,8 +11,8 @@ import {
   Camera,
   Pencil,
   FileText,
-  Sun,
-  Moon,
+
+
   ArrowLeft,
   WifiOff,
   Wifi,
@@ -472,12 +472,8 @@ export default function TimeClock() {
             className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
             onClick={() => setSelectedShift("diurno")}
           >
-            <div className="w-20 h-20 rounded-2xl bg-amber-100 flex items-center justify-center">
-              <Sun className="w-10 h-10 text-amber-500" />
-            </div>
             <div className="text-center">
               <p className="font-bold text-foreground text-sm">EQUIPE DIURNA</p>
-              <p className="text-xs text-muted-foreground">Turno: 08:00 - 18:00</p>
             </div>
             <Button size="sm" className="w-full mt-1">
               Entrar <LogIn className="w-4 h-4 ml-1" />
@@ -489,12 +485,8 @@ export default function TimeClock() {
             className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
             onClick={() => setSelectedShift("noturno")}
           >
-            <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center">
-              <Moon className="w-10 h-10 text-indigo-500" />
-            </div>
             <div className="text-center">
               <p className="font-bold text-foreground text-sm">EQUIPE NOTURNA</p>
-              <p className="text-xs text-muted-foreground">Turno: 20:00 - 06:00</p>
             </div>
             <Button size="sm" className="w-full mt-1">
               Entrar <LogIn className="w-4 h-4 ml-1" />
@@ -524,16 +516,9 @@ export default function TimeClock() {
             APA Ponto
           </div>
           <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            {selectedShift === "diurno" ? (
-              <Sun className="w-5 h-5 text-amber-500" />
-            ) : (
-              <Moon className="w-5 h-5 text-indigo-500" />
-            )}
-            <p className="text-lg font-bold text-foreground">
+           <p className="text-lg font-bold text-foreground mb-2">
               Equipe {selectedShift === "diurno" ? "Diurna" : "Noturna"}
             </p>
-          </div>
           <p className="text-base text-muted-foreground">
             Selecione seu nome
           </p>
