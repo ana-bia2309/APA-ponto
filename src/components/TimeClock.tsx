@@ -344,8 +344,9 @@ export default function TimeClock() {
       if (navigator.onLine) {
         const { error } = await supabase.from("punch_records").insert(punchData);
         if (error) throw error;
-        toast.success(`${step.label} registrada com foto!`);
-        fetchTodayRecords(selectedEmployee.id);
+        setSuccessMessage(`${step.label} registrada com sucesso!`);
+        setShowSuccess(true);
+        autoLogout();
       } else {
         // Save offline
         addToOfflineQueue({
@@ -364,7 +365,9 @@ export default function TimeClock() {
           },
         ]);
         toast.info("Registro salvo offline — será sincronizado quando a internet voltar");
-      }
+        setSuccessMessage(`${step.label} salva offline!`);
+        setShowSuccess(true);
+        autoLogout();
     } catch {
       toast.error("Erro ao registrar ponto");
     } finally {
