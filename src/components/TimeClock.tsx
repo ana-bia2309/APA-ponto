@@ -415,7 +415,7 @@ export default function TimeClock() {
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-4">
             <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="Logo" className="w-20 h-20 object-contain relative drop-shadow-lg" />
+            <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative drop-shadow-lg" />
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
@@ -473,7 +473,7 @@ export default function TimeClock() {
           {/* Logo with subtle glow */}
           <div className="relative inline-block mb-4">
             <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="APA Refrigeração e Climatização" className="w-28 h-28 object-contain relative drop-shadow-lg" />
+            <img src={logo} alt="APA Refrigeração e Climatização" className="w-48 h-48 object-contain relative drop-shadow-lg" />
           </div>
 
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
@@ -538,7 +538,7 @@ export default function TimeClock() {
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-4">
             <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-            <img src={logo} alt="Logo" className="w-20 h-20 object-contain relative drop-shadow-lg" />
+            <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative drop-shadow-lg" />
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
@@ -598,7 +598,7 @@ export default function TimeClock() {
       <div className="text-center mb-8 relative z-10">
         <div className="relative inline-block mb-3">
           <div className="absolute inset-0 rounded-2xl opacity-15 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
-          <img src={logo} alt="Logo" className="w-16 h-16 object-contain relative drop-shadow-lg" />
+          <img src={logo} alt="Logo" className="w-32 h-32 object-contain relative drop-shadow-lg" />
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
           <Clock className="w-3 h-3" />
