@@ -378,8 +378,17 @@ export default function AdminDashboard() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDownloadReport(emp)}
-                          title="Baixar relatório"
+                          onClick={() => handleDownloadReport(emp, "pdf")}
+                          title="Baixar PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReport(emp, "excel")}
+                          title="Baixar Excel"
+                          className="text-green-500 hover:text-green-400"
                         >
                           <Download className="w-4 h-4" />
                         </Button>
