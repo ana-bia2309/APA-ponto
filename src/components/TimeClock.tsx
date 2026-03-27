@@ -287,18 +287,67 @@ export default function TimeClock() {
   }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
-    const { data, error } = await supabase.rpc("get_active_employees_public");
-    if (error) {
-      console.error("Erro ao buscar colaboradores:", error);
-      toast.error("Erro ao carregar colaboradores");
+    if (!navigator.onLine) {
+      // Load from cache when offline
+      const cached = getCachedEmployees();
+      if (cached.length > 0) {
+        const mapped = cached.map((e) => ({
+          ...e,
+          active: true,
+          created_at: "",
+        })) as Employee[];
+        setEmployees(mapped);
+      } else {
+        toast.error("Sem internet e sem dados em cache.");
+      }
       return;
     }
-    if (data) {
-      const mapped = (data as any[]).map((e: any) => ({
+
+    // When online, fetch full employee data including CPF for offline cache
+    const { data, error } = await supabase.rpc("get_active_employee_by_cpf", { p_cpf: "" });
+    // Fallback: use direct query to get all active employees with CPF
+    const { data: fullData, error: fullError } = await (supabase as any)
+      .from("employees")
+      .select("id, name, cpf, shift, punch_mode")
+      .eq("active", true)
+      .order("name");
+
+    if (fullError) {
+      console.error("Erro ao buscar colaboradores:", fullError);
+      // Try RPC fallback
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_active_employees_public");
+      if (rpcError) {
+        toast.error("Erro ao carregar colaboradores");
+        return;
+      }
+      if (rpcData) {
+        const mapped = (rpcData as any[]).map((e: any) => ({
+          ...e,
+          active: true,
+          created_at: "",
+          cpf: null,
+        })) as Employee[];
+        setEmployees(mapped);
+      }
+      return;
+    }
+
+    if (fullData) {
+      // Cache full employee data for offline use
+      const cachedList: CachedEmployee[] = (fullData as any[]).map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        cpf: e.cpf,
+        shift: e.shift,
+        punch_mode: e.punch_mode,
+        has_cpf: !!(e.cpf && e.cpf.trim()),
+      }));
+      cacheEmployees(cachedList);
+
+      const mapped = cachedList.map((e) => ({
         ...e,
         active: true,
         created_at: "",
-        cpf: null,
       })) as Employee[];
       setEmployees(mapped);
     }
