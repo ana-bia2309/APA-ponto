@@ -57,14 +57,21 @@ export default function JustificationsTab() {
   const formatDate = (d: string) =>
     new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
-  const handleDownload = async (fileUrl: string, employeeName: string, date: string) => {
+  const getSignedUrl = async (filePath: string, bucket: string): Promise<string | null> => {
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(filePath, 300);
+    return data?.signedUrl ?? null;
+  };
+
+  const handleDownload = async (filePath: string, employeeName: string, date: string) => {
     try {
-      const response = await fetch(fileUrl);
+      const signedUrl = await getSignedUrl(filePath, "justifications");
+      if (!signedUrl) { toast.error("Erro ao gerar link"); return; }
+      const response = await fetch(signedUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const ext = fileUrl.includes(".pdf") ? "pdf" : fileUrl.split(".").pop() || "pdf";
+      const ext = filePath.includes(".pdf") ? "pdf" : filePath.split(".").pop() || "pdf";
       a.download = `atestado_${employeeName.replace(/\s+/g, "_")}_${date}.${ext}`;
       document.body.appendChild(a);
       a.click();
