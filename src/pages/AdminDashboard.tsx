@@ -94,17 +94,44 @@ export default function AdminDashboard() {
   const fetchRecords = async () => {
     const startOfDay = `${selectedDate}T00:00:00.000Z`;
     const endOfDay = `${selectedDate}T23:59:59.999Z`;
+
+    // Fetch time_records
     const { data, error } = await (supabase as any)
       .from("time_records")
       .select("*, employees(name)")
       .gte("recorded_at", startOfDay)
       .lte("recorded_at", endOfDay)
       .order("recorded_at", { ascending: true });
+
+    // Fetch punch_records for photos and addresses
+    const { data: punchData } = await (supabase as any)
+      .from("punch_records")
+      .select("employee_id, step, photo_url, address, punched_at")
+      .gte("punched_at", startOfDay)
+      .lte("punched_at", endOfDay);
+
     if (error) {
       console.error("Erro ao buscar registros:", error);
     }
     if (data) {
-      setRecords((data as TimeRecordRow[]).map((record) => mapTimeRecordToPunchRecord(record)) as PunchRecord[]);
+      const mapped = (data as TimeRecordRow[]).map((record) => {
+        const display = mapTimeRecordToPunchRecord(record);
+        // Try to find matching punch_record for photo/address
+        if (punchData) {
+          const match = (punchData as any[]).find(
+            (p: any) =>
+              p.employee_id === record.employee_id &&
+              p.step === record.record_type &&
+              Math.abs(new Date(p.punched_at).getTime() - new Date(record.recorded_at).getTime()) < 60000
+          );
+          if (match) {
+            display.photo_url = match.photo_url || null;
+            display.address = match.address || null;
+          }
+        }
+        return display;
+      });
+      setRecords(mapped as PunchRecord[]);
     }
   };
 
