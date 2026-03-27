@@ -493,7 +493,7 @@ export default function TimeClock() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-        <OfflineBanner />
+        <ConnectionIndicator />
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-6">
             <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
@@ -549,7 +549,7 @@ export default function TimeClock() {
         {/* Subtle glow effect */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
 
-        <OfflineBanner />
+        <ConnectionIndicator />
 
         <div className="text-center mb-10 relative z-10">
           {/* Logo with subtle glow */}
@@ -616,7 +616,7 @@ export default function TimeClock() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-        <OfflineBanner />
+        <ConnectionIndicator />
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-6">
             <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
@@ -675,7 +675,7 @@ export default function TimeClock() {
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-      <OfflineBanner />
+      <ConnectionIndicator />
       {/* Header */}
       <div className="text-center mb-8 relative z-10">
         <div className="relative inline-block mb-4">
