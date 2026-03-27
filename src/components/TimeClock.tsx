@@ -11,11 +11,11 @@ import {
   Camera,
   Pencil,
   FileText,
-
-
   ArrowLeft,
   WifiOff,
   Wifi,
+  History,
+  CheckCircle2,
 } from "lucide-react";
 import logo from "@/assets/logo-apa.png";
 import { Button } from "@/components/ui/button";
@@ -172,6 +172,11 @@ export default function TimeClock() {
   const [cpfInput, setCpfInput] = useState("");
   const [cpfError, setCpfError] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyRecords, setHistoryRecords] = useState<PunchRecord[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
