@@ -69,22 +69,7 @@ const formatDate = (date: Date) =>
 
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
-const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
-
-function cacheEmployees(employees: Employee[]) {
-  try {
-    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
-  } catch {}
-}
-
-function getCachedEmployees(): Employee[] {
-  try {
-    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
 
 function cacheRecords(employeeId: string, records: PunchRecord[]) {
   try {
@@ -266,22 +251,20 @@ export default function TimeClock() {
   }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
-    if (!navigator.onLine) {
-      const cached = getCachedEmployees();
-      if (cached.length > 0) setEmployees(cached);
+    const { data, error } = await supabase.rpc("get_active_employees_public");
+    if (error) {
+      console.error("Erro ao buscar colaboradores:", error);
+      toast.error("Erro ao carregar colaboradores");
       return;
     }
-    const { data } = await supabase.rpc("get_active_employees_public");
     if (data) {
-      // Map RPC result to Employee-compatible shape
       const mapped = (data as any[]).map((e: any) => ({
         ...e,
         active: true,
         created_at: "",
-        cpf: null, // CPF not exposed publicly
+        cpf: null,
       })) as Employee[];
       setEmployees(mapped);
-      cacheEmployees(mapped);
     }
   };
 
@@ -512,23 +495,7 @@ export default function TimeClock() {
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
     if (!navigator.onLine) {
-      // Offline fallback: use cached CPF if available
-      const cached = getCachedEmployees();
-      const cachedEmp = cached.find(e => e.id === pendingEmployee.id);
-      if (cachedEmp?.cpf) {
-        const inputDigits = cpfInput.replace(/\D/g, "");
-        const storedDigits = (cachedEmp.cpf || "").replace(/\D/g, "");
-        if (inputDigits === storedDigits) {
-          setSelectedEmployee(pendingEmployee);
-          setPendingEmployee(null);
-          setCpfInput("");
-          setCpfError("");
-        } else {
-          setCpfError("CPF incorreto. Tente novamente.");
-        }
-      } else {
-        setCpfError("Sem conexão para validar CPF.");
-      }
+      setCpfError("Sem conexão para validar CPF.");
       return;
     }
     const { data } = await supabase.rpc("validate_employee_cpf", {
