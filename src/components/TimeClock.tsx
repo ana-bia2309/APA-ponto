@@ -441,10 +441,8 @@ export default function TimeClock() {
       console.error("Upload error:", error);
       return null;
     }
-    const { data: urlData } = supabase.storage
-      .from("punch-photos")
-      .getPublicUrl(fileName);
-    return urlData.publicUrl;
+    // Return the file path (not public URL) — signed URLs generated on demand
+    return fileName;
   };
 
   const currentStepIndex = records.length;

@@ -57,14 +57,21 @@ export default function JustificationsTab() {
   const formatDate = (d: string) =>
     new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
-  const handleDownload = async (fileUrl: string, employeeName: string, date: string) => {
+  const getSignedUrl = async (filePath: string, bucket: string): Promise<string | null> => {
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(filePath, 300);
+    return data?.signedUrl ?? null;
+  };
+
+  const handleDownload = async (filePath: string, employeeName: string, date: string) => {
     try {
-      const response = await fetch(fileUrl);
+      const signedUrl = await getSignedUrl(filePath, "justifications");
+      if (!signedUrl) { toast.error("Erro ao gerar link"); return; }
+      const response = await fetch(signedUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const ext = fileUrl.includes(".pdf") ? "pdf" : fileUrl.split(".").pop() || "pdf";
+      const ext = filePath.includes(".pdf") ? "pdf" : filePath.split(".").pop() || "pdf";
       a.download = `atestado_${employeeName.replace(/\s+/g, "_")}_${date}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -132,15 +139,18 @@ export default function JustificationsTab() {
 
                 {j.file_url && (
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <a
-                      href={j.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Visualizar"
+                      onClick={async () => {
+                        const url = await getSignedUrl(j.file_url!, "justifications");
+                        if (url) window.open(url, "_blank");
+                        else toast.error("Erro ao gerar link");
+                      }}
                     >
-                      <Button variant="ghost" size="sm" title="Visualizar">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </a>
+                      <Eye className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

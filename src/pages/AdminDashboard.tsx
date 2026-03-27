@@ -478,15 +478,19 @@ export default function AdminDashboard() {
                               {formatTime(rec.punched_at)}
                             </span>
                             {(rec as any).photo_url && (
-                              <a
-                                href={(rec as any).photo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                onClick={async () => {
+                                  const path = (rec as any).photo_url;
+                                  const { data } = await supabase.storage
+                                    .from("punch-photos")
+                                    .createSignedUrl(path, 300);
+                                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                }}
                                 className="text-primary hover:text-primary/80 transition-colors"
                                 title="Ver foto"
                               >
                                 <Camera className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
                           </div>
                           {rec.address ? (
