@@ -17,7 +17,7 @@ import {
   WifiOff,
   Wifi,
 } from "lucide-react";
-import logo from "@/assets/logo.jpg";
+import logo from "@/assets/logo-apa.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -454,52 +454,68 @@ export default function TimeClock() {
   // ---- SHIFT SELECTION SCREEN ----
   if (!selectedShift) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+        {/* Subtle glow effect */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
+
         <OfflineBanner />
-        <div className="text-center mb-8">
-          <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-2" />
-          <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+
+        <div className="text-center mb-10 relative z-10">
+          {/* Logo with subtle glow */}
+          <div className="relative inline-block mb-4">
+            <div className="absolute inset-0 rounded-2xl opacity-20 blur-xl" style={{ background: "hsl(200 70% 50%)" }} />
+            <img src={logo} alt="APA Refrigeração e Climatização" className="w-28 h-28 object-contain relative drop-shadow-lg" />
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(200 80% 85%)" }}>
             <Clock className="w-4 h-4" />
             APA Ponto
           </div>
-          <p className="text-sm text-muted-foreground mb-1">Refrigeração e Climatização</p>
-          <p className="text-2xl font-bold text-foreground">Selecione sua equipe</p>
+
+          <p className="text-sm tracking-wider mb-6" style={{ color: "hsl(210 20% 60%)" }}>Refrigeração e Climatização</p>
+          <p className="text-2xl font-bold tracking-tight" style={{ color: "hsl(0 0% 95%)" }}>Selecione sua equipe</p>
         </div>
 
-        <div className="w-full max-w-md grid grid-cols-2 gap-4">
+        <div className="w-full max-w-md grid grid-cols-2 gap-5 relative z-10">
           {/* Equipe Diurna */}
-          <Card
-            className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
+          <div
+            className="rounded-2xl p-6 flex flex-col items-center gap-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border border-white/10 backdrop-blur-sm"
+            style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5), 0 0 0 1px hsl(210 40% 30% / 0.1)" }}
             onClick={() => setSelectedShift("diurno")}
           >
-            <div className="text-center">
-              <p className="font-bold text-foreground text-sm">EQUIPE DIURNA</p>
-            </div>
-            <Button size="sm" className="w-full mt-1">
-              Entrar <LogIn className="w-4 h-4 ml-1" />
-            </Button>
-          </Card>
+            <p className="font-bold text-sm tracking-wide" style={{ color: "hsl(0 0% 90%)" }}>EQUIPE DIURNA</p>
+            <button
+              className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
+              style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+            >
+              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+            </button>
+          </div>
 
           {/* Equipe Noturna */}
-          <Card
-            className="p-6 flex flex-col items-center gap-3 cursor-pointer hover:ring-2 hover:ring-primary transition-all border-2 border-border"
+          <div
+            className="rounded-2xl p-6 flex flex-col items-center gap-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border border-white/10 backdrop-blur-sm"
+            style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5), 0 0 0 1px hsl(210 40% 30% / 0.1)" }}
             onClick={() => setSelectedShift("noturno")}
           >
-            <div className="text-center">
-              <p className="font-bold text-foreground text-sm">EQUIPE NOTURNA</p>
-            </div>
-            <Button size="sm" className="w-full mt-1">
-              Entrar <LogIn className="w-4 h-4 ml-1" />
-            </Button>
-          </Card>
+            <p className="font-bold text-sm tracking-wide" style={{ color: "hsl(0 0% 90%)" }}>EQUIPE NOTURNA</p>
+            <button
+              className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
+              style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+            >
+              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+            </button>
+          </div>
         </div>
 
-        <p className="text-4xl font-bold tracking-tight text-foreground tabular-nums mt-8">
-          {formatTime(now)}
-        </p>
-        <p className="text-muted-foreground mt-1 capitalize text-sm">
-          {formatDate(now)}
-        </p>
+        <div className="mt-10 text-center relative z-10">
+          <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
+            {formatTime(now)}
+          </p>
+          <p className="mt-2 capitalize text-sm tracking-wide" style={{ color: "hsl(210 15% 50%)" }}>
+            {formatDate(now)}
+          </p>
+        </div>
       </div>
     );
   }
