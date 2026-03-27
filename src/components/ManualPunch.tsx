@@ -22,6 +22,7 @@ const SIMPLE_STEPS: { key: PunchStep; label: string; icon: typeof LogIn }[] = [
 
 interface ManualPunchProps {
   employee: Employee;
+  cpf: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -82,7 +83,7 @@ function ScrollPicker({ value, max, onChange }: { value: number; max: number; on
   );
 }
 
-export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunchProps) {
+export default function ManualPunch({ employee, cpf, onClose, onSuccess }: ManualPunchProps) {
   const [selectedStep, setSelectedStep] = useState<PunchStep | null>(null);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
@@ -140,29 +141,16 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
       const now = new Date();
       const punchedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
 
-      const { error: manualError } = await supabase.from("manual_punches").insert({
-        employee_id: employee.id,
-        step: selectedStep,
-        punched_at: punchedAt.toISOString(),
-        reason: nightShift ? "Correção manual (jornada noturna)" : "Correção manual",
+      const cpfDigits = cpf.replace(/\D/g, "");
+      const { error } = await supabase.rpc("insert_manual_punch_with_cpf" as any, {
+        p_cpf: cpfDigits,
+        p_step: selectedStep,
+        p_punched_at: punchedAt.toISOString(),
+        p_reason: nightShift ? "Correção manual (jornada noturna)" : "Correção manual",
       });
-      if (manualError) throw manualError;
-
-      console.log("DEBUG: manual time_records employee_id:", employee.id);
-      console.log("DEBUG: manual time_records record_type:", selectedStep);
-
-      const { error: punchError } = await (supabase as any).from("time_records").insert({
-        employee_id: employee.id,
-        record_type: selectedStep,
-        recorded_at: punchedAt.toISOString(),
-        latitude: null,
-        longitude: null,
-        mode: "manual",
-        sync_status: "synced",
-      });
-      if (punchError) {
-        console.error("DEBUG: manual time_records insert error:", punchError);
-        throw punchError;
+      if (error) {
+        console.error("DEBUG: manual punch RPC error:", error);
+        throw error;
       }
 
       toast.success(`${selectedStep} manual registrada às ${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`);

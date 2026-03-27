@@ -11,11 +11,12 @@ type Employee = Tables<"employees">;
 
 interface AbsenceJustificationProps {
   employee: Employee;
+  cpf: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function AbsenceJustification({ employee, onClose, onSuccess }: AbsenceJustificationProps) {
+export default function AbsenceJustification({ employee, cpf, onClose, onSuccess }: AbsenceJustificationProps) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [reason, setReason] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -40,11 +41,12 @@ export default function AbsenceJustification({ employee, onClose, onSuccess }: A
         fileUrl = urlData.publicUrl;
       }
 
-      const { error } = await supabase.from("absence_justifications").insert({
-        employee_id: employee.id,
-        date,
-        reason: reason.trim(),
-        file_url: fileUrl,
+      const cpfDigits = cpf.replace(/\D/g, "");
+      const { error } = await supabase.rpc("insert_justification_with_cpf" as any, {
+        p_cpf: cpfDigits,
+        p_date: date,
+        p_reason: reason.trim(),
+        p_file_url: fileUrl,
       });
       if (error) throw error;
 

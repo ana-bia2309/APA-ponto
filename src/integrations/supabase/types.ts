@@ -247,6 +247,36 @@ export type Database = {
           shift: string
         }[]
       }
+      insert_justification_with_cpf: {
+        Args: {
+          p_cpf: string
+          p_date: string
+          p_file_url?: string
+          p_reason: string
+        }
+        Returns: string
+      }
+      insert_manual_punch_with_cpf: {
+        Args: {
+          p_cpf: string
+          p_punched_at: string
+          p_reason?: string
+          p_step: string
+        }
+        Returns: string
+      }
+      insert_time_record_with_cpf: {
+        Args: {
+          p_cpf: string
+          p_latitude?: number
+          p_longitude?: number
+          p_mode?: string
+          p_record_type: string
+          p_recorded_at: string
+          p_sync_status?: string
+        }
+        Returns: string
+      }
       is_active_employee: { Args: { p_employee_id: string }; Returns: boolean }
       validate_employee_cpf: {
         Args: { p_cpf: string; p_employee_id: string }

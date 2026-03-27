@@ -124,6 +124,7 @@ function getCachedRecords(employeeId: string): PunchRecord[] {
 interface OfflinePunch {
   id: string;
   employee_id: string;
+  cpf?: string;
   record_type?: string;
   step?: string;
   latitude: number | null;
@@ -160,14 +161,14 @@ async function syncOfflineQueue(): Promise<number> {
   const remaining: OfflinePunch[] = [];
 
   for (const punch of queue) {
-    const { error } = await (supabase as any).from("time_records").insert({
-      employee_id: punch.employee_id,
-      record_type: punch.record_type ?? punch.step,
-      latitude: punch.latitude,
-      longitude: punch.longitude,
-      recorded_at: punch.recorded_at ?? punch.punched_at,
-      mode: punch.mode ?? "offline",
-      sync_status: "synced",
+    const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
+      p_cpf: punch.cpf || "",
+      p_record_type: punch.record_type ?? punch.step,
+      p_recorded_at: punch.recorded_at ?? punch.punched_at,
+      p_latitude: punch.latitude,
+      p_longitude: punch.longitude,
+      p_mode: punch.mode ?? "offline",
+      p_sync_status: "synced",
     });
     if (error) {
       console.error("DEBUG: offline time_records insert error:", error);
@@ -475,7 +476,16 @@ export default function TimeClock() {
       };
 
       if (navigator.onLine) {
-        const { error } = await (supabase as any).from("time_records").insert(punchData);
+        const cpfDigits = cpfInput.replace(/\D/g, "");
+        const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
+          p_cpf: cpfDigits,
+          p_record_type: step.key,
+          p_recorded_at: recordedAt,
+          p_latitude: location?.lat ?? null,
+          p_longitude: location?.lng ?? null,
+          p_mode: "online",
+          p_sync_status: "synced",
+        });
         console.log("DEBUG PONTO: resultado do insert:", error ? error : "sucesso");
         if (error) {
           console.error("DEBUG: time_records insert error:", error);
@@ -489,6 +499,7 @@ export default function TimeClock() {
         addToOfflineQueue({
           id: crypto.randomUUID(),
           ...punchData,
+          cpf: cpfInput.replace(/\D/g, ""),
         });
         setRecords((prev) => [
           ...prev,
@@ -551,6 +562,7 @@ export default function TimeClock() {
     return (
       <ManualPunch
         employee={selectedEmployee}
+        cpf={cpfInput}
         onClose={() => setShowManualPunch(false)}
         onSuccess={() => fetchTodayRecords(selectedEmployee.id)}
       />
@@ -561,6 +573,7 @@ export default function TimeClock() {
     return (
       <AbsenceJustification
         employee={selectedEmployee}
+        cpf={cpfInput}
         onClose={() => setShowJustification(false)}
         onSuccess={() => {}}
       />
