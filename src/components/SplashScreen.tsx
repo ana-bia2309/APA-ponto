@@ -24,6 +24,9 @@ const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
         src={logoApa}
         alt="APA Refrigeração e Climatização"
         className="w-52 h-auto object-contain animate-scale-in drop-shadow-2xl"
+        fetchPriority="high"
+        width={208}
+        height={243}
       />
       <p className="mt-6 text-lg font-semibold tracking-widest text-white/90 animate-fade-in">
         APA Ponto
