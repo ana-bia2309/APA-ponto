@@ -699,7 +699,7 @@ export default function TimeClock() {
                 <button
                   key={emp.id}
                   onClick={() => {
-                    if (!emp.cpf) {
+                    if (!emp.has_cpf) {
                       setSelectedEmployee(emp);
                       setRecords([]);
                       setShowDropdown(false);
