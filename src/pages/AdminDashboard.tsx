@@ -25,6 +25,7 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import JustificationsTab from "@/components/admin/JustificationsTab";
+import DashboardTab from "@/components/admin/DashboardTab";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
 
 type Employee = Tables<"employees">;
@@ -48,7 +49,7 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const [tab, setTab] = useState<"employees" | "records" | "justifications">("employees");
+  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications">("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
