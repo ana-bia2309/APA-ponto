@@ -862,8 +862,11 @@ export default function TimeClock() {
               onClick={() => {
                 if (!emp.has_cpf) {
                   setSelectedEmployee(emp);
+                  setValidatedEmployee(emp);
                   setShowDropdown(false);
                 } else {
+                  setSelectedEmployee(null);
+                  setValidatedEmployee(null);
                   setPendingEmployee(emp);
                   setCpfInput("");
                   setCpfError("");
