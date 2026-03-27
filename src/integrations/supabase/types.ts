@@ -207,6 +207,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_active_employee_public_by_id: {
+        Args: { p_employee_id: string }
+        Returns: {
+          has_cpf: boolean
+          id: string
+          name: string
+          punch_mode: string
+          shift: string
+        }[]
+      }
       get_active_employees_public: {
         Args: never
         Returns: {
@@ -217,6 +227,7 @@ export type Database = {
           shift: string
         }[]
       }
+      is_active_employee: { Args: { p_employee_id: string }; Returns: boolean }
       validate_employee_cpf: {
         Args: { p_cpf: string; p_employee_id: string }
         Returns: boolean
