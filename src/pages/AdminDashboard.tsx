@@ -92,14 +92,17 @@ export default function AdminDashboard() {
   };
 
   const fetchRecords = async () => {
-    const startOfDay = `${selectedDate}T00:00:00`;
-    const endOfDay = `${selectedDate}T23:59:59`;
-    const { data } = await (supabase as any)
+    const startOfDay = `${selectedDate}T00:00:00.000Z`;
+    const endOfDay = `${selectedDate}T23:59:59.999Z`;
+    const { data, error } = await (supabase as any)
       .from("time_records")
       .select("*, employees(name)")
       .gte("recorded_at", startOfDay)
       .lte("recorded_at", endOfDay)
       .order("recorded_at", { ascending: true });
+    if (error) {
+      console.error("Erro ao buscar registros:", error);
+    }
     if (data) {
       setRecords((data as TimeRecordRow[]).map((record) => mapTimeRecordToPunchRecord(record)) as PunchRecord[]);
     }
