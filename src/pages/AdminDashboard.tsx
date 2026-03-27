@@ -159,9 +159,25 @@ export default function AdminDashboard() {
 
   const deleteEmployee = async (id: string) => {
     if (!confirm("Tem certeza? Os registros de ponto serão excluídos.")) return;
-    await supabase.from("employees").delete().eq("id", id);
-    fetchEmployees();
-    fetchRecords();
+    try {
+      // Delete related records first to avoid foreign key constraint errors
+      await supabase.from("time_records").delete().eq("employee_id", id);
+      await supabase.from("punch_records").delete().eq("employee_id", id);
+      await supabase.from("manual_punches").delete().eq("employee_id", id);
+      await supabase.from("absence_justifications").delete().eq("employee_id", id);
+      const { error } = await supabase.from("employees").delete().eq("id", id);
+      if (error) {
+        console.error("Erro ao excluir funcionário:", error);
+        toast.error("Erro ao excluir funcionário: " + error.message);
+        return;
+      }
+      toast.success("Funcionário excluído com sucesso!");
+      fetchEmployees();
+      fetchRecords();
+    } catch (err: any) {
+      console.error("Erro ao excluir:", err);
+      toast.error("Erro ao excluir funcionário.");
+    }
   };
 
   const logout = async () => {
