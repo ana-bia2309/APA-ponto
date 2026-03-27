@@ -334,7 +334,7 @@ export default function TimeClock() {
     }, 3000);
   };
 
-
+  const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
     if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
     setLoading(true);
