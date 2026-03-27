@@ -325,23 +325,25 @@ export default function TimeClock() {
   const currentStepIndex = records.length;
   const allDone = currentStepIndex >= STEPS.length;
 
+  const resetToStart = () => {
+    setShowSuccess(false);
+    setSuccessMessage("");
+    setSelectedEmployee(null);
+    setSelectedShift(null);
+    setRecords([]);
+    setPendingEmployee(null);
+    setCpfInput("");
+    setCpfError("");
+    setGeoStatus("");
+    setShowConfirm(false);
+    setShowHistory(false);
+    setHistoryRecords([]);
+    setShowDropdown(false);
+    setLoading(false);
+  };
+
   const autoLogout = () => {
-    setTimeout(() => {
-      setShowSuccess(false);
-      setSuccessMessage("");
-      setSelectedEmployee(null);
-      setSelectedShift(null);
-      setRecords([]);
-      setPendingEmployee(null);
-      setCpfInput("");
-      setCpfError("");
-      setGeoStatus("");
-      setShowConfirm(false);
-      setShowHistory(false);
-      setHistoryRecords([]);
-      setShowDropdown(false);
-      setLoading(false);
-    }, 3000);
+    window.setTimeout(resetToStart, 3000);
   };
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
@@ -565,6 +567,13 @@ export default function TimeClock() {
           <p className="text-sm mt-4" style={{ color: "hsl(210 15% 45%)" }}>
             Redirecionando automaticamente...
           </p>
+          <button
+            onClick={resetToStart}
+            className="mt-6 h-12 rounded-xl px-6 font-semibold text-sm text-white transition-all hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+          >
+            Voltar ao início
+          </button>
         </div>
       </div>
     );
