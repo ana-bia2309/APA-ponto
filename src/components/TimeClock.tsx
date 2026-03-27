@@ -751,7 +751,7 @@ export default function TimeClock() {
           <button
             className="w-full py-3 text-sm font-medium rounded-xl transition-colors"
             style={{ color: "hsl(210 20% 60%)" }}
-            onClick={() => { setPendingEmployee(null); setCpfInput(""); setCpfError(""); }}
+            onClick={() => { setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError(""); }}
           >
             Voltar
           </button>
@@ -933,9 +933,12 @@ export default function TimeClock() {
                   onClick={() => {
                     if (!emp.has_cpf) {
                       setSelectedEmployee(emp);
+                      setValidatedEmployee(emp);
                       setRecords([]);
                       setShowDropdown(false);
                     } else {
+                      setSelectedEmployee(null);
+                      setValidatedEmployee(null);
                       setPendingEmployee(emp);
                       setCpfInput("");
                       setCpfError("");
@@ -951,6 +954,7 @@ export default function TimeClock() {
               <button
                 onClick={() => {
                   setSelectedEmployee(null);
+                  setValidatedEmployee(null);
                   setSelectedShift(null);
                   setRecords([]);
                   setShowDropdown(false);
