@@ -390,8 +390,6 @@ export default function TimeClock() {
     }
   };
 
-  const currentStepIndex = records.length;
-  const allDone = currentStepIndex >= STEPS.length;
 
   const getRecordForStep = (key: PunchStep) =>
     records.find((r) => r.step === key);
@@ -510,15 +508,6 @@ export default function TimeClock() {
   // Get offline pending count
   const pendingCount = getOfflineQueue().length;
 
-  // Auto-logout after successful punch
-  const autoLogout = () => {
-    setTimeout(() => {
-      setShowSuccess(false);
-      setSelectedEmployee(null);
-      setSelectedShift(null);
-      setRecords([]);
-    }, 3000);
-  };
 
   // Punch confirmation handler
   const confirmPunch = () => {
