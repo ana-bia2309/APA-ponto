@@ -533,14 +533,17 @@ export default function AdminDashboard() {
                               </a>
                             </span>
                           ) : rec.latitude && rec.longitude ? (
-                            <a
-                              href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <MapPin className="w-4 h-4" />
-                            </a>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <a
+                                href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-foreground transition-colors"
+                              >
+                                {rec.latitude.toFixed(4)}, {rec.longitude.toFixed(4)}
+                              </a>
+                            </span>
                           ) : null}
                         </div>
                       ))}
