@@ -266,22 +266,20 @@ export default function TimeClock() {
   }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
-    if (!navigator.onLine) {
-      const cached = getCachedEmployees();
-      if (cached.length > 0) setEmployees(cached);
+    const { data, error } = await supabase.rpc("get_active_employees_public");
+    if (error) {
+      console.error("Erro ao buscar colaboradores:", error);
+      toast.error("Erro ao carregar colaboradores");
       return;
     }
-    const { data } = await supabase.rpc("get_active_employees_public");
     if (data) {
-      // Map RPC result to Employee-compatible shape
       const mapped = (data as any[]).map((e: any) => ({
         ...e,
         active: true,
         created_at: "",
-        cpf: null, // CPF not exposed publicly
+        cpf: null,
       })) as Employee[];
       setEmployees(mapped);
-      cacheEmployees(mapped);
     }
   };
 
