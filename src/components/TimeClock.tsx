@@ -502,7 +502,8 @@ export default function TimeClock() {
             created_at: recordedAt,
           }),
         ]);
-        toast.info("Sem internet: registro pendente para sincronização no banco.");
+        setSuccessMessage(`${step.label} salva offline — será sincronizada automaticamente.`);
+        setShowSuccess(true);
       }
     } catch (err: any) {
       console.error("Punch error:", err);
