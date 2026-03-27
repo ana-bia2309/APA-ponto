@@ -474,6 +474,40 @@ export default function TimeClock() {
     }
   };
 
+  // Fetch history for employee (last 30 days)
+  const fetchHistory = async () => {
+    if (!selectedEmployee) return;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data } = await supabase
+      .from("punch_records")
+      .select("*")
+      .eq("employee_id", selectedEmployee.id)
+      .gte("punched_at", thirtyDaysAgo.toISOString())
+      .order("punched_at", { ascending: false });
+    if (data) setHistoryRecords(data);
+    setShowHistory(true);
+  };
+
+  // Get offline pending count
+  const pendingCount = getOfflineQueue().length;
+
+  // Auto-logout after successful punch
+  const autoLogout = () => {
+    setTimeout(() => {
+      setShowSuccess(false);
+      setSelectedEmployee(null);
+      setSelectedShift(null);
+      setRecords([]);
+    }, 3000);
+  };
+
+  // Punch confirmation handler
+  const confirmPunch = () => {
+    setShowConfirm(false);
+    setShowCamera(true);
+  };
+
   // Connection status indicator (always visible)
   const ConnectionIndicator = () => (
     <div className="fixed top-0 left-0 right-0 z-50 text-center text-xs py-1 flex items-center justify-center gap-1.5 transition-colors duration-300"
@@ -488,7 +522,10 @@ export default function TimeClock() {
       {isOnline ? (
         <><Wifi className="w-3 h-3" /> Online</>
       ) : (
-        <><WifiOff className="w-3 h-3" /> Sem conexão — modo offline</>
+        <>
+          <WifiOff className="w-3 h-3" /> Sem conexão
+          {pendingCount > 0 && <span className="ml-1">• {pendingCount} pendente(s)</span>}
+        </>
       )}
     </div>
   );
