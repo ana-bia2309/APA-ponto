@@ -3,6 +3,7 @@ import { LogIn, Coffee, RotateCcw, LogOut, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { type TimeRecordRow } from "@/lib/time-records";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees">;
@@ -117,16 +118,16 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
 
   const fetchTodayRecords = async () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    const { data } = await supabase
-      .from("punch_records")
-      .select("step, punched_at")
+    const { data } = await (supabase as any)
+      .from("time_records")
+      .select("record_type, recorded_at")
       .eq("employee_id", employee.id)
-      .gte("punched_at", `${todayStr}T00:00:00`)
-      .lte("punched_at", `${todayStr}T23:59:59`);
+      .gte("recorded_at", `${todayStr}T00:00:00`)
+      .lte("recorded_at", `${todayStr}T23:59:59`);
     if (data) {
       const times: Record<string, string | null> = { entrada: null, intervalo: null, retorno: null, saida: null };
-      data.forEach((r) => {
-        times[r.step] = new Date(r.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      (data as TimeRecordRow[]).forEach((r) => {
+        times[r.record_type] = new Date(r.recorded_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       });
       setExistingTimes(times as Record<PunchStep, string | null>);
     }
@@ -147,13 +148,22 @@ export default function ManualPunch({ employee, onClose, onSuccess }: ManualPunc
       });
       if (manualError) throw manualError;
 
-      const { error: punchError } = await supabase.from("punch_records").insert({
+      console.log("DEBUG: manual time_records employee_id:", employee.id);
+      console.log("DEBUG: manual time_records record_type:", selectedStep);
+
+      const { error: punchError } = await (supabase as any).from("time_records").insert({
         employee_id: employee.id,
-        step: selectedStep,
-        punched_at: punchedAt.toISOString(),
-        address: nightShift ? "Registro manual (noturno)" : "Registro manual",
+        record_type: selectedStep,
+        recorded_at: punchedAt.toISOString(),
+        latitude: null,
+        longitude: null,
+        mode: "manual",
+        sync_status: "synced",
       });
-      if (punchError) throw punchError;
+      if (punchError) {
+        console.error("DEBUG: manual time_records insert error:", punchError);
+        throw punchError;
+      }
 
       toast.success(`${selectedStep} manual registrada às ${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`);
       onSuccess();

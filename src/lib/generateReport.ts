@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { TimeRecordRow } from "@/lib/time-records";
 
 type Employee = Tables<"employees">;
 
@@ -30,19 +31,19 @@ export async function generateMonthlyReport(
   const startDate = `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
   const endDate = `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
 
-  const { data: records } = await supabase
-    .from("punch_records")
+  const { data: records } = await (supabase as any)
+    .from("time_records")
     .select("*")
     .eq("employee_id", employee.id)
-    .gte("punched_at", startDate)
-    .lte("punched_at", endDate)
-    .order("punched_at");
+    .gte("recorded_at", startDate)
+    .lte("recorded_at", endDate)
+    .order("recorded_at");
 
   const byDay: Record<number, Record<string, string>> = {};
-  for (const rec of records || []) {
-    const day = new Date(rec.punched_at).getDate();
+  for (const rec of (records as TimeRecordRow[]) || []) {
+    const day = new Date(rec.recorded_at).getDate();
     if (!byDay[day]) byDay[day] = {};
-    byDay[day][rec.step] = formatTime(rec.punched_at);
+    byDay[day][rec.record_type] = formatTime(rec.recorded_at);
   }
 
   const isSimple = employee.punch_mode === "simple";
@@ -142,19 +143,19 @@ export async function generateMonthlyExcel(
   const startDate = `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
   const endDate = `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
 
-  const { data: records } = await supabase
-    .from("punch_records")
+  const { data: records } = await (supabase as any)
+    .from("time_records")
     .select("*")
     .eq("employee_id", employee.id)
-    .gte("punched_at", startDate)
-    .lte("punched_at", endDate)
-    .order("punched_at");
+    .gte("recorded_at", startDate)
+    .lte("recorded_at", endDate)
+    .order("recorded_at");
 
   const byDay: Record<number, Record<string, string>> = {};
-  for (const rec of records || []) {
-    const day = new Date(rec.punched_at).getDate();
+  for (const rec of (records as TimeRecordRow[]) || []) {
+    const day = new Date(rec.recorded_at).getDate();
     if (!byDay[day]) byDay[day] = {};
-    byDay[day][rec.step] = formatTime(rec.punched_at);
+    byDay[day][rec.record_type] = formatTime(rec.recorded_at);
   }
 
   const isSimple = employee.punch_mode === "simple";
