@@ -278,8 +278,13 @@ export default function RecordsTab({ employees }: Props) {
                         </span>
                         {rec.photo_url && (
                           <button onClick={async () => {
-                            const { data } = await supabase.storage.from("punch-photos").createSignedUrl(rec.photo_url!, 300);
+                            let path = rec.photo_url!;
+                            const prefix = "/storage/v1/object/public/punch-photos/";
+                            const idx = path.indexOf(prefix);
+                            if (idx !== -1) path = decodeURIComponent(path.substring(idx + prefix.length));
+                            const { data } = await supabase.storage.from("punch-photos").createSignedUrl(path, 300);
                             if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                            else toast.error("Erro ao gerar link da foto");
                           }} className="text-primary hover:text-primary/80" title="Ver foto">
                             <Camera className="w-4 h-4" />
                           </button>
