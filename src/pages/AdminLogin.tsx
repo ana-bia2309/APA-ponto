@@ -11,22 +11,16 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success("Conta criada! Verifique seu email para confirmar.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/admin");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate("/admin");
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -42,9 +36,7 @@ export default function AdminLogin() {
             <Lock className="w-4 h-4" />
             Painel Admin
           </div>
-          <h1 className="text-xl font-bold text-foreground">
-            {isSignUp ? "Criar conta" : "Entrar"}
-          </h1>
+          <h1 className="text-xl font-bold text-foreground">Entrar</h1>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
@@ -71,15 +63,9 @@ export default function AdminLogin() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Carregando..." : isSignUp ? "Criar conta" : "Entrar"}
+            {loading ? "Carregando..." : "Entrar"}
           </Button>
         </form>
-        <button
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="w-full text-sm text-muted-foreground mt-4 hover:text-foreground transition-colors"
-        >
-          {isSignUp ? "Já tem conta? Entrar" : "Criar uma conta admin"}
-        </button>
       </Card>
     </div>
   );
