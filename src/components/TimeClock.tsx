@@ -291,23 +291,23 @@ export default function TimeClock() {
     }
   };
 
-  const resolveEmployeeId = async (employeeId: string) => {
-    const { data, error } = await (supabase as any).rpc("get_active_employee_public_by_id", {
-      p_employee_id: employeeId,
+  const resolveEmployeeByCpf = async (cpf: string) => {
+    const { data, error } = await (supabase as any).rpc("get_active_employee_by_cpf", {
+      p_cpf: cpf,
     });
 
     if (error) {
-      console.error("DEBUG: employee lookup error:", error);
-      throw new Error(error.message || "Erro ao validar colaborador no banco.");
+      console.error("DEBUG PONTO: erro ao buscar colaborador por CPF:", error);
+      throw new Error(error.message || "Erro ao consultar colaborador pelo CPF no banco.");
     }
 
-    const employee = Array.isArray(data) ? data[0] : null;
+    const matches = Array.isArray(data) ? data : [];
 
-    if (!employee?.id) {
-      throw new Error("Colaborador não encontrado na tabela public.employees.");
+    if (matches.length !== 1) {
+      throw new Error(matches.length > 1 ? "CPF duplicado no cadastro. Procure o administrador." : "CPF não encontrado no cadastro.");
     }
 
-    return employee.id as string;
+    return matches[0] as Employee;
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
@@ -374,19 +374,18 @@ export default function TimeClock() {
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
-    if (!selectedEmployee || currentStepIndex >= STEPS.length) return;
+    if (!selectedEmployee || !validatedEmployee || currentStepIndex >= STEPS.length) return;
     setLoading(true);
     try {
       void photoBlob;
       const location = await getLocation();
       const step = STEPS[currentStepIndex];
-      // Use the employee ID directly from the validated selectedEmployee state
-      const employeeId = selectedEmployee.id;
+      const employeeId = validatedEmployee.id;
       const recordedAt = new Date().toISOString();
 
       console.log("DEBUG PONTO: Colaborador selecionado:", selectedEmployee.name);
-      console.log("DEBUG PONTO: employee_id usado no insert:", employeeId);
-      console.log("DEBUG PONTO: record_type:", step.key);
+      console.log("DEBUG PONTO: CPF validado para:", validatedEmployee.name);
+      console.log("DEBUG PONTO: id enviado no insert:", employeeId);
 
       const punchData: TimeRecordInsert = {
         employee_id: employeeId,
@@ -398,11 +397,9 @@ export default function TimeClock() {
         sync_status: navigator.onLine ? "synced" : "pending",
       };
 
-      console.log("DEBUG: time_records employee_id:", punchData.employee_id);
-      console.log("DEBUG: time_records record_type:", punchData.record_type);
-
       if (navigator.onLine) {
         const { error } = await (supabase as any).from("time_records").insert(punchData);
+        console.log("DEBUG PONTO: resultado do insert:", error ? error : "sucesso");
         if (error) {
           console.error("DEBUG: time_records insert error:", error);
           throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
@@ -506,18 +503,27 @@ export default function TimeClock() {
       setCpfError("Sem conexão para validar CPF.");
       return;
     }
-    const { data } = await supabase.rpc("validate_employee_cpf", {
-      p_employee_id: pendingEmployee.id,
-      p_cpf: cpfInput,
-    });
-    if (data === true) {
-      console.log("DEBUG PONTO: CPF validado para:", pendingEmployee.name, "ID:", pendingEmployee.id);
-      setSelectedEmployee(pendingEmployee);
+
+    try {
+      console.log("DEBUG PONTO: CPF digitado:", cpfInput);
+      const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
+      console.log("DEBUG PONTO: colaborador encontrado no banco:", employeeFromCpf.name);
+      console.log("DEBUG PONTO: id encontrado no banco:", employeeFromCpf.id);
+
+      if (employeeFromCpf.id !== pendingEmployee.id) {
+        setValidatedEmployee(null);
+        setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        return;
+      }
+
+      setSelectedEmployee(employeeFromCpf);
+      setValidatedEmployee(employeeFromCpf);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
-    } else {
-      setCpfError("CPF incorreto. Tente novamente.");
+    } catch (error: any) {
+      setValidatedEmployee(null);
+      setCpfError(error?.message || "CPF incorreto. Tente novamente.");
     }
   };
 
