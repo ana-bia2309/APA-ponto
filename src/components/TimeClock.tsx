@@ -469,20 +469,31 @@ export default function TimeClock() {
     }
   };
 
-  // Offline indicator
-  const OfflineBanner = () =>
-    !isOnline ? (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground text-center text-xs py-1 flex items-center justify-center gap-1">
-        <WifiOff className="w-3 h-3" /> Sem internet — modo offline
-      </div>
-    ) : null;
+  // Connection status indicator (always visible)
+  const ConnectionIndicator = () => (
+    <div className="fixed top-0 left-0 right-0 z-50 text-center text-xs py-1 flex items-center justify-center gap-1.5 transition-colors duration-300"
+      style={{
+        background: isOnline
+          ? "linear-gradient(90deg, hsl(150 60% 15% / 0.85), hsl(160 50% 18% / 0.85))"
+          : "linear-gradient(90deg, hsl(0 70% 20% / 0.9), hsl(10 60% 22% / 0.9))",
+        color: isOnline ? "hsl(150 70% 75%)" : "hsl(0 80% 85%)",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      {isOnline ? (
+        <><Wifi className="w-3 h-3" /> Online</>
+      ) : (
+        <><WifiOff className="w-3 h-3" /> Sem conexão — modo offline</>
+      )}
+    </div>
+  );
 
   // CPF verification screen
   if (pendingEmployee) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-        <OfflineBanner />
+        <ConnectionIndicator />
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-6">
             <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
@@ -538,7 +549,7 @@ export default function TimeClock() {
         {/* Subtle glow effect */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
 
-        <OfflineBanner />
+        <ConnectionIndicator />
 
         <div className="text-center mb-10 relative z-10">
           {/* Logo with subtle glow */}
@@ -605,7 +616,7 @@ export default function TimeClock() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-        <OfflineBanner />
+        <ConnectionIndicator />
         <div className="text-center mb-8 relative z-10">
           <div className="relative inline-block mb-6">
             <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
@@ -664,7 +675,7 @@ export default function TimeClock() {
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-      <OfflineBanner />
+      <ConnectionIndicator />
       {/* Header */}
       <div className="text-center mb-8 relative z-10">
         <div className="relative inline-block mb-4">
