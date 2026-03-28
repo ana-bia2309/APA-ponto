@@ -945,10 +945,17 @@ export default function TimeClock() {
     try {
       void photoBlob;
       const location = await getLocation();
+
+      // Use server's next_step as the ONLY source of truth for record_type when online
+      const serverNextStep = serverStepInfo?.next_step;
       const step = nextAllowedStep;
-      if (!step) {
+      const recordType = navigator.onLine && serverNextStep ? serverNextStep : step?.key;
+
+      if (!recordType || !step) {
         throw new Error("Todos os registros do dia já foram concluídos.");
       }
+
+      console.log("DEBUG PONTO [insert]: record_type usado:", recordType, "| serverNextStep:", serverNextStep, "| step.key:", step?.key);
 
       const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
