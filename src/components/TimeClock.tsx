@@ -244,6 +244,7 @@ export default function TimeClock() {
     setSuccessMessage("");
     setSelectedEmployee(null);
     setValidatedEmployee(null);
+    setValidatedContext(null);
     setSelectedShift(null);
     setRecords([]);
     setPendingEmployee(null);
