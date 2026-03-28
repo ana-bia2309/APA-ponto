@@ -1621,10 +1621,15 @@ export default function TimeClock() {
 
       {/* Action button */}
       <div className="w-full max-w-md space-y-3 relative z-10">
-        {!allDone ? (
+        {recordsLoading ? (
+          <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            Carregando registros do dia...
+          </div>
+        ) : !allDone ? (
           <button
             onClick={() => setShowConfirm(true)}
-            disabled={loading}
+            disabled={loading || recordsLoading}
             className="w-full h-14 text-base font-semibold rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 20px hsl(210 70% 40% / 0.35)" }}
           >
