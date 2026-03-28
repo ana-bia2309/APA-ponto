@@ -289,6 +289,19 @@ export type Database = {
           shift: string
         }[]
       }
+      get_next_record_step_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          cpf: string
+          day_complete: boolean
+          employee_id: string
+          jornada: string
+          name: string
+          next_step: string
+          records_today: Json
+          shift: string
+        }[]
+      }
       get_today_records_for_employee: {
         Args: { p_employee_id: string; p_end_ts: string; p_start_ts: string }
         Returns: {
