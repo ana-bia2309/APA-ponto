@@ -177,14 +177,16 @@ async function syncOfflineQueue(): Promise<number> {
   const remaining: OfflinePunch[] = [];
 
   for (const punch of queue) {
+    const cpfDigits = normalizeCpf(punch.cpf || "");
     const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
-      p_cpf: punch.cpf || "",
+      p_cpf: cpfDigits,
       p_record_type: punch.record_type ?? punch.step,
       p_recorded_at: punch.recorded_at ?? punch.punched_at,
       p_latitude: punch.latitude,
       p_longitude: punch.longitude,
       p_mode: punch.mode ?? "offline",
       p_sync_status: "synced",
+      p_employee_id: punch.employee_id || null,
     });
     if (error) {
       console.error("DEBUG: offline time_records insert error:", error);
