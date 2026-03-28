@@ -289,6 +289,20 @@ export type Database = {
           shift: string
         }[]
       }
+      get_today_records_for_employee: {
+        Args: { p_employee_id: string; p_end_ts: string; p_start_ts: string }
+        Returns: {
+          created_at: string
+          employee_id: string
+          id: string
+          latitude: number
+          longitude: number
+          mode: string
+          record_type: string
+          recorded_at: string
+          sync_status: string
+        }[]
+      }
       insert_justification_with_cpf: {
         Args: {
           p_cpf: string
