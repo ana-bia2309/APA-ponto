@@ -687,8 +687,14 @@ export default function TimeClock() {
   }, [selectedEmployee, validatedContext]);
 
   useEffect(() => {
-    if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
-  }, [selectedEmployee]);
+    if (selectedEmployee) {
+      fetchTodayRecords(selectedEmployee.id);
+      // Always fetch server-driven next step when employee changes
+      if (validatedContext?.cpf_normalized) {
+        fetchNextStep(validatedContext.cpf_normalized);
+      }
+    }
+  }, [selectedEmployee, validatedContext?.cpf_normalized]);
 
   useEffect(() => {
     if (!showSuccess) return;
@@ -1843,6 +1849,11 @@ export default function TimeClock() {
           <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
             <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
             Carregando registros do dia...
+          </div>
+        ) : navigator.onLine && !serverStepInfo && validatedContext ? (
+          <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            Consultando próxima etapa...
           </div>
         ) : !allDone && nextAllowedStep ? (
           <button
