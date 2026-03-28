@@ -1649,6 +1649,7 @@ export default function TimeClock() {
                 <button
                   key={emp.id}
                   onClick={() => {
+                    setServerStepInfo(null);
                     if (!emp.has_cpf) {
                       setSelectedEmployee(emp);
                       setValidatedEmployee(emp);
