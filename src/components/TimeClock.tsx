@@ -926,9 +926,19 @@ export default function TimeClock() {
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
-    if (!validatedContext || currentStepIndex >= STEPS.length) {
-      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado ou steps completos");
+    if (!validatedContext) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado");
       toast.error("Erro interno: contexto de validação perdido. Volte ao início e tente novamente.");
+      return;
+    }
+    // When online, MUST have server step info to prevent sending wrong record_type
+    if (navigator.onLine && !serverStepInfo) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — serverStepInfo ainda não carregado");
+      toast.error("Aguarde a consulta da próxima etapa no servidor.");
+      return;
+    }
+    if (navigator.onLine && serverStepInfo?.day_complete) {
+      toast.info("Todos os registros do dia já foram concluídos.");
       return;
     }
     setLoading(true);
