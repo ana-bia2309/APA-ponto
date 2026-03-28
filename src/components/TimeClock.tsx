@@ -965,7 +965,7 @@ export default function TimeClock() {
         name: empName,
         employee_id: employeeId,
         cpf: cpfDigits.slice(0, 3) + "***",
-        step: step.key,
+        record_type: recordType,
         mode: navigator.onLine ? "online" : "offline",
       }));
 
@@ -975,7 +975,7 @@ export default function TimeClock() {
 
       const punchData: TimeRecordInsert = {
         employee_id: employeeId,
-        record_type: step.key,
+        record_type: recordType,
         recorded_at: recordedAt,
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
@@ -986,7 +986,7 @@ export default function TimeClock() {
       console.log("DEBUG PONTO [insert]: payload enviado:", {
         employee_id: employeeId,
         p_cpf: cpfDigits.slice(0, 3) + "***",
-        p_record_type: step.key,
+        p_record_type: recordType,
         p_recorded_at: recordedAt,
         p_latitude: location?.lat ?? null,
         p_longitude: location?.lng ?? null,
@@ -997,7 +997,7 @@ export default function TimeClock() {
       if (navigator.onLine) {
         const rpcResponse = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
-          p_record_type: step.key,
+          p_record_type: recordType,
           p_recorded_at: recordedAt,
           p_latitude: location?.lat ?? null,
           p_longitude: location?.lng ?? null,
@@ -1012,7 +1012,7 @@ export default function TimeClock() {
 
         const persisted = await confirmTimeRecordPersisted({
           employeeId,
-          recordType: step.key,
+          recordType: recordType,
           recordedAt,
         });
 
@@ -1029,7 +1029,7 @@ export default function TimeClock() {
           id: localPunchId,
           ...punchData,
           cpf: cpfDigits,
-          record_type: step.key,
+          record_type: recordType,
           recorded_at: recordedAt,
         });
 
