@@ -489,6 +489,11 @@ export default function TimeClock() {
   const [employeesSyncedAt, setEmployeesSyncedAt] = useState<string | null>(() => getEmployeesCacheSnapshot().synced_at);
   const [hasOfflineBase, setHasOfflineBase] = useState(() => getCachedEmployees().length > 0);
   const [recordsLoading, setRecordsLoading] = useState(false);
+  const [serverStepInfo, setServerStepInfo] = useState<{
+    next_step: string | null;
+    day_complete: boolean;
+    records_today: { record_type: string; recorded_at: string }[];
+  } | null>(null);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
