@@ -960,8 +960,19 @@ export default function TimeClock() {
         sync_status: navigator.onLine ? "synced" : "pending",
       };
 
+      console.log("DEBUG PONTO [insert]: payload enviado:", {
+        employee_id: employeeId,
+        p_cpf: cpfDigits.slice(0, 3) + "***",
+        p_record_type: step.key,
+        p_recorded_at: recordedAt,
+        p_latitude: location?.lat ?? null,
+        p_longitude: location?.lng ?? null,
+        p_mode: navigator.onLine ? "online" : "offline",
+        p_sync_status: navigator.onLine ? "synced" : "pending",
+      });
+
       if (navigator.onLine) {
-        const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
+        const rpcResponse = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
           p_record_type: step.key,
           p_recorded_at: recordedAt,
@@ -970,13 +981,22 @@ export default function TimeClock() {
           p_mode: "online",
           p_sync_status: "synced",
         });
-        console.log("DEBUG PONTO [insert]: resultado:", error ? error : "✓ sucesso");
-        if (error) {
-          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(error));
-          throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
+        console.log("DEBUG PONTO [insert]: resposta RPC:", rpcResponse);
+        if (rpcResponse.error) {
+          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(rpcResponse.error));
+          throw new Error(rpcResponse.error.message || rpcResponse.error.details || "Falha no insert em public.time_records.");
         }
 
-        // Re-fetch server-driven next step after successful punch
+        const persisted = await confirmTimeRecordPersisted({
+          employeeId,
+          recordType: step.key,
+          recordedAt,
+        });
+
+        if (!persisted) {
+          throw new Error("O registro não foi confirmado no banco de dados. Tente novamente.");
+        }
+
         await fetchNextStep(cpfDigits);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
