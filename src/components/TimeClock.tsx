@@ -642,58 +642,88 @@ export default function TimeClock() {
 
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
+    const cpfDigits = normalizeCpf(cpfInput);
+
+    console.log("DEBUG PONTO [verifyCpf]: CPF digitado:", cpfInput, "| normalizado:", cpfDigits);
+    console.log("DEBUG PONTO [verifyCpf]: colaborador selecionado:", pendingEmployee.name, "| id:", pendingEmployee.id);
+
+    if (!cpfDigits || cpfDigits.length < 11) {
+      setCpfError("CPF deve ter 11 dígitos.");
+      return;
+    }
 
     // OFFLINE: validate CPF using local cache
     if (!navigator.onLine) {
       const offlineMatch = findEmployeeByCpfOffline(cpfInput);
       if (!offlineMatch) {
         setCpfError("CPF não encontrado nos dados locais.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
         return;
       }
       if (offlineMatch.id !== pendingEmployee.id) {
         setValidatedEmployee(null);
+        setValidatedContext(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — id do cache:", offlineMatch.id, "≠ selecionado:", pendingEmployee.id);
         return;
       }
-      const empFromCache = {
-        ...offlineMatch,
-        active: true,
-        created_at: "",
-      } as Employee;
-      setValidatedCpf(offlineMatch.cpf || cpfInput);
+      const ctx: ValidatedContext = {
+        employee_id: offlineMatch.id,
+        name: offlineMatch.name,
+        cpf_normalized: normalizeCpf(offlineMatch.cpf || cpfInput),
+        punch_mode: offlineMatch.punch_mode,
+        shift: offlineMatch.shift,
+        validated_at: new Date().toISOString(),
+      };
+      const empFromCache = { ...offlineMatch, active: true, created_at: "" } as Employee;
+      setValidatedContext(ctx);
+      setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(empFromCache);
       setValidatedEmployee(empFromCache);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
+      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       toast.info("CPF validado offline ✓");
       return;
     }
 
     // ONLINE: validate CPF via database
     try {
-      console.log("DEBUG PONTO: CPF digitado:", cpfInput);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
-      console.log("DEBUG PONTO: colaborador encontrado no banco:", employeeFromCpf.name);
-      console.log("DEBUG PONTO: id encontrado no banco:", employeeFromCpf.id);
+      console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
 
       if (employeeFromCpf.id !== pendingEmployee.id) {
         setValidatedCpf("");
         setValidatedEmployee(null);
+        setValidatedContext(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO — id banco:", employeeFromCpf.id, "≠ selecionado:", pendingEmployee.id);
         return;
       }
 
-      setValidatedCpf((employeeFromCpf.cpf || cpfInput).replace(/\D/g, ""));
+      const ctx: ValidatedContext = {
+        employee_id: employeeFromCpf.id,
+        name: employeeFromCpf.name,
+        cpf_normalized: normalizeCpf((employeeFromCpf as any).cpf || cpfInput),
+        punch_mode: (employeeFromCpf as any).punch_mode || "full",
+        shift: (employeeFromCpf as any).shift || "diurno",
+        validated_at: new Date().toISOString(),
+      };
+      setValidatedContext(ctx);
+      setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(employeeFromCpf);
       setValidatedEmployee(employeeFromCpf);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
+      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
+      setValidatedContext(null);
       setCpfError(error?.message || "CPF incorreto. Tente novamente.");
+      console.log("DEBUG PONTO [verifyCpf]: ERRO na validação:", error?.message);
     }
   };
 
