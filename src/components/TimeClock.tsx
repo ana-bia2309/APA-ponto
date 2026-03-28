@@ -783,7 +783,7 @@ export default function TimeClock() {
       const merged = mergePunchRecords(cached, pending);
       setRecords(merged);
       setRecordsLoading(false);
-      return;
+      return merged;
     }
 
     const { data, error } = await (supabase as any).rpc("get_today_records_for_employee", {
@@ -797,10 +797,40 @@ export default function TimeClock() {
       const merged = mergePunchRecords(mapped, getPendingRecordsForEmployee(employeeId, dayKey));
       setRecords(merged);
       cacheRecords(employeeId, merged);
-    } else if (error) {
+      setRecordsLoading(false);
+      return merged;
+    }
+
+    if (error) {
       console.error("DEBUG PONTO [fetchTodayRecords]: ERRO:", error);
     }
     setRecordsLoading(false);
+    return [] as PunchRecord[];
+  };
+
+  const confirmTimeRecordPersisted = async ({
+    employeeId,
+    recordType,
+    recordedAt,
+  }: {
+    employeeId: string;
+    recordType: string;
+    recordedAt: string;
+  }) => {
+    const persistedRecords = await fetchTodayRecords(employeeId);
+    const persisted = persistedRecords.some(
+      (record) => record.employee_id === employeeId && record.step === recordType && record.punched_at === recordedAt,
+    );
+
+    console.log("DEBUG PONTO [confirmPersisted]:", {
+      employee_id: employeeId,
+      record_type: recordType,
+      recorded_at: recordedAt,
+      persisted,
+      total_records_loaded: persistedRecords.length,
+    });
+
+    return persisted;
   };
 
   const resolveEmployeeByCpf = async (cpf: string) => {
