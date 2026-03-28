@@ -202,6 +202,7 @@ export default function TimeClock() {
   const [showJustification, setShowJustification] = useState(false);
   const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
   const [cpfInput, setCpfInput] = useState("");
+  const [validatedCpf, setValidatedCpf] = useState("");
   const [cpfError, setCpfError] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -231,6 +232,7 @@ export default function TimeClock() {
     setRecords([]);
     setPendingEmployee(null);
     setCpfInput("");
+    setValidatedCpf("");
     setCpfError("");
     setGeoStatus("");
     setShowConfirm(false);
@@ -488,10 +490,16 @@ export default function TimeClock() {
       const step = STEPS[currentStepIndex];
       const employeeId = validatedEmployee.id;
       const recordedAt = new Date().toISOString();
+      const cpfDigits = validatedCpf.replace(/\D/g, "");
 
       console.log("DEBUG PONTO: Colaborador selecionado:", selectedEmployee.name);
       console.log("DEBUG PONTO: CPF validado para:", validatedEmployee.name);
       console.log("DEBUG PONTO: id enviado no insert:", employeeId);
+      console.log("DEBUG PONTO: CPF usado no insert:", cpfDigits);
+
+      if (!cpfDigits) {
+        throw new Error("CPF validado não encontrado para este colaborador.");
+      }
 
       const punchData: TimeRecordInsert = {
         employee_id: employeeId,
@@ -504,9 +512,6 @@ export default function TimeClock() {
       };
 
       if (navigator.onLine) {
-        // Use validated employee's CPF — cpfInput is cleared after validation
-        const cpfDigits = (validatedEmployee?.cpf || cpfInput).replace(/\D/g, "");
-        console.log("DEBUG PONTO: CPF usado no insert:", cpfDigits);
         const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
           p_record_type: step.key,
@@ -529,7 +534,7 @@ export default function TimeClock() {
         addToOfflineQueue({
           id: crypto.randomUUID(),
           ...punchData,
-          cpf: (validatedEmployee?.cpf || cpfInput).replace(/\D/g, ""),
+          cpf: cpfDigits,
         });
         setRecords((prev) => [
           ...prev,
@@ -592,7 +597,7 @@ export default function TimeClock() {
     return (
       <ManualPunch
         employee={selectedEmployee}
-        cpf={cpfInput}
+        cpf={validatedCpf}
         onClose={() => setShowManualPunch(false)}
         onSuccess={() => fetchTodayRecords(selectedEmployee.id)}
       />
@@ -603,7 +608,7 @@ export default function TimeClock() {
     return (
       <AbsenceJustification
         employee={selectedEmployee}
-        cpf={cpfInput}
+        cpf={validatedCpf}
         onClose={() => setShowJustification(false)}
         onSuccess={() => {}}
       />
@@ -638,6 +643,7 @@ export default function TimeClock() {
         active: true,
         created_at: "",
       } as Employee;
+      setValidatedCpf(offlineMatch.cpf || cpfInput);
       setSelectedEmployee(empFromCache);
       setValidatedEmployee(empFromCache);
       setPendingEmployee(null);
@@ -655,17 +661,20 @@ export default function TimeClock() {
       console.log("DEBUG PONTO: id encontrado no banco:", employeeFromCpf.id);
 
       if (employeeFromCpf.id !== pendingEmployee.id) {
+        setValidatedCpf("");
         setValidatedEmployee(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
         return;
       }
 
+      setValidatedCpf((employeeFromCpf.cpf || cpfInput).replace(/\D/g, ""));
       setSelectedEmployee(employeeFromCpf);
       setValidatedEmployee(employeeFromCpf);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
     } catch (error: any) {
+      setValidatedCpf("");
       setValidatedEmployee(null);
       setCpfError(error?.message || "CPF incorreto. Tente novamente.");
     }
@@ -1064,10 +1073,12 @@ export default function TimeClock() {
                 if (!emp.has_cpf) {
                   setSelectedEmployee(emp);
                   setValidatedEmployee(emp);
+                  setValidatedCpf("");
                   setShowDropdown(false);
                 } else {
                   setSelectedEmployee(null);
                   setValidatedEmployee(null);
+                  setValidatedCpf("");
                   setPendingEmployee(emp);
                   setCpfInput("");
                   setCpfError("");
@@ -1135,11 +1146,13 @@ export default function TimeClock() {
                     if (!emp.has_cpf) {
                       setSelectedEmployee(emp);
                       setValidatedEmployee(emp);
+                      setValidatedCpf("");
                       setRecords([]);
                       setShowDropdown(false);
                     } else {
                       setSelectedEmployee(null);
                       setValidatedEmployee(null);
+                      setValidatedCpf("");
                       setPendingEmployee(emp);
                       setCpfInput("");
                       setCpfError("");
@@ -1156,6 +1169,7 @@ export default function TimeClock() {
                 onClick={() => {
                   setSelectedEmployee(null);
                   setValidatedEmployee(null);
+                  setValidatedCpf("");
                   setSelectedShift(null);
                   setRecords([]);
                   setShowDropdown(false);
