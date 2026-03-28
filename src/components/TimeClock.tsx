@@ -529,7 +529,7 @@ export default function TimeClock() {
         addToOfflineQueue({
           id: crypto.randomUUID(),
           ...punchData,
-          cpf: cpfInput.replace(/\D/g, ""),
+          cpf: (validatedEmployee?.cpf || cpfInput).replace(/\D/g, ""),
         });
         setRecords((prev) => [
           ...prev,
