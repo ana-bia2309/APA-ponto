@@ -39,6 +39,21 @@ type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
 type PunchRecord = DisplayPunchRecord;
 
+/** Single source of truth after CPF validation */
+interface ValidatedContext {
+  employee_id: string;
+  name: string;
+  cpf_normalized: string;
+  punch_mode: string;
+  shift: string;
+  validated_at: string;
+}
+
+/** Normalize CPF to digits only — used everywhere */
+function normalizeCpf(raw: string): string {
+  return (raw || "").replace(/\D/g, "");
+}
+
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "intervalo", label: "Intervalo", icon: Coffee },
@@ -203,6 +218,7 @@ export default function TimeClock() {
   const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
   const [cpfInput, setCpfInput] = useState("");
   const [validatedCpf, setValidatedCpf] = useState("");
+  const [validatedContext, setValidatedContext] = useState<ValidatedContext | null>(null);
   const [cpfError, setCpfError] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showConfirm, setShowConfirm] = useState(false);
