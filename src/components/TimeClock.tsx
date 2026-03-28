@@ -980,7 +980,7 @@ export default function TimeClock() {
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
         mode: navigator.onLine ? "online" : "offline",
-        sync_status: navigator.onLine ? "synced" : "pending",
+        sync_status: "pending", // Always starts as pending — only becomes "synced" after confirmed insert
       };
 
       console.log("DEBUG PONTO [insert]: payload enviado:", {
