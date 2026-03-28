@@ -499,23 +499,29 @@ export default function TimeClock() {
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
-    if (!selectedEmployee || !validatedEmployee || currentStepIndex >= STEPS.length) return;
+    if (!validatedContext || currentStepIndex >= STEPS.length) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado ou steps completos");
+      toast.error("Erro interno: contexto de validação perdido. Volte ao início e tente novamente.");
+      return;
+    }
     setLoading(true);
     try {
       void photoBlob;
       const location = await getLocation();
       const step = STEPS[currentStepIndex];
-      const employeeId = validatedEmployee.id;
+      const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
-      const cpfDigits = validatedCpf.replace(/\D/g, "");
 
-      console.log("DEBUG PONTO: Colaborador selecionado:", selectedEmployee.name);
-      console.log("DEBUG PONTO: CPF validado para:", validatedEmployee.name);
-      console.log("DEBUG PONTO: id enviado no insert:", employeeId);
-      console.log("DEBUG PONTO: CPF usado no insert:", cpfDigits);
+      console.log("DEBUG PONTO [insert]: contexto usado:", JSON.stringify({
+        name: empName,
+        employee_id: employeeId,
+        cpf: cpfDigits.slice(0, 3) + "***",
+        step: step.key,
+        mode: navigator.onLine ? "online" : "offline",
+      }));
 
       if (!cpfDigits) {
-        throw new Error("CPF validado não encontrado para este colaborador.");
+        throw new Error("CPF validado não encontrado no contexto. Volte ao início.");
       }
 
       const punchData: TimeRecordInsert = {
@@ -537,10 +543,11 @@ export default function TimeClock() {
           p_longitude: location?.lng ?? null,
           p_mode: "online",
           p_sync_status: "synced",
+          p_employee_id: employeeId,
         });
-        console.log("DEBUG PONTO: resultado do insert:", error ? error : "sucesso");
+        console.log("DEBUG PONTO [insert]: resultado:", error ? error : "✓ sucesso");
         if (error) {
-          console.error("DEBUG: time_records insert error:", error);
+          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(error));
           throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
         }
 
@@ -565,8 +572,7 @@ export default function TimeClock() {
         setShowSuccess(true);
       }
     } catch (err: any) {
-      console.error("Punch error:", err);
-      console.error("DEBUG: time_records returned error:", err);
+      console.error("DEBUG PONTO [insert]: ERRO:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
       toast.error(`Erro ao registrar ponto: ${msg}`);
     } finally {
