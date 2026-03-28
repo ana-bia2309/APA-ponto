@@ -1624,9 +1624,11 @@ export default function TimeClock() {
             <div className="text-[11px] space-y-0.5" style={{ color: "hsl(210 15% 50%)" }}>
               <p>DEBUG • colaborador: {selectedEmployee.name}</p>
               <p>DEBUG • jornada: {punchMode === "simple" ? "simplificada" : "completa"}</p>
+              <p>DEBUG • fonte: {serverStepInfo ? "SERVIDOR (RPC)" : "local"}</p>
               <p>DEBUG • registros do dia: {sequenceState.ordered.map((record) => `${record.step} ${formatTime(record.punched_at)}`).join(" • ") || "nenhum"}</p>
               <p>DEBUG • último válido: {lastValidRecord ? `${lastValidRecord.step} ${formatTime(lastValidRecord.punched_at)}` : "nenhum"}</p>
               <p>DEBUG • próxima etapa: {nextAllowedStep?.key ?? "dia concluído"}</p>
+              <p>DEBUG • day_complete: {serverStepInfo?.day_complete ? "SIM" : "NÃO"}</p>
             </div>
           </div>
         )}
