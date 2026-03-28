@@ -47,6 +47,7 @@ interface ValidatedContext {
   punch_mode: string;
   shift: string;
   validated_at: string;
+  source: "online" | "offline";
 }
 
 /** Normalize CPF to digits only — used everywhere */
@@ -87,120 +88,321 @@ const formatDate = (date: Date) =>
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
 const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+const OFFLINE_REQUIRED_MESSAGE = "É necessário abrir o app com internet pelo menos uma vez para habilitar o modo offline.";
 
 interface CachedEmployee {
   id: string;
   name: string;
   cpf: string | null;
   shift: string;
+   jornada: string;
   punch_mode: string;
   has_cpf: boolean;
+   active: boolean;
 }
 
-function cacheEmployees(employees: CachedEmployee[]) {
-  try {
-    localStorage.setItem(EMPLOYEES_CACHE_KEY, JSON.stringify(employees));
-  } catch {}
-}
-
-function getCachedEmployees(): CachedEmployee[] {
-  try {
-    return JSON.parse(localStorage.getItem(EMPLOYEES_CACHE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function findEmployeeByCpfOffline(cpf: string): CachedEmployee | null {
-  const normalized = cpf.replace(/\D/g, "");
-  if (!normalized) return null;
-  const cached = getCachedEmployees();
-  const matches = cached.filter(
-    (e) => e.cpf && e.cpf.replace(/\D/g, "") === normalized
-  );
-  return matches.length === 1 ? matches[0] : null;
-}
-
-function cacheRecords(employeeId: string, records: PunchRecord[]) {
-  try {
-    const today = new Date().toISOString().split("T")[0];
-    localStorage.setItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`, JSON.stringify(records));
-  } catch {}
-}
-
-function getCachedRecords(employeeId: string): PunchRecord[] {
-  try {
-    const today = new Date().toISOString().split("T")[0];
-    return JSON.parse(localStorage.getItem(`${RECORDS_CACHE_KEY}_${employeeId}_${today}`) || "[]");
-  } catch {
-    return [];
-  }
+interface EmployeesCachePayload {
+  synced_at: string | null;
+  employees: CachedEmployee[];
 }
 
 interface OfflinePunch {
   id: string;
   employee_id: string;
-  cpf?: string;
-  record_type?: string;
-  step?: string;
+  cpf: string;
+  record_type: string;
   latitude: number | null;
   longitude: number | null;
-  recorded_at?: string;
-  punched_at?: string;
-  mode?: string;
-  sync_status?: string;
+  recorded_at: string;
+  mode: string;
+  sync_status: string;
+  attempts?: number;
+  last_error?: string | null;
+}
+
+interface SyncOfflineResult {
+  synced: number;
+  skipped: number;
+  failed: number;
+}
+
+function readStorageJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorageJson(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function normalizeCachedEmployee(employee: Partial<CachedEmployee> & { id: string; name: string }): CachedEmployee {
+  const punchMode = employee.punch_mode || employee.jornada || "full";
+
+  return {
+    id: employee.id,
+    name: employee.name,
+    cpf: employee.cpf ?? null,
+    shift: employee.shift || "diurno",
+    jornada: employee.jornada || punchMode,
+    punch_mode: punchMode,
+    has_cpf: typeof employee.has_cpf === "boolean" ? employee.has_cpf : !!employee.cpf,
+    active: typeof employee.active === "boolean" ? employee.active : true,
+  };
+}
+
+function getEmployeesCacheSnapshot(): EmployeesCachePayload {
+  const raw = readStorageJson<EmployeesCachePayload | CachedEmployee[]>(EMPLOYEES_CACHE_KEY, []);
+
+  if (Array.isArray(raw)) {
+    return {
+      synced_at: null,
+      employees: raw.map((employee) => normalizeCachedEmployee(employee)),
+    };
+  }
+
+  return {
+    synced_at: raw?.synced_at || null,
+    employees: Array.isArray(raw?.employees)
+      ? raw.employees.map((employee) => normalizeCachedEmployee(employee))
+      : [],
+  };
+}
+
+function cacheEmployees(employees: CachedEmployee[]) {
+  writeStorageJson(EMPLOYEES_CACHE_KEY, {
+    synced_at: new Date().toISOString(),
+    employees,
+  } satisfies EmployeesCachePayload);
+}
+
+function getCachedEmployees(): CachedEmployee[] {
+  return getEmployeesCacheSnapshot().employees.filter((employee) => employee.active);
+}
+
+function mapCachedEmployeeToEmployee(employee: CachedEmployee): Employee {
+  return {
+    ...employee,
+    active: employee.active,
+    created_at: "",
+  } as Employee;
+}
+
+function findEmployeeByCpfOffline(cpf: string): CachedEmployee | null {
+  const normalized = normalizeCpf(cpf);
+  if (!normalized) return null;
+
+  const cached = getCachedEmployees();
+  const matches = cached.filter(
+    (employee) => employee.cpf && normalizeCpf(employee.cpf) === normalized,
+  );
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function getDayKey(dateLike: string = new Date().toISOString()) {
+  return dateLike.split("T")[0];
+}
+
+function getRecordsCacheKey(employeeId: string, dayKey: string = getDayKey()) {
+  return `${RECORDS_CACHE_KEY}_${employeeId}_${dayKey}`;
+}
+
+function getPunchFingerprint(record: { step?: string; punched_at?: string; record_type?: string; recorded_at?: string }) {
+  const step = record.step || record.record_type || "";
+  const punchedAt = record.punched_at || record.recorded_at || "";
+  return `${step}__${punchedAt}`;
+}
+
+function mergePunchRecords(...groups: PunchRecord[][]): PunchRecord[] {
+  const merged = new Map<string, PunchRecord>();
+
+  groups.flat().forEach((record) => {
+    const key = getPunchFingerprint(record);
+    const current = merged.get(key);
+
+    if (!current || (current.sync_status === "pending" && record.sync_status !== "pending")) {
+      merged.set(key, record);
+    }
+  });
+
+  return Array.from(merged.values()).sort(
+    (left, right) => new Date(left.punched_at).getTime() - new Date(right.punched_at).getTime(),
+  );
+}
+
+function cacheRecords(employeeId: string, records: PunchRecord[]) {
+  const dayKey = records[0] ? getDayKey(records[0].punched_at) : getDayKey();
+  writeStorageJson(getRecordsCacheKey(employeeId, dayKey), mergePunchRecords(records));
+}
+
+function getCachedRecords(employeeId: string, dayKey: string = getDayKey()): PunchRecord[] {
+  return mergePunchRecords(readStorageJson<PunchRecord[]>(getRecordsCacheKey(employeeId, dayKey), []));
+}
+
+function createPendingRecord(punch: OfflinePunch): PunchRecord {
+  return {
+    id: punch.id,
+    employee_id: punch.employee_id,
+    step: punch.record_type,
+    punched_at: punch.recorded_at,
+    latitude: punch.latitude,
+    longitude: punch.longitude,
+    address: null,
+    photo_url: null,
+    created_at: punch.recorded_at,
+    mode: punch.mode,
+    sync_status: punch.sync_status,
+  };
+}
+
+function cacheOfflineRecord(punch: OfflinePunch) {
+  const dayKey = getDayKey(punch.recorded_at);
+  const cached = getCachedRecords(punch.employee_id, dayKey);
+  const merged = mergePunchRecords(cached, [createPendingRecord(punch)]);
+  writeStorageJson(getRecordsCacheKey(punch.employee_id, dayKey), merged);
+}
+
+function markCachedRecordAsSynced(employeeId: string, recordType: string, recordedAt: string) {
+  const dayKey = getDayKey(recordedAt);
+  const cached = getCachedRecords(employeeId, dayKey);
+  const updated = cached.map((record) =>
+    record.step === recordType && record.punched_at === recordedAt
+      ? { ...record, sync_status: "synced" }
+      : record,
+  );
+
+  writeStorageJson(getRecordsCacheKey(employeeId, dayKey), updated);
 }
 
 function getOfflineQueue(): OfflinePunch[] {
-  try {
-    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
-  } catch {
-    return [];
-  }
+  const queue = readStorageJson<OfflinePunch[]>(OFFLINE_QUEUE_KEY, []);
+
+  const uniqueQueue = new Map<string, OfflinePunch>();
+  queue.forEach((item) => {
+    uniqueQueue.set(`${item.employee_id}__${item.record_type}__${item.recorded_at}`, {
+      ...item,
+      cpf: normalizeCpf(item.cpf || ""),
+      record_type: item.record_type,
+      recorded_at: item.recorded_at,
+      mode: item.mode || "offline",
+      sync_status: item.sync_status || "pending",
+    });
+  });
+
+  return Array.from(uniqueQueue.values()).sort(
+    (left, right) => new Date(left.recorded_at).getTime() - new Date(right.recorded_at).getTime(),
+  );
 }
 
 function addToOfflineQueue(punch: OfflinePunch) {
   const queue = getOfflineQueue();
-  queue.push(punch);
-  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+
+  if (queue.some((item) => item.employee_id === punch.employee_id && item.record_type === punch.record_type && item.recorded_at === punch.recorded_at)) {
+    return false;
+  }
+
+  const nextQueue = [...queue, punch];
+  writeStorageJson(OFFLINE_QUEUE_KEY, nextQueue);
+  cacheOfflineRecord(punch);
+  return true;
 }
 
 function clearOfflineQueue() {
   localStorage.removeItem(OFFLINE_QUEUE_KEY);
 }
 
-async function syncOfflineQueue(): Promise<number> {
+function getPendingRecordsForEmployee(employeeId: string, dayKey: string = getDayKey()): PunchRecord[] {
+  return getOfflineQueue()
+    .filter((item) => item.employee_id === employeeId && getDayKey(item.recorded_at) === dayKey)
+    .map(createPendingRecord);
+}
+
+async function timeRecordExists(punch: OfflinePunch): Promise<boolean> {
+  const { data, error } = await (supabase as any)
+    .from("time_records")
+    .select("id")
+    .eq("employee_id", punch.employee_id)
+    .eq("record_type", punch.record_type)
+    .eq("recorded_at", punch.recorded_at)
+    .limit(1);
+
+  if (error) {
+    console.warn("DEBUG OFFLINE [dedupe]: não foi possível verificar duplicidade remotamente", error);
+    return false;
+  }
+
+  return Array.isArray(data) && data.length > 0;
+}
+
+async function syncOfflineQueue(): Promise<SyncOfflineResult> {
   const queue = getOfflineQueue();
-  if (queue.length === 0) return 0;
+  if (queue.length === 0) {
+    return { synced: 0, skipped: 0, failed: 0 };
+  }
 
   let synced = 0;
+  let skipped = 0;
+  let failed = 0;
   const remaining: OfflinePunch[] = [];
 
   for (const punch of queue) {
     const cpfDigits = normalizeCpf(punch.cpf || "");
-    const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
-      p_cpf: cpfDigits,
-      p_record_type: punch.record_type ?? punch.step,
-      p_recorded_at: punch.recorded_at ?? punch.punched_at,
-      p_latitude: punch.latitude,
-      p_longitude: punch.longitude,
-      p_mode: punch.mode ?? "offline",
-      p_sync_status: "synced",
-    });
-    if (error) {
-      console.error("DEBUG: offline time_records insert error:", error);
-      remaining.push(punch);
-    } else {
+
+    try {
+      if (!cpfDigits || !punch.record_type || !punch.recorded_at) {
+        failed++;
+        remaining.push({ ...punch, attempts: (punch.attempts || 0) + 1, last_error: "Registro offline inválido" });
+        continue;
+      }
+
+      const alreadyExists = await timeRecordExists(punch);
+
+      if (alreadyExists) {
+        skipped++;
+        markCachedRecordAsSynced(punch.employee_id, punch.record_type, punch.recorded_at);
+        continue;
+      }
+
+      const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
+        p_cpf: cpfDigits,
+        p_record_type: punch.record_type,
+        p_recorded_at: punch.recorded_at,
+        p_latitude: punch.latitude,
+        p_longitude: punch.longitude,
+        p_mode: "offline",
+        p_sync_status: "synced",
+      });
+
+      if (error) {
+        throw error;
+      }
+
       synced++;
+      markCachedRecordAsSynced(punch.employee_id, punch.record_type, punch.recorded_at);
+    } catch (error: any) {
+      console.error("DEBUG OFFLINE [sync]: erro ao sincronizar registro pendente", error);
+      failed++;
+      remaining.push({
+        ...punch,
+        attempts: (punch.attempts || 0) + 1,
+        last_error: error?.message || "Erro ao sincronizar",
+      });
     }
   }
 
   if (remaining.length > 0) {
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    writeStorageJson(OFFLINE_QUEUE_KEY, remaining);
   } else {
     clearOfflineQueue();
   }
-  return synced;
+
+  return { synced, skipped, failed };
 }
 
 export default function TimeClock() {
@@ -230,6 +432,9 @@ export default function TimeClock() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+  const [employeesSyncedAt, setEmployeesSyncedAt] = useState<string | null>(() => getEmployeesCacheSnapshot().synced_at);
+  const [hasOfflineBase, setHasOfflineBase] = useState(() => getCachedEmployees().length > 0);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
@@ -261,6 +466,7 @@ export default function TimeClock() {
     setShowManualPunch(false);
     setShowJustification(false);
     setLoading(false);
+    setStatusNotice(null);
     navigate("/", { replace: true });
   }, [navigate]);
 
@@ -268,26 +474,42 @@ export default function TimeClock() {
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
+      setStatusNotice("Sincronizando dados pendentes...");
       setIsSyncing(true);
-      const synced = await syncOfflineQueue();
+      const result = await syncOfflineQueue();
+      await fetchEmployees();
       setIsSyncing(false);
-      if (synced > 0) {
-        toast.success(`${synced} registro(s) sincronizado(s)!`);
+      if (result.synced > 0 || result.skipped > 0) {
+        const detail = result.skipped > 0
+          ? `${result.synced} novo(s) e ${result.skipped} já existente(s)`
+          : `${result.synced} registro(s)`;
+        toast.success(`Sincronização concluída: ${detail}.`);
+        setStatusNotice("Sincronização concluída.");
         if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+      } else if (result.failed > 0) {
+        setStatusNotice("Alguns registros continuam pendentes e serão reenviados automaticamente.");
+      } else {
+        setStatusNotice("Conexão restabelecida.");
       }
     };
     const handleOffline = () => {
       setIsOnline(false);
-      toast.warning("Sem internet — registros serão salvos offline");
+      const message = hasOfflineBase
+        ? "Sem internet — modo offline ativo. Os registros serão salvos localmente."
+        : OFFLINE_REQUIRED_MESSAGE;
+      setStatusNotice(message);
+      toast.warning(message);
     };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    if (navigator.onLine) syncOfflineQueue();
+    if (navigator.onLine) {
+      void handleOnline();
+    }
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [selectedEmployee]);
+  }, [hasOfflineBase, selectedEmployee]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -338,20 +560,24 @@ export default function TimeClock() {
   }, [showSuccess, resetToStart]);
 
   const fetchEmployees = async () => {
+    const cachedSnapshot = getEmployeesCacheSnapshot();
+    const cachedEmployees = cachedSnapshot.employees.filter((employee) => employee.active);
+
+    if (cachedEmployees.length > 0) {
+      setEmployees(cachedEmployees.map(mapCachedEmployeeToEmployee));
+      setHasOfflineBase(true);
+      setEmployeesSyncedAt(cachedSnapshot.synced_at);
+    }
+
     if (!navigator.onLine) {
-      // Load from cache when offline
-      const cached = getCachedEmployees();
-      if (cached.length > 0) {
-        const mapped = cached.map((e) => ({
-          ...e,
-          active: true,
-          created_at: "",
-        })) as Employee[];
-        setEmployees(mapped);
-      } else {
-        toast.error("Sem internet e sem dados em cache.");
+      if (cachedEmployees.length > 0) {
+        setStatusNotice("Modo offline ativo usando a base local de colaboradores.");
+        return;
       }
-      return;
+
+      setHasOfflineBase(false);
+      setStatusNotice(OFFLINE_REQUIRED_MESSAGE);
+      throw new Error(OFFLINE_REQUIRED_MESSAGE);
     }
 
     // Fetch employees via SECURITY DEFINER RPC (does not expose CPF via table policy)
@@ -359,11 +585,16 @@ export default function TimeClock() {
 
     if (fullError) {
       console.error("Erro ao buscar colaboradores:", fullError);
+      if (cachedEmployees.length > 0) {
+        toast.warning("Falha ao atualizar colaboradores. Mantendo a última base local sincronizada.");
+        setStatusNotice("Usando a última base local sincronizada de colaboradores.");
+        return;
+      }
+
       // Fallback to public RPC without CPF
       const { data: rpcData, error: rpcError } = await supabase.rpc("get_active_employees_public");
       if (rpcError) {
-        toast.error("Erro ao carregar colaboradores");
-        return;
+        throw new Error("Erro ao carregar colaboradores");
       }
       if (rpcData) {
         const mapped = (rpcData as any[]).map((e: any) => ({
@@ -371,8 +602,11 @@ export default function TimeClock() {
           active: true,
           created_at: "",
           cpf: null,
+          jornada: e.punch_mode,
         })) as Employee[];
         setEmployees(mapped);
+        setHasOfflineBase(false);
+        setStatusNotice("Colaboradores carregados online, mas a base offline ainda não está disponível.");
       }
       return;
     }
@@ -384,24 +618,28 @@ export default function TimeClock() {
         name: e.name,
         cpf: e.cpf,
         shift: e.shift,
+        jornada: e.punch_mode,
         punch_mode: e.punch_mode,
         has_cpf: !!(e.cpf && e.cpf.trim()),
+        active: true,
       }));
       cacheEmployees(cachedList);
+      setHasOfflineBase(cachedList.length > 0);
+      setEmployeesSyncedAt(new Date().toISOString());
 
-      const mapped = cachedList.map((e) => ({
-        ...e,
-        active: true,
-        created_at: "",
-      })) as Employee[];
-      setEmployees(mapped);
+      setEmployees(cachedList.map(mapCachedEmployeeToEmployee));
+      setStatusNotice(cachedList.length > 0 ? "Base offline de colaboradores atualizada." : null);
     }
   };
 
   const fetchTodayRecords = async (employeeId: string) => {
+    const dayKey = getDayKey();
+
     if (!navigator.onLine) {
-      const cached = getCachedRecords(employeeId);
-      if (cached.length > 0) setRecords(cached);
+      const cached = getCachedRecords(employeeId, dayKey);
+      const pending = getPendingRecordsForEmployee(employeeId, dayKey);
+      const merged = mergePunchRecords(cached, pending);
+      setRecords(merged);
       return;
     }
     const today = new Date().toISOString().split("T")[0];
@@ -414,8 +652,9 @@ export default function TimeClock() {
       .order("recorded_at");
     if (data) {
       const mapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
-      setRecords(mapped);
-      cacheRecords(employeeId, mapped);
+      const merged = mergePunchRecords(mapped, getPendingRecordsForEmployee(employeeId, dayKey));
+      setRecords(merged);
+      cacheRecords(employeeId, merged);
     }
   };
 
@@ -439,6 +678,8 @@ export default function TimeClock() {
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
+    if (!navigator.onLine) return null;
+
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
@@ -467,6 +708,13 @@ export default function TimeClock() {
         async (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
+
+          if (!navigator.onLine) {
+            setGeoStatus("Localização obtida ✓ (sem endereço no modo offline)");
+            resolve({ lat, lng, address: null });
+            return;
+          }
+
           setGeoStatus("Obtendo endereço...");
           const address = await reverseGeocode(lat, lng);
           setGeoStatus(address || "Localização obtida ✓");
@@ -512,6 +760,7 @@ export default function TimeClock() {
       const step = STEPS[currentStepIndex];
       const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
+      const localPunchId = crypto.randomUUID();
 
       console.log("DEBUG PONTO [insert]: contexto usado:", JSON.stringify({
         name: empName,
@@ -552,22 +801,28 @@ export default function TimeClock() {
         }
 
         await fetchTodayRecords(employeeId);
+        setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
       } else {
-        addToOfflineQueue({
-          id: crypto.randomUUID(),
+        const saved = addToOfflineQueue({
+          id: localPunchId,
           ...punchData,
           cpf: cpfDigits,
+          record_type: step.key,
+          recorded_at: recordedAt,
         });
-        setRecords((prev) => [
-          ...prev,
-          mapTimeRecordToPunchRecord({
-            id: crypto.randomUUID(),
+
+        const localRecord = mapTimeRecordToPunchRecord({
+            id: localPunchId,
             ...punchData,
             created_at: recordedAt,
-          }),
-        ]);
+          });
+
+        setRecords((prev) => mergePunchRecords(prev, [localRecord]));
+        setStatusNotice(saved
+          ? "Registro salvo offline e pendente de sincronização."
+          : "Este registro offline já estava salvo localmente.");
         setSuccessMessage(`${step.label} salva offline — será sincronizada automaticamente.`);
         setShowSuccess(true);
       }
@@ -680,8 +935,9 @@ export default function TimeClock() {
         punch_mode: offlineMatch.punch_mode,
         shift: offlineMatch.shift,
         validated_at: new Date().toISOString(),
+        source: "offline",
       };
-      const empFromCache = { ...offlineMatch, active: true, created_at: "" } as Employee;
+      const empFromCache = mapCachedEmployeeToEmployee(offlineMatch);
       setValidatedContext(ctx);
       setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(empFromCache);
@@ -690,6 +946,7 @@ export default function TimeClock() {
       setCpfInput("");
       setCpfError("");
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
+      setStatusNotice("CPF validado offline.");
       toast.info("CPF validado offline ✓");
       return;
     }
@@ -715,6 +972,7 @@ export default function TimeClock() {
         punch_mode: (employeeFromCpf as any).punch_mode || "full",
         shift: (employeeFromCpf as any).shift || "diurno",
         validated_at: new Date().toISOString(),
+        source: "online",
       };
       setValidatedContext(ctx);
       setValidatedCpf(ctx.cpf_normalized);
@@ -723,6 +981,7 @@ export default function TimeClock() {
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
+      setStatusNotice(null);
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
     } catch (error: any) {
       setValidatedCpf("");
@@ -759,13 +1018,21 @@ export default function TimeClock() {
 
   const handleManualSync = async () => {
     if (!navigator.onLine) { toast.error("Sem conexão"); return; }
+    setStatusNotice("Sincronizando dados pendentes...");
     setIsSyncing(true);
-    const synced = await syncOfflineQueue();
+    const result = await syncOfflineQueue();
     setIsSyncing(false);
-    if (synced > 0) {
-      toast.success(`${synced} registro(s) sincronizado(s)!`);
+    if (result.synced > 0 || result.skipped > 0) {
+      const detail = result.skipped > 0
+        ? `${result.synced} novo(s) e ${result.skipped} já existente(s)`
+        : `${result.synced} registro(s)`;
+      toast.success(`Sincronização concluída: ${detail}.`);
+      setStatusNotice("Sincronização concluída.");
       if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+    } else if (result.failed > 0) {
+      setStatusNotice("Alguns registros continuam pendentes e serão reenviados automaticamente.");
     } else {
+      setStatusNotice("Nenhum registro pendente para sincronizar.");
       toast.info("Nenhum registro pendente");
     }
   };
@@ -796,7 +1063,7 @@ export default function TimeClock() {
         </>
       ) : (
         <>
-          <WifiOff className="w-3 h-3" /> Sem conexão
+          <WifiOff className="w-3 h-3" /> {hasOfflineBase ? "Sem conexão • modo offline ativo" : "Sem conexão"}
           {pendingCount > 0 && <span className="ml-1">• {pendingCount} pendente(s)</span>}
         </>
       )}
@@ -1179,6 +1446,26 @@ export default function TimeClock() {
         <p className="mt-2 capitalize text-sm" style={{ color: "hsl(210 15% 50%)" }}>
           {formatDate(now)}
         </p>
+
+        {(statusNotice || (!isOnline && hasOfflineBase) || employeesSyncedAt) && (
+          <div className="mt-3 space-y-1">
+            {statusNotice && (
+              <p className="text-xs font-medium" style={{ color: "hsl(200 65% 70%)" }}>
+                {statusNotice}
+              </p>
+            )}
+            {!statusNotice && !isOnline && hasOfflineBase && (
+              <p className="text-xs font-medium" style={{ color: "hsl(200 65% 70%)" }}>
+                Modo offline ativo usando a base local já sincronizada.
+              </p>
+            )}
+            {employeesSyncedAt && (
+              <p className="text-[11px]" style={{ color: "hsl(210 15% 50%)" }}>
+                Base offline atualizada em {new Date(employeesSyncedAt).toLocaleString("pt-BR")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Employee selector */}
         <div className="relative mt-4">
