@@ -39,6 +39,21 @@ type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
 type PunchRecord = DisplayPunchRecord;
 
+/** Single source of truth after CPF validation */
+interface ValidatedContext {
+  employee_id: string;
+  name: string;
+  cpf_normalized: string;
+  punch_mode: string;
+  shift: string;
+  validated_at: string;
+}
+
+/** Normalize CPF to digits only — used everywhere */
+function normalizeCpf(raw: string): string {
+  return (raw || "").replace(/\D/g, "");
+}
+
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "intervalo", label: "Intervalo", icon: Coffee },
@@ -162,14 +177,16 @@ async function syncOfflineQueue(): Promise<number> {
   const remaining: OfflinePunch[] = [];
 
   for (const punch of queue) {
+    const cpfDigits = normalizeCpf(punch.cpf || "");
     const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
-      p_cpf: punch.cpf || "",
+      p_cpf: cpfDigits,
       p_record_type: punch.record_type ?? punch.step,
       p_recorded_at: punch.recorded_at ?? punch.punched_at,
       p_latitude: punch.latitude,
       p_longitude: punch.longitude,
       p_mode: punch.mode ?? "offline",
       p_sync_status: "synced",
+      p_employee_id: punch.employee_id || null,
     });
     if (error) {
       console.error("DEBUG: offline time_records insert error:", error);
@@ -203,6 +220,7 @@ export default function TimeClock() {
   const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
   const [cpfInput, setCpfInput] = useState("");
   const [validatedCpf, setValidatedCpf] = useState("");
+  const [validatedContext, setValidatedContext] = useState<ValidatedContext | null>(null);
   const [cpfError, setCpfError] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -228,6 +246,7 @@ export default function TimeClock() {
     setSuccessMessage("");
     setSelectedEmployee(null);
     setValidatedEmployee(null);
+    setValidatedContext(null);
     setSelectedShift(null);
     setRecords([]);
     setPendingEmployee(null);
@@ -482,23 +501,29 @@ export default function TimeClock() {
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
-    if (!selectedEmployee || !validatedEmployee || currentStepIndex >= STEPS.length) return;
+    if (!validatedContext || currentStepIndex >= STEPS.length) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado ou steps completos");
+      toast.error("Erro interno: contexto de validação perdido. Volte ao início e tente novamente.");
+      return;
+    }
     setLoading(true);
     try {
       void photoBlob;
       const location = await getLocation();
       const step = STEPS[currentStepIndex];
-      const employeeId = validatedEmployee.id;
+      const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
-      const cpfDigits = validatedCpf.replace(/\D/g, "");
 
-      console.log("DEBUG PONTO: Colaborador selecionado:", selectedEmployee.name);
-      console.log("DEBUG PONTO: CPF validado para:", validatedEmployee.name);
-      console.log("DEBUG PONTO: id enviado no insert:", employeeId);
-      console.log("DEBUG PONTO: CPF usado no insert:", cpfDigits);
+      console.log("DEBUG PONTO [insert]: contexto usado:", JSON.stringify({
+        name: empName,
+        employee_id: employeeId,
+        cpf: cpfDigits.slice(0, 3) + "***",
+        step: step.key,
+        mode: navigator.onLine ? "online" : "offline",
+      }));
 
       if (!cpfDigits) {
-        throw new Error("CPF validado não encontrado para este colaborador.");
+        throw new Error("CPF validado não encontrado no contexto. Volte ao início.");
       }
 
       const punchData: TimeRecordInsert = {
@@ -520,10 +545,11 @@ export default function TimeClock() {
           p_longitude: location?.lng ?? null,
           p_mode: "online",
           p_sync_status: "synced",
+          p_employee_id: employeeId,
         });
-        console.log("DEBUG PONTO: resultado do insert:", error ? error : "sucesso");
+        console.log("DEBUG PONTO [insert]: resultado:", error ? error : "✓ sucesso");
         if (error) {
-          console.error("DEBUG: time_records insert error:", error);
+          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(error));
           throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
         }
 
@@ -548,8 +574,7 @@ export default function TimeClock() {
         setShowSuccess(true);
       }
     } catch (err: any) {
-      console.error("Punch error:", err);
-      console.error("DEBUG: time_records returned error:", err);
+      console.error("DEBUG PONTO [insert]: ERRO:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
       toast.error(`Erro ao registrar ponto: ${msg}`);
     } finally {
@@ -593,22 +618,22 @@ export default function TimeClock() {
     );
   }
 
-  if (showManualPunch && selectedEmployee) {
+  if (showManualPunch && selectedEmployee && validatedContext) {
     return (
       <ManualPunch
         employee={selectedEmployee}
-        cpf={validatedCpf}
+        cpf={validatedContext.cpf_normalized}
         onClose={() => setShowManualPunch(false)}
         onSuccess={() => fetchTodayRecords(selectedEmployee.id)}
       />
     );
   }
 
-  if (showJustification && selectedEmployee) {
+  if (showJustification && selectedEmployee && validatedContext) {
     return (
       <AbsenceJustification
         employee={selectedEmployee}
-        cpf={validatedCpf}
+        cpf={validatedContext.cpf_normalized}
         onClose={() => setShowJustification(false)}
         onSuccess={() => {}}
       />
@@ -625,58 +650,88 @@ export default function TimeClock() {
 
   const verifyCpf = async () => {
     if (!pendingEmployee) return;
+    const cpfDigits = normalizeCpf(cpfInput);
+
+    console.log("DEBUG PONTO [verifyCpf]: CPF digitado:", cpfInput, "| normalizado:", cpfDigits);
+    console.log("DEBUG PONTO [verifyCpf]: colaborador selecionado:", pendingEmployee.name, "| id:", pendingEmployee.id);
+
+    if (!cpfDigits || cpfDigits.length < 11) {
+      setCpfError("CPF deve ter 11 dígitos.");
+      return;
+    }
 
     // OFFLINE: validate CPF using local cache
     if (!navigator.onLine) {
       const offlineMatch = findEmployeeByCpfOffline(cpfInput);
       if (!offlineMatch) {
         setCpfError("CPF não encontrado nos dados locais.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
         return;
       }
       if (offlineMatch.id !== pendingEmployee.id) {
         setValidatedEmployee(null);
+        setValidatedContext(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — id do cache:", offlineMatch.id, "≠ selecionado:", pendingEmployee.id);
         return;
       }
-      const empFromCache = {
-        ...offlineMatch,
-        active: true,
-        created_at: "",
-      } as Employee;
-      setValidatedCpf(offlineMatch.cpf || cpfInput);
+      const ctx: ValidatedContext = {
+        employee_id: offlineMatch.id,
+        name: offlineMatch.name,
+        cpf_normalized: normalizeCpf(offlineMatch.cpf || cpfInput),
+        punch_mode: offlineMatch.punch_mode,
+        shift: offlineMatch.shift,
+        validated_at: new Date().toISOString(),
+      };
+      const empFromCache = { ...offlineMatch, active: true, created_at: "" } as Employee;
+      setValidatedContext(ctx);
+      setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(empFromCache);
       setValidatedEmployee(empFromCache);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
+      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       toast.info("CPF validado offline ✓");
       return;
     }
 
     // ONLINE: validate CPF via database
     try {
-      console.log("DEBUG PONTO: CPF digitado:", cpfInput);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
-      console.log("DEBUG PONTO: colaborador encontrado no banco:", employeeFromCpf.name);
-      console.log("DEBUG PONTO: id encontrado no banco:", employeeFromCpf.id);
+      console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
 
       if (employeeFromCpf.id !== pendingEmployee.id) {
         setValidatedCpf("");
         setValidatedEmployee(null);
+        setValidatedContext(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
+        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO — id banco:", employeeFromCpf.id, "≠ selecionado:", pendingEmployee.id);
         return;
       }
 
-      setValidatedCpf((employeeFromCpf.cpf || cpfInput).replace(/\D/g, ""));
+      const ctx: ValidatedContext = {
+        employee_id: employeeFromCpf.id,
+        name: employeeFromCpf.name,
+        cpf_normalized: normalizeCpf((employeeFromCpf as any).cpf || cpfInput),
+        punch_mode: (employeeFromCpf as any).punch_mode || "full",
+        shift: (employeeFromCpf as any).shift || "diurno",
+        validated_at: new Date().toISOString(),
+      };
+      setValidatedContext(ctx);
+      setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(employeeFromCpf);
       setValidatedEmployee(employeeFromCpf);
       setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
+      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
+      setValidatedContext(null);
       setCpfError(error?.message || "CPF incorreto. Tente novamente.");
+      console.log("DEBUG PONTO [verifyCpf]: ERRO na validação:", error?.message);
     }
   };
 
