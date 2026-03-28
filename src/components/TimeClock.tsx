@@ -1010,16 +1010,12 @@ export default function TimeClock() {
           throw new Error(rpcResponse.error.message || rpcResponse.error.details || "Falha no insert em public.time_records.");
         }
 
-        const persisted = await confirmTimeRecordPersisted({
-          employeeId,
-          recordType: recordType,
-          recordedAt,
-        });
+        // RPC returned a UUID = insert confirmed by the database. Trust it.
+        const returnedId = rpcResponse.data;
+        console.log("DEBUG PONTO [insert]: SUCESSO CONFIRMADO pelo banco, id:", returnedId);
 
-        if (!persisted) {
-          throw new Error("O registro não foi confirmado no banco de dados. Tente novamente.");
-        }
-
+        // Refresh records and next step from server
+        await fetchTodayRecords(employeeId);
         await fetchNextStep(cpfDigits);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
