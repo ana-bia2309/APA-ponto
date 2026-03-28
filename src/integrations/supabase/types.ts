@@ -307,18 +307,32 @@ export type Database = {
         }
         Returns: string
       }
-      insert_time_record_with_cpf: {
-        Args: {
-          p_cpf: string
-          p_latitude?: number
-          p_longitude?: number
-          p_mode?: string
-          p_record_type: string
-          p_recorded_at: string
-          p_sync_status?: string
-        }
-        Returns: string
-      }
+      insert_time_record_with_cpf:
+        | {
+            Args: {
+              p_cpf: string
+              p_latitude?: number
+              p_longitude?: number
+              p_mode?: string
+              p_record_type: string
+              p_recorded_at: string
+              p_sync_status?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_cpf: string
+              p_employee_id?: string
+              p_latitude?: number
+              p_longitude?: number
+              p_mode?: string
+              p_record_type: string
+              p_recorded_at: string
+              p_sync_status?: string
+            }
+            Returns: string
+          }
       is_active_employee: { Args: { p_employee_id: string }; Returns: boolean }
       validate_employee_cpf: {
         Args: { p_cpf: string; p_employee_id: string }
