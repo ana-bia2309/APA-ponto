@@ -435,15 +435,22 @@ export default function TimeClock() {
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [employeesSyncedAt, setEmployeesSyncedAt] = useState<string | null>(() => getEmployeesCacheSnapshot().synced_at);
   const [hasOfflineBase, setHasOfflineBase] = useState(() => getCachedEmployees().length > 0);
+  const [recordsLoading, setRecordsLoading] = useState(false);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
     : employees;
 
-  const STEPS = selectedEmployee && selectedEmployee.punch_mode === "simple"
-    ? SIMPLE_STEPS
-    : ALL_STEPS;
+  const punchMode = selectedEmployee?.punch_mode ?? validatedContext?.punch_mode ?? "full";
+  const STEPS = punchMode === "simple" ? SIMPLE_STEPS : ALL_STEPS;
+
+  // Compute completed steps from actual records (unique step types that match STEPS)
+  const completedSteps = STEPS.filter((step) =>
+    records.some((r) => r.step === step.key),
+  );
+  const currentStepIndex = completedSteps.length;
+  const allDone = currentStepIndex >= STEPS.length;
 
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
@@ -634,12 +641,14 @@ export default function TimeClock() {
 
   const fetchTodayRecords = async (employeeId: string) => {
     const dayKey = getDayKey();
+    setRecordsLoading(true);
 
     if (!navigator.onLine) {
       const cached = getCachedRecords(employeeId, dayKey);
       const pending = getPendingRecordsForEmployee(employeeId, dayKey);
       const merged = mergePunchRecords(cached, pending);
       setRecords(merged);
+      setRecordsLoading(false);
       return;
     }
     const today = new Date().toISOString().split("T")[0];
@@ -656,6 +665,7 @@ export default function TimeClock() {
       setRecords(merged);
       cacheRecords(employeeId, merged);
     }
+    setRecordsLoading(false);
   };
 
   const resolveEmployeeByCpf = async (cpf: string) => {
@@ -742,9 +752,6 @@ export default function TimeClock() {
     // Return the file path (not public URL) — signed URLs generated on demand
     return fileName;
   };
-
-  const currentStepIndex = records.length;
-  const allDone = currentStepIndex >= STEPS.length;
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
