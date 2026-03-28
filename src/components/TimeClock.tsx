@@ -489,6 +489,11 @@ export default function TimeClock() {
   const [employeesSyncedAt, setEmployeesSyncedAt] = useState<string | null>(() => getEmployeesCacheSnapshot().synced_at);
   const [hasOfflineBase, setHasOfflineBase] = useState(() => getCachedEmployees().length > 0);
   const [recordsLoading, setRecordsLoading] = useState(false);
+  const [serverStepInfo, setServerStepInfo] = useState<{
+    next_step: string | null;
+    day_complete: boolean;
+    records_today: { record_type: string; recorded_at: string }[];
+  } | null>(null);
   const navigate = useNavigate();
 
   const filteredEmployees = selectedShift
@@ -498,10 +503,85 @@ export default function TimeClock() {
   const punchMode = selectedEmployee?.punch_mode ?? validatedContext?.punch_mode ?? "full";
   const STEPS = punchMode === "simple" ? SIMPLE_STEPS : ALL_STEPS;
   const sequenceState = resolveCompletedSequence(records, STEPS);
-  const currentStepIndex = sequenceState.currentStepIndex;
-  const allDone = sequenceState.allDone;
-  const nextAllowedStep = sequenceState.nextStep;
+
+  // Server-driven step info takes precedence over local calculation
+  const allDone = serverStepInfo ? serverStepInfo.day_complete : sequenceState.allDone;
+  const nextAllowedStep = serverStepInfo
+    ? (serverStepInfo.next_step ? STEPS.find((s) => s.key === serverStepInfo.next_step) ?? ALL_STEPS.find((s) => s.key === serverStepInfo.next_step) ?? null : null)
+    : sequenceState.nextStep;
+  const currentStepIndex = serverStepInfo
+    ? (serverStepInfo.next_step ? STEPS.findIndex((s) => s.key === serverStepInfo.next_step) : STEPS.length)
+    : sequenceState.currentStepIndex;
   const lastValidRecord = sequenceState.lastValidRecord;
+
+  /** Fetch next step from server RPC — single source of truth */
+  const fetchNextStep = useCallback(async (cpf: string) => {
+    if (!cpf || !navigator.onLine) return;
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits) return;
+    try {
+      const { data, error } = await (supabase as any).rpc("get_next_record_step_by_cpf", { p_cpf: cpfDigits });
+      console.log("DEBUG PONTO [fetchNextStep]: cpf:", cpfDigits.slice(0, 3) + "***", "result:", data, "error:", error);
+      if (error) {
+        console.error("DEBUG PONTO [fetchNextStep]: ERRO:", error);
+        return;
+      }
+      if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0];
+        setServerStepInfo({
+          next_step: row.next_step,
+          day_complete: row.day_complete,
+          records_today: typeof row.records_today === "string" ? JSON.parse(row.records_today) : (row.records_today || []),
+        });
+        // Also update records display from server data
+        if (row.records_today) {
+          const serverRecords = (typeof row.records_today === "string" ? JSON.parse(row.records_today) : row.records_today) as { record_type: string; recorded_at: string }[];
+          const mapped: PunchRecord[] = serverRecords.map((r, i) => ({
+            id: `server-${i}`,
+            employee_id: row.employee_id,
+            step: r.record_type,
+            punched_at: r.recorded_at,
+            latitude: null,
+            longitude: null,
+            address: null,
+            photo_url: null,
+            created_at: r.recorded_at,
+            mode: "online",
+            sync_status: "synced",
+          }));
+          const pending = getPendingRecordsForEmployee(row.employee_id);
+          setRecords(mergePunchRecords(mapped, pending));
+        }
+      } else if (data && !Array.isArray(data)) {
+        // Single object return
+        setServerStepInfo({
+          next_step: data.next_step,
+          day_complete: data.day_complete,
+          records_today: typeof data.records_today === "string" ? JSON.parse(data.records_today) : (data.records_today || []),
+        });
+        if (data.records_today) {
+          const serverRecords = (typeof data.records_today === "string" ? JSON.parse(data.records_today) : data.records_today) as { record_type: string; recorded_at: string }[];
+          const mapped: PunchRecord[] = serverRecords.map((r, i) => ({
+            id: `server-${i}`,
+            employee_id: data.employee_id,
+            step: r.record_type,
+            punched_at: r.recorded_at,
+            latitude: null,
+            longitude: null,
+            address: null,
+            photo_url: null,
+            created_at: r.recorded_at,
+            mode: "online",
+            sync_status: "synced",
+          }));
+          const pending = getPendingRecordsForEmployee(data.employee_id);
+          setRecords(mergePunchRecords(mapped, pending));
+        }
+      }
+    } catch (err) {
+      console.error("DEBUG PONTO [fetchNextStep]: exception:", err);
+    }
+  }, []);
 
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
@@ -526,6 +606,7 @@ export default function TimeClock() {
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
+    setServerStepInfo(null);
     navigate("/", { replace: true });
   }, [navigate]);
 
@@ -598,11 +679,12 @@ export default function TimeClock() {
       if (document.visibilityState === "visible" && navigator.onLine) {
         fetchEmployees();
         if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+        if (validatedContext?.cpf_normalized) fetchNextStep(validatedContext.cpf_normalized);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [selectedEmployee]);
+  }, [selectedEmployee, validatedContext]);
 
   useEffect(() => {
     if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
@@ -864,7 +946,8 @@ export default function TimeClock() {
           throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
         }
 
-        await fetchTodayRecords(employeeId);
+        // Re-fetch server-driven next step after successful punch
+        await fetchNextStep(cpfDigits);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
@@ -1047,6 +1130,8 @@ export default function TimeClock() {
       setCpfError("");
       setStatusNotice(null);
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
+      // Fetch server-driven next step
+      await fetchNextStep(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
@@ -1539,9 +1624,11 @@ export default function TimeClock() {
             <div className="text-[11px] space-y-0.5" style={{ color: "hsl(210 15% 50%)" }}>
               <p>DEBUG • colaborador: {selectedEmployee.name}</p>
               <p>DEBUG • jornada: {punchMode === "simple" ? "simplificada" : "completa"}</p>
+              <p>DEBUG • fonte: {serverStepInfo ? "SERVIDOR (RPC)" : "local"}</p>
               <p>DEBUG • registros do dia: {sequenceState.ordered.map((record) => `${record.step} ${formatTime(record.punched_at)}`).join(" • ") || "nenhum"}</p>
               <p>DEBUG • último válido: {lastValidRecord ? `${lastValidRecord.step} ${formatTime(lastValidRecord.punched_at)}` : "nenhum"}</p>
               <p>DEBUG • próxima etapa: {nextAllowedStep?.key ?? "dia concluído"}</p>
+              <p>DEBUG • day_complete: {serverStepInfo?.day_complete ? "SIM" : "NÃO"}</p>
             </div>
           </div>
         )}
@@ -1562,6 +1649,7 @@ export default function TimeClock() {
                 <button
                   key={emp.id}
                   onClick={() => {
+                    setServerStepInfo(null);
                     if (!emp.has_cpf) {
                       setSelectedEmployee(emp);
                       setValidatedEmployee(emp);
