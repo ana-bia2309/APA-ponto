@@ -616,22 +616,22 @@ export default function TimeClock() {
     );
   }
 
-  if (showManualPunch && selectedEmployee) {
+  if (showManualPunch && selectedEmployee && validatedContext) {
     return (
       <ManualPunch
         employee={selectedEmployee}
-        cpf={validatedCpf}
+        cpf={validatedContext.cpf_normalized}
         onClose={() => setShowManualPunch(false)}
         onSuccess={() => fetchTodayRecords(selectedEmployee.id)}
       />
     );
   }
 
-  if (showJustification && selectedEmployee) {
+  if (showJustification && selectedEmployee && validatedContext) {
     return (
       <AbsenceJustification
         employee={selectedEmployee}
-        cpf={validatedCpf}
+        cpf={validatedContext.cpf_normalized}
         onClose={() => setShowJustification(false)}
         onSuccess={() => {}}
       />
