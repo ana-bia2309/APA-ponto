@@ -1026,7 +1026,15 @@ export default function TimeClock() {
     } catch (err: any) {
       console.error("DEBUG PONTO [insert]: ERRO:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
-      toast.error(`Erro ao registrar ponto: ${msg}`);
+      if (msg.includes("já existe")) {
+        toast.error("Este registro já foi realizado hoje. Siga a próxima etapa.");
+        // Refresh server state to show correct next step
+        if (validatedContext?.cpf_normalized) {
+          await fetchNextStep(validatedContext.cpf_normalized);
+        }
+      } else {
+        toast.error(`Erro ao registrar ponto: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
