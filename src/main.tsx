@@ -19,6 +19,22 @@ if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((registrations) => {
     registrations.forEach((r) => r.unregister());
   });
+} else if ("serviceWorker" in navigator) {
+  // Force update check on every app open for published PWA
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((reg) => {
+      reg.update().catch(() => {});
+    });
+  });
+
+  // Listen for new SW activation and reload to get latest version
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
