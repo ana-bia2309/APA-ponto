@@ -783,7 +783,7 @@ export default function TimeClock() {
       const merged = mergePunchRecords(cached, pending);
       setRecords(merged);
       setRecordsLoading(false);
-      return;
+      return merged;
     }
 
     const { data, error } = await (supabase as any).rpc("get_today_records_for_employee", {
@@ -797,10 +797,40 @@ export default function TimeClock() {
       const merged = mergePunchRecords(mapped, getPendingRecordsForEmployee(employeeId, dayKey));
       setRecords(merged);
       cacheRecords(employeeId, merged);
-    } else if (error) {
+      setRecordsLoading(false);
+      return merged;
+    }
+
+    if (error) {
       console.error("DEBUG PONTO [fetchTodayRecords]: ERRO:", error);
     }
     setRecordsLoading(false);
+    return [] as PunchRecord[];
+  };
+
+  const confirmTimeRecordPersisted = async ({
+    employeeId,
+    recordType,
+    recordedAt,
+  }: {
+    employeeId: string;
+    recordType: string;
+    recordedAt: string;
+  }) => {
+    const persistedRecords = await fetchTodayRecords(employeeId);
+    const persisted = persistedRecords.some(
+      (record) => record.employee_id === employeeId && record.step === recordType && record.punched_at === recordedAt,
+    );
+
+    console.log("DEBUG PONTO [confirmPersisted]:", {
+      employee_id: employeeId,
+      record_type: recordType,
+      recorded_at: recordedAt,
+      persisted,
+      total_records_loaded: persistedRecords.length,
+    });
+
+    return persisted;
   };
 
   const resolveEmployeeByCpf = async (cpf: string) => {
@@ -930,8 +960,19 @@ export default function TimeClock() {
         sync_status: navigator.onLine ? "synced" : "pending",
       };
 
+      console.log("DEBUG PONTO [insert]: payload enviado:", {
+        employee_id: employeeId,
+        p_cpf: cpfDigits.slice(0, 3) + "***",
+        p_record_type: step.key,
+        p_recorded_at: recordedAt,
+        p_latitude: location?.lat ?? null,
+        p_longitude: location?.lng ?? null,
+        p_mode: navigator.onLine ? "online" : "offline",
+        p_sync_status: navigator.onLine ? "synced" : "pending",
+      });
+
       if (navigator.onLine) {
-        const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
+        const rpcResponse = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
           p_record_type: step.key,
           p_recorded_at: recordedAt,
@@ -940,13 +981,22 @@ export default function TimeClock() {
           p_mode: "online",
           p_sync_status: "synced",
         });
-        console.log("DEBUG PONTO [insert]: resultado:", error ? error : "✓ sucesso");
-        if (error) {
-          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(error));
-          throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
+        console.log("DEBUG PONTO [insert]: resposta RPC:", rpcResponse);
+        if (rpcResponse.error) {
+          console.error("DEBUG PONTO [insert]: erro detalhado:", JSON.stringify(rpcResponse.error));
+          throw new Error(rpcResponse.error.message || rpcResponse.error.details || "Falha no insert em public.time_records.");
         }
 
-        // Re-fetch server-driven next step after successful punch
+        const persisted = await confirmTimeRecordPersisted({
+          employeeId,
+          recordType: step.key,
+          recordedAt,
+        });
+
+        if (!persisted) {
+          throw new Error("O registro não foi confirmado no banco de dados. Tente novamente.");
+        }
+
         await fetchNextStep(cpfDigits);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
