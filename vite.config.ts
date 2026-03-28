@@ -23,13 +23,19 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}"],
+        // Force new SW to take over immediately
+        skipWaiting: true,
+        clientsClaim: true,
+        // Clean old caches on update
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*supabase.*\/rest\/v1\/.*/i,
             handler: "NetworkFirst",
             options: {
               cacheName: "supabase-api",
-              expiration: { maxEntries: 50, maxAgeSeconds: 86400 },
+              expiration: { maxEntries: 30, maxAgeSeconds: 3600 },
+              networkTimeoutSeconds: 5,
             },
           },
         ],
