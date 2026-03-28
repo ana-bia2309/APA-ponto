@@ -186,7 +186,6 @@ async function syncOfflineQueue(): Promise<number> {
       p_longitude: punch.longitude,
       p_mode: punch.mode ?? "offline",
       p_sync_status: "synced",
-      p_employee_id: punch.employee_id || null,
     });
     if (error) {
       console.error("DEBUG: offline time_records insert error:", error);
@@ -545,7 +544,6 @@ export default function TimeClock() {
           p_longitude: location?.lng ?? null,
           p_mode: "online",
           p_sync_status: "synced",
-          p_employee_id: employeeId,
         });
         console.log("DEBUG PONTO [insert]: resultado:", error ? error : "✓ sucesso");
         if (error) {
