@@ -704,18 +704,19 @@ export default function TimeClock() {
       return;
     }
 
-    const { data } = await (supabase as any)
-      .from("time_records")
-      .select("*")
-      .eq("employee_id", employeeId)
-      .gte("recorded_at", startIso)
-      .lte("recorded_at", endIso)
-      .order("recorded_at");
-    if (data) {
+    const { data, error } = await (supabase as any).rpc("get_today_records_for_employee", {
+      p_employee_id: employeeId,
+      p_start_ts: startIso,
+      p_end_ts: endIso,
+    });
+    console.log("DEBUG PONTO [fetchTodayRecords]: employee_id:", employeeId, "range:", startIso, "→", endIso, "result:", data?.length ?? 0, "rows, error:", error);
+    if (!error && data) {
       const mapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
       const merged = mergePunchRecords(mapped, getPendingRecordsForEmployee(employeeId, dayKey));
       setRecords(merged);
       cacheRecords(employeeId, merged);
+    } else if (error) {
+      console.error("DEBUG PONTO [fetchTodayRecords]: ERRO:", error);
     }
     setRecordsLoading(false);
   };
