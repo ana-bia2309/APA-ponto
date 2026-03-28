@@ -687,8 +687,14 @@ export default function TimeClock() {
   }, [selectedEmployee, validatedContext]);
 
   useEffect(() => {
-    if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
-  }, [selectedEmployee]);
+    if (selectedEmployee) {
+      fetchTodayRecords(selectedEmployee.id);
+      // Always fetch server-driven next step when employee changes
+      if (validatedContext?.cpf_normalized) {
+        fetchNextStep(validatedContext.cpf_normalized);
+      }
+    }
+  }, [selectedEmployee, validatedContext?.cpf_normalized]);
 
   useEffect(() => {
     if (!showSuccess) return;
@@ -920,19 +926,36 @@ export default function TimeClock() {
 
   const handlePunchWithPhoto = async (photoBlob: Blob) => {
     setShowCamera(false);
-    if (!validatedContext || currentStepIndex >= STEPS.length) {
-      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado ou steps completos");
+    if (!validatedContext) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — sem contexto validado");
       toast.error("Erro interno: contexto de validação perdido. Volte ao início e tente novamente.");
+      return;
+    }
+    // When online, MUST have server step info to prevent sending wrong record_type
+    if (navigator.onLine && !serverStepInfo) {
+      console.error("DEBUG PONTO [insert]: BLOQUEIO — serverStepInfo ainda não carregado");
+      toast.error("Aguarde a consulta da próxima etapa no servidor.");
+      return;
+    }
+    if (navigator.onLine && serverStepInfo?.day_complete) {
+      toast.info("Todos os registros do dia já foram concluídos.");
       return;
     }
     setLoading(true);
     try {
       void photoBlob;
       const location = await getLocation();
+
+      // Use server's next_step as the ONLY source of truth for record_type when online
+      const serverNextStep = serverStepInfo?.next_step;
       const step = nextAllowedStep;
-      if (!step) {
+      const recordType = navigator.onLine && serverNextStep ? serverNextStep : step?.key;
+
+      if (!recordType || !step) {
         throw new Error("Todos os registros do dia já foram concluídos.");
       }
+
+      console.log("DEBUG PONTO [insert]: record_type usado:", recordType, "| serverNextStep:", serverNextStep, "| step.key:", step?.key);
 
       const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
@@ -942,7 +965,7 @@ export default function TimeClock() {
         name: empName,
         employee_id: employeeId,
         cpf: cpfDigits.slice(0, 3) + "***",
-        step: step.key,
+        record_type: recordType,
         mode: navigator.onLine ? "online" : "offline",
       }));
 
@@ -952,7 +975,7 @@ export default function TimeClock() {
 
       const punchData: TimeRecordInsert = {
         employee_id: employeeId,
-        record_type: step.key,
+        record_type: recordType,
         recorded_at: recordedAt,
         latitude: location?.lat ?? null,
         longitude: location?.lng ?? null,
@@ -963,7 +986,7 @@ export default function TimeClock() {
       console.log("DEBUG PONTO [insert]: payload enviado:", {
         employee_id: employeeId,
         p_cpf: cpfDigits.slice(0, 3) + "***",
-        p_record_type: step.key,
+        p_record_type: recordType,
         p_recorded_at: recordedAt,
         p_latitude: location?.lat ?? null,
         p_longitude: location?.lng ?? null,
@@ -974,7 +997,7 @@ export default function TimeClock() {
       if (navigator.onLine) {
         const rpcResponse = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
-          p_record_type: step.key,
+          p_record_type: recordType,
           p_recorded_at: recordedAt,
           p_latitude: location?.lat ?? null,
           p_longitude: location?.lng ?? null,
@@ -989,7 +1012,7 @@ export default function TimeClock() {
 
         const persisted = await confirmTimeRecordPersisted({
           employeeId,
-          recordType: step.key,
+          recordType: recordType,
           recordedAt,
         });
 
@@ -1006,7 +1029,7 @@ export default function TimeClock() {
           id: localPunchId,
           ...punchData,
           cpf: cpfDigits,
-          record_type: step.key,
+          record_type: recordType,
           recorded_at: recordedAt,
         });
 
@@ -1843,6 +1866,11 @@ export default function TimeClock() {
           <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
             <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
             Carregando registros do dia...
+          </div>
+        ) : navigator.onLine && !serverStepInfo && validatedContext ? (
+          <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            Consultando próxima etapa...
           </div>
         ) : !allDone && nextAllowedStep ? (
           <button
