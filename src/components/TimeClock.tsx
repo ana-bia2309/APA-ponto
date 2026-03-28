@@ -84,6 +84,28 @@ const formatDate = (date: Date) =>
     year: "numeric",
   });
 
+const getLocalDateKey = (date: Date | string = new Date()) => {
+  const current = typeof date === "string" ? new Date(date) : date;
+  const year = current.getFullYear();
+  const month = String(current.getMonth() + 1).padStart(2, "0");
+  const day = String(current.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalDayRange = (date: Date | string = new Date()) => {
+  const current = typeof date === "string" ? new Date(date) : date;
+  const start = new Date(current);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(current);
+  end.setHours(23, 59, 59, 999);
+
+  return {
+    dayKey: getLocalDateKey(current),
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
+};
+
 // ---- Local cache helpers ----
 const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
 const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
@@ -205,8 +227,8 @@ function findEmployeeByCpfOffline(cpf: string): CachedEmployee | null {
   return matches.length === 1 ? matches[0] : null;
 }
 
-function getDayKey(dateLike: string = new Date().toISOString()) {
-  return dateLike.split("T")[0];
+function getDayKey(dateLike?: string) {
+  return getLocalDateKey(dateLike ?? new Date());
 }
 
 function getRecordsCacheKey(employeeId: string, dayKey: string = getDayKey()) {
@@ -234,6 +256,37 @@ function mergePunchRecords(...groups: PunchRecord[][]): PunchRecord[] {
   return Array.from(merged.values()).sort(
     (left, right) => new Date(left.punched_at).getTime() - new Date(right.punched_at).getTime(),
   );
+}
+
+function resolveCompletedSequence(
+  records: PunchRecord[],
+  steps: { key: PunchStep; label: string; icon: typeof Clock }[],
+) {
+  const ordered = [...records].sort(
+    (left, right) => new Date(left.punched_at).getTime() - new Date(right.punched_at).getTime(),
+  );
+
+  const accepted: PunchRecord[] = [];
+  let nextIndex = 0;
+
+  for (const record of ordered) {
+    const expectedStep = steps[nextIndex];
+    if (!expectedStep) break;
+
+    if (record.step === expectedStep.key) {
+      accepted.push(record);
+      nextIndex += 1;
+    }
+  }
+
+  return {
+    ordered,
+    accepted,
+    lastValidRecord: accepted[accepted.length - 1] ?? null,
+    nextStep: steps[nextIndex] ?? null,
+    currentStepIndex: nextIndex,
+    allDone: nextIndex >= steps.length,
+  };
 }
 
 function cacheRecords(employeeId: string, records: PunchRecord[]) {
@@ -444,13 +497,11 @@ export default function TimeClock() {
 
   const punchMode = selectedEmployee?.punch_mode ?? validatedContext?.punch_mode ?? "full";
   const STEPS = punchMode === "simple" ? SIMPLE_STEPS : ALL_STEPS;
-
-  // Compute completed steps from actual records (unique step types that match STEPS)
-  const completedSteps = STEPS.filter((step) =>
-    records.some((r) => r.step === step.key),
-  );
-  const currentStepIndex = completedSteps.length;
-  const allDone = currentStepIndex >= STEPS.length;
+  const sequenceState = resolveCompletedSequence(records, STEPS);
+  const currentStepIndex = sequenceState.currentStepIndex;
+  const allDone = sequenceState.allDone;
+  const nextAllowedStep = sequenceState.nextStep;
+  const lastValidRecord = sequenceState.lastValidRecord;
 
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
@@ -493,7 +544,7 @@ export default function TimeClock() {
           : `${result.synced} registro(s)`;
         toast.success(`Sincronização concluída: ${detail}.`);
         setStatusNotice("Sincronização concluída.");
-        if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+        if (selectedEmployee) void fetchTodayRecords(selectedEmployee.id);
       } else if (result.failed > 0) {
         setStatusNotice("Alguns registros continuam pendentes e serão reenviados automaticamente.");
       } else {
@@ -641,7 +692,7 @@ export default function TimeClock() {
   };
 
   const fetchTodayRecords = async (employeeId: string) => {
-    const dayKey = getDayKey();
+    const { dayKey, startIso, endIso } = getLocalDayRange();
     setRecordsLoading(true);
 
     if (!navigator.onLine) {
@@ -652,13 +703,13 @@ export default function TimeClock() {
       setRecordsLoading(false);
       return;
     }
-    const today = new Date().toISOString().split("T")[0];
+
     const { data } = await (supabase as any)
       .from("time_records")
       .select("*")
       .eq("employee_id", employeeId)
-      .gte("recorded_at", `${today}T00:00:00`)
-      .lte("recorded_at", `${today}T23:59:59`)
+      .gte("recorded_at", startIso)
+      .lte("recorded_at", endIso)
       .order("recorded_at");
     if (data) {
       const mapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
@@ -765,7 +816,11 @@ export default function TimeClock() {
     try {
       void photoBlob;
       const location = await getLocation();
-      const step = STEPS[currentStepIndex];
+      const step = nextAllowedStep;
+      if (!step) {
+        throw new Error("Todos os registros do dia já foram concluídos.");
+      }
+
       const { employee_id: employeeId, cpf_normalized: cpfDigits, name: empName } = validatedContext;
       const recordedAt = new Date().toISOString();
       const localPunchId = crypto.randomUUID();
@@ -845,7 +900,7 @@ export default function TimeClock() {
 
 
   const getRecordForStep = (key: PunchStep) =>
-    records.find((r) => r.step === key);
+    sequenceState.accepted.find((r) => r.step === key);
 
   const getWorkedTime = () => {
     const entrada = getRecordForStep("entrada");
@@ -1036,7 +1091,7 @@ export default function TimeClock() {
         : `${result.synced} registro(s)`;
       toast.success(`Sincronização concluída: ${detail}.`);
       setStatusNotice("Sincronização concluída.");
-      if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
+      if (selectedEmployee) void fetchTodayRecords(selectedEmployee.id);
     } else if (result.failed > 0) {
       setStatusNotice("Alguns registros continuam pendentes e serão reenviados automaticamente.");
     } else {
@@ -1143,8 +1198,8 @@ export default function TimeClock() {
   }
 
   // Confirmation dialog
-  if (showConfirm && selectedEmployee && currentStepIndex < STEPS.length) {
-    const step = STEPS[currentStepIndex];
+  if (showConfirm && selectedEmployee && nextAllowedStep) {
+    const step = nextAllowedStep;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
         <ConnectionIndicator />
@@ -1475,6 +1530,21 @@ export default function TimeClock() {
           </div>
         )}
 
+        {selectedEmployee && !recordsLoading && (
+          <div className="mt-3 space-y-1">
+            <p className="text-xs font-semibold" style={{ color: "hsl(200 65% 70%)" }}>
+              {allDone ? "Todos os registros do dia já foram concluídos" : `Próximo registro: ${nextAllowedStep?.label}`}
+            </p>
+            <div className="text-[11px] space-y-0.5" style={{ color: "hsl(210 15% 50%)" }}>
+              <p>DEBUG • colaborador: {selectedEmployee.name}</p>
+              <p>DEBUG • jornada: {punchMode === "simple" ? "simplificada" : "completa"}</p>
+              <p>DEBUG • registros do dia: {sequenceState.ordered.map((record) => `${record.step} ${formatTime(record.punched_at)}`).join(" • ") || "nenhum"}</p>
+              <p>DEBUG • último válido: {lastValidRecord ? `${lastValidRecord.step} ${formatTime(lastValidRecord.punched_at)}` : "nenhum"}</p>
+              <p>DEBUG • próxima etapa: {nextAllowedStep?.key ?? "dia concluído"}</p>
+            </div>
+          </div>
+        )}
+
         {/* Employee selector */}
         <div className="relative mt-4">
           <button
@@ -1627,7 +1697,7 @@ export default function TimeClock() {
             <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
             Carregando registros do dia...
           </div>
-        ) : !allDone ? (
+        ) : !allDone && nextAllowedStep ? (
           <button
             onClick={() => setShowConfirm(true)}
             disabled={loading || recordsLoading}
@@ -1639,7 +1709,7 @@ export default function TimeClock() {
             ) : (
               <>
                 <Camera className="w-5 h-5" />
-                Registrar {STEPS[currentStepIndex].label}
+                Registrar {nextAllowedStep.label}
               </>
             )}
           </button>
@@ -1647,7 +1717,7 @@ export default function TimeClock() {
           <div className="text-center py-4">
             <div className="inline-flex items-center gap-2 font-semibold" style={{ color: "hsl(152 55% 55%)" }}>
               <Check className="w-5 h-5" />
-              Jornada completa!
+              Todos os registros do dia já foram concluídos
             </div>
             <p className="text-sm mt-1" style={{ color: "hsl(210 15% 50%)" }}>
               Total: {getWorkedTime()}
