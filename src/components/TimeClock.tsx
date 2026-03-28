@@ -504,7 +504,9 @@ export default function TimeClock() {
       };
 
       if (navigator.onLine) {
-        const cpfDigits = cpfInput.replace(/\D/g, "");
+        // Use validated employee's CPF — cpfInput is cleared after validation
+        const cpfDigits = (validatedEmployee?.cpf || cpfInput).replace(/\D/g, "");
+        console.log("DEBUG PONTO: CPF usado no insert:", cpfDigits);
         const { error } = await supabase.rpc("insert_time_record_with_cpf" as any, {
           p_cpf: cpfDigits,
           p_record_type: step.key,
