@@ -15,6 +15,7 @@ import JustificationsTab from "@/components/admin/JustificationsTab";
 import DashboardTab from "@/components/admin/DashboardTab";
 import RecordsTab from "@/components/admin/RecordsTab";
 import AuditTab from "@/components/admin/AuditTab";
+import DebugLogsTab from "@/components/admin/DebugLogsTab";
 
 type Employee = Tables<"employees">;
 
@@ -25,7 +26,7 @@ export default function AdminDashboard() {
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
-  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit" | "debug">("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
@@ -163,6 +164,7 @@ export default function AdminDashboard() {
     { key: "records" as const, label: "Registros", icon: Clock },
     { key: "justifications" as const, label: "Atestados", icon: FileText },
     { key: "audit" as const, label: "Auditoria", icon: Shield },
+    { key: "debug" as const, label: "🔍 Logs", icon: Activity },
   ];
 
   return (
@@ -190,6 +192,7 @@ export default function AdminDashboard() {
         {tab === "records" && <RecordsTab employees={employees} />}
         {tab === "justifications" && <JustificationsTab />}
         {tab === "audit" && <AuditTab />}
+        {tab === "debug" && <DebugLogsTab />}
 
         {tab === "employees" && (
           <>
