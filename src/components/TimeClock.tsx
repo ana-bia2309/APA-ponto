@@ -945,7 +945,8 @@ export default function TimeClock() {
           throw new Error(error.message || error.details || "Falha no insert em public.time_records.");
         }
 
-        await fetchTodayRecords(employeeId);
+        // Re-fetch server-driven next step after successful punch
+        await fetchNextStep(cpfDigits);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
