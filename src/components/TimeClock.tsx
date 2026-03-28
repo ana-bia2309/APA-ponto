@@ -474,6 +474,7 @@ export default function TimeClock() {
     setShowJustification(false);
     setLoading(false);
     setStatusNotice(null);
+    setRecordsLoading(false);
     navigate("/", { replace: true });
   }, [navigate]);
 
