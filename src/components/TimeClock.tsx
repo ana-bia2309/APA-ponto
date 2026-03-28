@@ -1128,6 +1128,8 @@ export default function TimeClock() {
       setCpfError("");
       setStatusNotice(null);
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
+      // Fetch server-driven next step
+      await fetchNextStep(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
