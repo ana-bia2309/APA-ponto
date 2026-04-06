@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+PROJETO APP DE REGISTRO DE PONTO
 
-TODO: Document your project here
+Registro de ponto APA 
