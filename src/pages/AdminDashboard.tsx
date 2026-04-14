@@ -16,6 +16,7 @@ import DashboardTab from "@/components/admin/DashboardTab";
 import RecordsTab from "@/components/admin/RecordsTab";
 import AuditTab from "@/components/admin/AuditTab";
 import DebugLogsTab from "@/components/admin/DebugLogsTab";
+import EpiTab from "@/components/admin/EpiTab";
 
 type Employee = Tables<"employees">;
 
