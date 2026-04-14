@@ -215,6 +215,10 @@ function mapCachedEmployeeToEmployee(employee: CachedEmployee): Employee {
     ...employee,
     active: employee.active,
     created_at: "",
+    cargo: "",
+    departamento: "",
+    matricula: "",
+    data_admissao: null,
   } as Employee;
 }
 
