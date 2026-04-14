@@ -9,7 +9,7 @@ export interface JourneyRecord {
   employee_id: string;
   step: string;
   punched_at: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface Journey {
