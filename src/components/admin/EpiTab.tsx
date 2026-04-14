@@ -580,6 +580,29 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
           {historyFiltered.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nenhum histórico encontrado</p>}
         </div>
       )}
+      {/* Signature Modal */}
+      <Dialog open={!!signatureModal} onOpenChange={() => setSignatureModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Assinatura Digital</DialogTitle>
+          </DialogHeader>
+          {signatureModal && (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Colaborador:</strong> {signatureModal.name}</p>
+                <p><strong>Aceito em:</strong> {new Date(signatureModal.date).toLocaleString("pt-BR")}</p>
+              </div>
+              <div className="border rounded-lg p-2 bg-white flex items-center justify-center min-h-[120px]">
+                {signatureImgUrl ? (
+                  <img src={signatureImgUrl} alt="Assinatura" className="max-w-full max-h-[160px] object-contain" />
+                ) : (
+                  <div className="text-xs text-muted-foreground">Carregando assinatura...</div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
