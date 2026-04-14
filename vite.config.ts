@@ -30,7 +30,12 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*supabase.*\/rest\/v1\/.*/i,
+            // Cache REST queries but NOT RPC calls — RPC must always hit network
+            urlPattern: ({ url }: { url: URL }) => {
+              return /supabase/i.test(url.hostname) &&
+                /\/rest\/v1\//i.test(url.pathname) &&
+                !/\/rest\/v1\/rpc\//i.test(url.pathname);
+            },
             handler: "NetworkFirst",
             options: {
               cacheName: "supabase-api",
