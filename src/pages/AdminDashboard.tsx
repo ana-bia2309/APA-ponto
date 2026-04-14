@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
-  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit" | "debug">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit" | "epi" | "debug">("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
