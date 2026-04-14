@@ -352,24 +352,46 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       {subTab === "deliveries" && (
         <div className="space-y-3">
           <form onSubmit={addDelivery} className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Identificação</p>
             <div className="flex gap-2">
               <select value={deliveryEpi} onChange={e => setDeliveryEpi(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-xs">
-                <option value="">Selecione o EPI</option>
-                {epis.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                <option value="">Selecione o EPI *</option>
+                {epis.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name} {e.ca ? `(CA: ${e.ca})` : ""}</option>)}
               </select>
               <select value={deliveryEmployee} onChange={e => setDeliveryEmployee(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-xs">
-                <option value="">Selecione o colaborador</option>
+                <option value="">Selecione o colaborador *</option>
                 {employees.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div className="flex gap-2">
-              <Input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="h-9 text-xs flex-1" />
-              <Input placeholder="Responsável pela entrega" value={deliveryBy}
-                onChange={e => setDeliveryBy(e.target.value)} className="h-9 text-xs flex-1" />
-              <Button type="submit" size="sm"><Plus className="w-4 h-4" /></Button>
+
+            <p className="text-xs font-medium text-muted-foreground pt-1">Empresa / Local</p>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Empresa / Órgão" value={deliveryEmpresa} onChange={e => setDeliveryEmpresa(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Setor" value={deliverySetor} onChange={e => setDeliverySetor(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Local" value={deliveryLocal} onChange={e => setDeliveryLocal(e.target.value)} className="h-9 text-xs flex-1" />
             </div>
+
+            <p className="text-xs font-medium text-muted-foreground pt-1">Detalhes da entrega</p>
+            <div className="flex gap-2 flex-wrap">
+              <Input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="h-9 text-xs w-36" />
+              <Input placeholder="Responsável *" value={deliveryBy}
+                onChange={e => setDeliveryBy(e.target.value)} className="h-9 text-xs flex-1" />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Tamanho" value={deliveryTamanho} onChange={e => setDeliveryTamanho(e.target.value)} className="h-9 text-xs w-24" />
+              <Input type="number" placeholder="Qtd" value={deliveryQuantidade} onChange={e => setDeliveryQuantidade(e.target.value)} className="h-9 text-xs w-16" min="1" />
+              <select value={deliveryEstado} onChange={e => setDeliveryEstado(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-xs">
+                <option value="Novo">Novo</option>
+                <option value="Bom estado">Bom estado</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <Input placeholder="Finalidade de uso" value={deliveryFinalidade} onChange={e => setDeliveryFinalidade(e.target.value)} className="h-9 text-xs" />
+            <Input placeholder="Observações (opcional)" value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} className="h-9 text-xs" />
+            <Button type="submit" size="sm" className="w-full"><Plus className="w-4 h-4 mr-1" /> Registrar Entrega</Button>
           </form>
 
           {deliveries.slice(0, 50).map(d => (
