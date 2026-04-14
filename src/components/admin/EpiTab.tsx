@@ -235,11 +235,6 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const expiredCount = deliveries.filter(d => daysUntilExpiry(d.expires_at) < 0).length;
   const soonCount = alertDeliveries.length - expiredCount;
 
-  // History data
-  const historyFiltered = historyEmployee
-    ? deliveries.filter(d => d.employee_id === historyEmployee)
-    : deliveries;
-
   const openSignature = async (signatureUrl: string, name: string, date: string) => {
     setSignatureModal({ url: signatureUrl, name, date });
     setSignatureImgUrl(null);
