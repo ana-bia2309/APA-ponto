@@ -2,17 +2,14 @@ import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EpiTermoData {
-  // Company
   empresa: string;
   setor: string;
   localEntrega: string;
-  // Employee
   employeeName: string;
   employeeCpf: string;
   cargo: string;
   departamento: string;
   matricula: string;
-  // EPI
   epiName: string;
   epiCategory: string;
   codigo: string;
@@ -22,7 +19,6 @@ interface EpiTermoData {
   quantidade: number;
   estado: string;
   finalidade: string;
-  // Delivery
   deliveredAt: string;
   expiresAt: string;
   deliveredBy: string;
@@ -32,175 +28,255 @@ interface EpiTermoData {
   signatureUrl: string | null;
 }
 
-function formatDateBR(dateStr: string): string {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00");
-  return d.toLocaleDateString("pt-BR");
+function fmtDate(d: string): string {
+  if (!d) return "—";
+  return new Date(d.includes("T") ? d : d + "T00:00:00").toLocaleDateString("pt-BR");
 }
 
-function formatDateTimeBR(dateStr: string): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleString("pt-BR");
+function fmtDateTime(d: string): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("pt-BR");
 }
+
+const BLUE = [30, 60, 120] as const;
+const DARK = [40, 40, 40] as const;
+const MUTED = [120, 120, 130] as const;
 
 export async function generateEpiTermo(data: EpiTermoData) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  let y = 20;
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const M = 18; // margin
+  const CW = W - M * 2; // content width
+  let y = 16;
 
-  const addLine = (thickness = 0.3) => {
-    doc.setDrawColor(180);
+  // ── Helpers ──
+  const line = (thickness = 0.3, color = 200) => {
+    doc.setDrawColor(color);
     doc.setLineWidth(thickness);
-    doc.line(margin, y, pageW - margin, y);
-    y += 4;
-  };
-
-  const addSection = (icon: string, title: string) => {
-    y += 4;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 60, 120);
-    doc.text(`${icon} ${title}`, margin, y);
+    doc.line(M, y, W - M, y);
     y += 2;
-    addLine(0.5);
-    doc.setTextColor(40, 40, 40);
   };
 
-  const addField = (label: string, value: string) => {
-    if (!value && value !== "0") return;
+  const sectionHeader = (title: string) => {
+    y += 3;
+    // Background bar
+    doc.setFillColor(235, 240, 248);
+    doc.rect(M, y - 4, CW, 7, "F");
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(label + ":", margin, y);
-    doc.setFont("helvetica", "normal");
-    const labelW = doc.getTextWidth(label + ": ");
-    doc.text(value || "—", margin + labelW, y);
+    doc.setTextColor(...BLUE);
+    doc.text(title.toUpperCase(), M + 3, y);
     y += 6;
+    doc.setTextColor(...DARK);
   };
 
-  // === HEADER ===
+  const field = (label: string, value: string, x?: number, maxW?: number) => {
+    if (!value) return;
+    const xPos = x || M;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...MUTED);
+    doc.text(label, xPos, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...DARK);
+    const labelW = doc.getTextWidth(label + " ");
+    const lines = doc.splitTextToSize(value, (maxW || CW) - labelW);
+    doc.text(lines, xPos + labelW, y);
+    y += lines.length * 4.5;
+  };
+
+  const fieldRow = (fields: [string, string][], rowY?: number) => {
+    const startY = rowY || y;
+    const colW = CW / fields.length;
+    fields.forEach(([label, value], i) => {
+      if (!value) return;
+      const xPos = M + i * colW;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...MUTED);
+      doc.text(label, xPos, startY);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...DARK);
+      doc.text(value, xPos, startY + 4);
+    });
+    y = startY + 9;
+  };
+
+  // ══════════════════════════════════════════
+  // 1. CABEÇALHO
+  // ══════════════════════════════════════════
+  doc.setFillColor(30, 60, 120);
+  doc.rect(0, 0, W, 28, "F");
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 60, 120);
-  doc.text("TERMO DE ENTREGA DE EQUIPAMENTO", pageW / 2, y, { align: "center" });
+  doc.setTextColor(255, 255, 255);
+  doc.text("TERMO DE ENTREGA DE EQUIPAMENTO", W / 2, 10, { align: "center" });
+  doc.text("DE PROTEÇÃO INDIVIDUAL (EPI)", W / 2, 17, { align: "center" });
+
+  // Company info bar
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(200, 215, 240);
+  const headerInfo = [
+    data.empresa && `Empresa: ${data.empresa}`,
+    data.setor && `Setor: ${data.setor}`,
+    data.localEntrega && `Local: ${data.localEntrega}`,
+  ].filter(Boolean).join("  |  ");
+  if (headerInfo) {
+    doc.text(headerInfo, W / 2, 24, { align: "center" });
+  }
+
+  y = 34;
+
+  // Doc number & date
+  doc.setFontSize(7);
+  doc.setTextColor(...MUTED);
+  doc.text(`Data: ${fmtDate(data.deliveredAt)}`, W - M, y, { align: "right" });
   y += 6;
-  doc.text("DE PROTEÇÃO INDIVIDUAL (EPI)", pageW / 2, y, { align: "center" });
-  y += 4;
-  addLine(0.8);
 
-  // === EMPRESA ===
-  if (data.empresa || data.setor || data.localEntrega) {
-    addSection("", "IDENTIFICAÇÃO DA EMPRESA");
-    addField("Empresa / Órgão", data.empresa);
-    addField("Setor", data.setor);
-    addField("Local", data.localEntrega);
-  }
+  // ══════════════════════════════════════════
+  // 2. DADOS DO COLABORADOR
+  // ══════════════════════════════════════════
+  sectionHeader("Dados do Colaborador");
+  fieldRow([
+    ["Nome completo:", data.employeeName],
+    ["CPF:", data.employeeCpf || "Não informado"],
+  ]);
+  fieldRow([
+    ["Matrícula:", data.matricula],
+    ["Cargo:", data.cargo],
+    ["Departamento:", data.departamento],
+  ]);
 
-  // === COLABORADOR ===
-  addSection("", "DADOS DO COLABORADOR");
-  addField("Nome completo", data.employeeName);
-  addField("CPF", data.employeeCpf || "Não informado");
-  addField("Matrícula", data.matricula);
-  addField("Cargo", data.cargo);
-  addField("Departamento", data.departamento);
+  // ══════════════════════════════════════════
+  // 3. DADOS DO EPI
+  // ══════════════════════════════════════════
+  sectionHeader("Dados do EPI");
+  fieldRow([
+    ["Nome do EPI:", data.epiName],
+    ["Categoria:", data.epiCategory],
+  ]);
+  fieldRow([
+    ["Código / Ref:", data.codigo],
+    ["CA:", data.ca],
+    ["Marca:", data.marca],
+  ]);
+  fieldRow([
+    ["Tamanho:", data.tamanho],
+    ["Quantidade:", String(data.quantidade || 1)],
+    ["Estado:", data.estado || "Novo"],
+  ]);
+  fieldRow([
+    ["Data de entrega:", fmtDate(data.deliveredAt)],
+    ["Validade:", fmtDate(data.expiresAt)],
+  ]);
 
-  // === EPI ===
-  addSection("", "DADOS DO EPI");
-  addField("Nome do EPI", data.epiName);
-  addField("Código / Referência", data.codigo);
-  addField("CA (Certificado de Aprovação)", data.ca);
-  addField("Marca / Fabricante", data.marca);
-  addField("Categoria", data.epiCategory);
-  addField("Tamanho", data.tamanho);
-  addField("Quantidade", String(data.quantidade || 1));
-  addField("Data de entrega", formatDateBR(data.deliveredAt));
-  addField("Validade", formatDateBR(data.expiresAt));
-  addField("Estado no ato da entrega", data.estado || "Novo");
-
-  // === FINALIDADE ===
+  // ══════════════════════════════════════════
+  // 4. FINALIDADE
+  // ══════════════════════════════════════════
   if (data.finalidade) {
-    addSection("", "FINALIDADE DE USO");
-    doc.setFontSize(9);
+    sectionHeader("Finalidade de Uso");
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
-    const lines = doc.splitTextToSize(data.finalidade, pageW - margin * 2);
-    doc.text(lines, margin, y);
-    y += lines.length * 5;
+    doc.setTextColor(...DARK);
+    const fLines = doc.splitTextToSize(data.finalidade, CW - 6);
+    doc.text(fLines, M + 3, y);
+    y += fLines.length * 4.5 + 2;
   }
 
-  // === STATUS ===
-  addSection("", "STATUS DA ENTREGA");
-  const statusText = data.status === "aceito" ? "ENTREGUE E ACEITO" : "PENDENTE DE ACEITE";
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
+  // ══════════════════════════════════════════
+  // 5. TERMO DE RESPONSABILIDADE
+  // ══════════════════════════════════════════
+  sectionHeader("Termo de Responsabilidade");
+
+  const termoText = `Declaro que recebi o(s) Equipamento(s) de Proteção Individual (EPI) acima descrito(s), em perfeitas condições de uso, e que fui devidamente orientado(a) quanto ao uso correto, guarda, conservação, higienização e substituição quando necessário.
+
+Comprometo-me a utilizar o EPI somente para a finalidade a que se destina, zelar por sua conservação e comunicar imediatamente ao responsável qualquer dano, extravio ou necessidade de troca.
+
+Declaro ainda estar ciente de que a devolução do EPI poderá ser exigida em caso de desligamento, substituição ou inutilização.
+
+O não cumprimento das obrigações acima poderá acarretar medidas administrativas conforme normas internas e legislação vigente.`;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(60, 60, 70);
+  const termoLines = doc.splitTextToSize(termoText, CW - 6);
+  doc.text(termoLines, M + 3, y);
+  y += termoLines.length * 3.8 + 2;
+
+  // ══════════════════════════════════════════
+  // 6. OBSERVAÇÕES
+  // ══════════════════════════════════════════
+  if (data.notes) {
+    sectionHeader("Observações");
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...DARK);
+    const nLines = doc.splitTextToSize(data.notes, CW - 6);
+    doc.text(nLines, M + 3, y);
+    y += nLines.length * 4.5 + 2;
+  }
+
+  // ══════════════════════════════════════════
+  // 7. STATUS
+  // ══════════════════════════════════════════
+  y += 2;
+  const statusText = data.status === "aceito" ? "✓ ENTREGUE E ACEITO" : "⏳ PENDENTE DE ACEITE";
   if (data.status === "aceito") {
+    doc.setFillColor(230, 248, 235);
     doc.setTextColor(22, 130, 65);
   } else {
-    doc.setTextColor(200, 130, 0);
+    doc.setFillColor(255, 245, 220);
+    doc.setTextColor(180, 120, 0);
   }
-  doc.text(statusText, margin, y);
-  y += 6;
-  doc.setTextColor(40, 40, 40);
-  if (data.acceptedAt) {
-    addField("Data e hora do aceite", formatDateTimeBR(data.acceptedAt));
-  }
-
-  // === TERMO ===
-  addSection("", "TERMO DE RESPONSABILIDADE");
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  const termoText = [
-    "Declaro que recebi o(s) Equipamento(s) de Proteção Individual (EPI) acima descrito(s),",
-    "em perfeitas condições de uso, estando ciente das orientações quanto ao uso correto,",
-    "guarda, conservação, higienização e substituição.",
-    "",
-    "Comprometo-me a:",
-    "  - Utilizar o EPI de forma adequada e contínua",
-    "  - Zelar pela conservação do equipamento",
-    "  - Comunicar imediatamente qualquer dano, perda ou necessidade de substituição",
-    "  - Devolver o EPI quando solicitado, em caso de desligamento ou substituição",
-    "",
-    "Declaro estar ciente de que o não uso adequado poderá acarretar medidas",
-    "administrativas conforme normas internas.",
-  ];
-  termoText.forEach(line => {
-    doc.text(line, margin, y);
-    y += 4;
-  });
-
-  // === OBSERVAÇÕES ===
-  if (data.notes) {
-    y += 2;
-    addSection("", "OBSERVAÇÕES");
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    const noteLines = doc.splitTextToSize(data.notes, pageW - margin * 2);
-    doc.text(noteLines, margin, y);
-    y += noteLines.length * 5;
-  }
-
-  // === ASSINATURA ===
-  y += 4;
-  addSection("", "ASSINATURAS");
-
-  // Colaborador
-  doc.setFontSize(9);
+  doc.roundedRect(M, y - 4, CW, 8, 2, 2, "F");
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("Colaborador:", margin, y);
-  y += 5;
-  doc.setFont("helvetica", "normal");
+  doc.text(statusText, W / 2, y + 1, { align: "center" });
+  y += 8;
+  doc.setTextColor(...DARK);
+
+  if (data.acceptedAt) {
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text(`Aceito em: ${fmtDateTime(data.acceptedAt)}`, W / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  // ══════════════════════════════════════════
+  // 8. ASSINATURAS
+  // ══════════════════════════════════════════
+
+  // Check if we need a new page
+  if (y > H - 70) {
+    doc.addPage();
+    y = 20;
+  }
+
+  sectionHeader("Assinaturas");
+
+  const halfW = CW / 2 - 4;
+
+  // Left: Collaborator
   doc.setFontSize(8);
-  doc.text(`Nome: ${data.employeeName}`, margin, y);
-  y += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...BLUE);
+  doc.text("COLABORADOR", M, y);
+  y += 4;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...DARK);
+  doc.setFontSize(7.5);
+  doc.text(`Nome: ${data.employeeName}`, M, y);
+  y += 4;
 
   if (data.signatureUrl && data.status === "aceito") {
-    doc.text("Assinatura digital:", margin, y);
-    y += 3;
+    // Try to load signature image
     try {
-      const { data: urlData } = supabase.storage
-        .from("epi-signatures")
-        .getPublicUrl(data.signatureUrl);
-      if (urlData?.publicUrl) {
-        const response = await fetch(urlData.publicUrl);
+      const { data: signedData } = await supabase.storage.from("epi-signatures").createSignedUrl(data.signatureUrl, 60);
+      if (signedData?.signedUrl) {
+        const response = await fetch(signedData.signedUrl);
         if (response.ok) {
           const blob = await response.blob();
           const arrayBuffer = await blob.arrayBuffer();
@@ -209,64 +285,77 @@ export async function generateEpiTermo(data: EpiTermoData) {
           uint8.forEach(b => binary += String.fromCharCode(b));
           const base64 = btoa(binary);
           const imgData = `data:image/png;base64,${base64}`;
-          doc.setDrawColor(180);
+
+          doc.setDrawColor(200);
           doc.setLineWidth(0.3);
-          doc.rect(margin, y, 80, 30);
-          doc.addImage(imgData, "PNG", margin + 2, y + 2, 76, 26);
-          y += 33;
+          doc.rect(M, y, halfW, 28);
+          doc.addImage(imgData, "PNG", M + 2, y + 1, halfW - 4, 26);
+          y += 30;
+        } else {
+          doc.text("(Assinatura digital registrada)", M, y);
+          y += 5;
         }
       }
     } catch {
-      doc.text("(Assinatura registrada digitalmente)", margin, y);
+      doc.text("(Assinatura digital registrada)", M, y);
       y += 5;
     }
   } else {
-    doc.setDrawColor(180);
+    // Empty signature box
+    doc.setDrawColor(200);
     doc.setLineWidth(0.3);
-    const contentW = pageW - margin * 2;
-    doc.rect(margin, y, contentW, 25);
-    doc.setFontSize(7);
-    doc.setTextColor(150);
-    doc.text("Assinatura do colaborador", margin + 2, y + 23);
-    doc.setTextColor(40, 40, 40);
-    y += 28;
+    doc.rect(M, y, halfW, 25);
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED);
+    doc.text("Assinatura do colaborador", M + 2, y + 23);
+    y += 27;
   }
 
   if (data.acceptedAt) {
-    doc.setFontSize(8);
-    doc.text(`Data: ${formatDateTimeBR(data.acceptedAt)}`, margin, y);
-    y += 6;
-  }
-
-  // Responsável
-  y += 4;
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("Responsável pela entrega:", margin, y);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(`Nome: ${data.deliveredBy}`, margin, y);
-  y += 5;
-  doc.setDrawColor(100);
-  doc.setLineWidth(0.2);
-  doc.line(margin, y, margin + 80, y);
-  y += 4;
-  doc.text("Assinatura", margin, y);
-  y += 6;
-
-  if (data.localEntrega) {
-    doc.text(`Local: ${data.localEntrega}`, margin, y);
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text(`Data do aceite: ${fmtDateTime(data.acceptedAt)}`, M, y);
     y += 5;
   }
-  doc.text(`Data: ${formatDateBR(data.deliveredAt)}`, margin, y);
 
-  // Footer
-  const footerY = doc.internal.pageSize.getHeight() - 10;
+  // Right side: Responsible (same Y level as collaborator signature)
+  const rightX = M + halfW + 8;
+  const sigStartY = y - (data.signatureUrl && data.status === "aceito" ? 35 : 32);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...BLUE);
+  doc.text("RESPONSÁVEL PELA ENTREGA", rightX, sigStartY);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...DARK);
+  doc.setFontSize(7.5);
+  doc.text(`Nome: ${data.deliveredBy}`, rightX, sigStartY + 4);
+
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+  doc.rect(rightX, sigStartY + 8, halfW, 25);
+  doc.setFontSize(6.5);
+  doc.setTextColor(...MUTED);
+  doc.text("Assinatura do responsável", rightX + 2, sigStartY + 31);
+
   doc.setFontSize(7);
-  doc.setTextColor(150);
-  doc.text("APA Ponto — Termo de Entrega de EPI", pageW / 2, footerY, { align: "center" });
+  doc.text(`Data: ${fmtDate(data.deliveredAt)}`, rightX, sigStartY + 36);
+  if (data.localEntrega) {
+    doc.text(`Local: ${data.localEntrega}`, rightX, sigStartY + 40);
+  }
 
+  // ══════════════════════════════════════════
+  // FOOTER
+  // ══════════════════════════════════════════
+  doc.setDrawColor(30, 60, 120);
+  doc.setLineWidth(0.5);
+  doc.line(M, H - 12, W - M, H - 12);
+  doc.setFontSize(6.5);
+  doc.setTextColor(...MUTED);
+  doc.text("APA Ponto — Termo de Entrega de Equipamento de Proteção Individual", W / 2, H - 8, { align: "center" });
+
+  // Save
   const safeName = data.employeeName.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
   doc.save(`Termo_EPI_${safeName}_${data.deliveredAt}.pdf`);
 }
