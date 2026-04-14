@@ -68,10 +68,14 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift } as any);
+      .insert({
+        name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
+        cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
+      } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
     setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno");
+    setNewCargo(""); setNewMatricula(""); setNewDepartamento("");
     fetchEmployees();
   };
 
@@ -81,13 +85,19 @@ export default function AdminDashboard() {
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
     setEditShift((emp as any).shift === "noturno" ? "noturno" : "diurno");
+    setEditCargo((emp as any).cargo || "");
+    setEditMatricula((emp as any).matricula || "");
+    setEditDepartamento((emp as any).departamento || "");
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift } as any)
+      .update({
+        name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
+        cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
+      } as any)
       .eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
 
