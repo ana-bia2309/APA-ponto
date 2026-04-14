@@ -1,0 +1,1 @@
+ALTER TABLE public.time_records ADD COLUMN IF NOT EXISTS address text;

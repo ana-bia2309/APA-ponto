@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
 import { groupByEmployeeJourneys } from "@/lib/group-journeys";
+import { PhotoModal } from "@/components/admin/PhotoModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PunchRecord = DisplayPunchRecord & { employees?: { name: string } };
@@ -36,12 +37,44 @@ interface Props {
   employees: Employee[];
 }
 
+/** Reverse geocode using Nominatim (free, no key needed) */
+async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&zoom=18`,
+      { headers: { "Accept-Language": "pt-BR" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.display_name) return null;
+    // Build a shorter, friendlier address
+    const addr = data.address || {};
+    const parts = [
+      addr.road || addr.pedestrian || addr.neighbourhood,
+      addr.suburb || addr.city_district,
+      addr.city || addr.town || addr.village,
+      addr.state,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : data.display_name;
+  } catch {
+    return null;
+  }
+}
+
 export default function RecordsTab({ employees }: Props) {
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("today");
   const [customDate, setCustomDate] = useState(new Date().toISOString().split("T")[0]);
+
+  // Photo modal state
+  const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  // Resolved addresses cache (record id → address)
+  const [resolvedAddresses, setResolvedAddresses] = useState<Record<string, string>>({});
 
   // Admin correction state
   const [showAddRecord, setShowAddRecord] = useState(false);
@@ -55,7 +88,6 @@ export default function RecordsTab({ employees }: Props) {
   const getDateRange = useCallback((): { start: string; end: string } => {
     const today = new Date();
     if (quickFilter === "today") {
-      // Include yesterday to capture overnight shifts that started the day before
       const y = new Date(today);
       y.setDate(y.getDate() - 1);
       const yd = y.toISOString().split("T")[0];
@@ -63,7 +95,6 @@ export default function RecordsTab({ employees }: Props) {
       return { start: `${yd}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
     }
     if (quickFilter === "yesterday") {
-      // Include the day before yesterday to capture overnight shifts
       const y = new Date(today);
       y.setDate(y.getDate() - 1);
       const yy = new Date(today);
@@ -74,10 +105,9 @@ export default function RecordsTab({ employees }: Props) {
     }
     if (quickFilter === "week") {
       const w = new Date(today);
-      w.setDate(w.getDate() - 8); // Extra day for overnight shifts
+      w.setDate(w.getDate() - 8);
       return { start: w.toISOString(), end: today.toISOString() };
     }
-    // Custom date: include previous day for overnight shifts
     const prev = new Date(customDate + "T00:00:00");
     prev.setDate(prev.getDate() - 1);
     const pd = prev.toISOString().split("T")[0];
@@ -100,8 +130,12 @@ export default function RecordsTab({ employees }: Props) {
 
       if (timeRes.error) throw new Error(timeRes.error.message);
 
-      const mapped = (timeRes.data as TimeRecordRow[]).map((record) => {
+      const mapped = (timeRes.data as (TimeRecordRow & { address?: string | null })[]).map((record) => {
         const display = mapTimeRecordToPunchRecord(record);
+        // Use address from time_records if available
+        if (record.address) {
+          display.address = record.address;
+        }
         if (punchRes.data) {
           const match = (punchRes.data as any[]).find(
             (p: any) => p.employee_id === record.employee_id && p.step === record.record_type &&
@@ -109,12 +143,17 @@ export default function RecordsTab({ employees }: Props) {
           );
           if (match) {
             display.photo_url = match.photo_url || null;
-            display.address = match.address || null;
+            if (!display.address && match.address) {
+              display.address = match.address;
+            }
           }
         }
         return display;
       });
       setRecords(mapped as PunchRecord[]);
+
+      // Resolve addresses for records with coordinates but no address
+      resolveAddresses(mapped as PunchRecord[]);
     } catch (err: any) {
       setError(err?.message || "Erro ao carregar registros");
     } finally {
@@ -122,20 +161,92 @@ export default function RecordsTab({ employees }: Props) {
     }
   }, [getDateRange]);
 
+  /** Batch resolve addresses for records with coords but no address */
+  const resolveAddresses = useCallback(async (recs: PunchRecord[]) => {
+    const toResolve = recs.filter(
+      (r) => !r.address && r.latitude && r.longitude
+    );
+    if (toResolve.length === 0) return;
+
+    // Deduplicate by rough coordinates to avoid hitting Nominatim rate limit
+    const seen = new Set<string>();
+    const unique: PunchRecord[] = [];
+    for (const r of toResolve) {
+      const key = `${r.latitude!.toFixed(4)},${r.longitude!.toFixed(4)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(r);
+      }
+    }
+
+    // Resolve sequentially (Nominatim 1 req/sec limit)
+    const newAddresses: Record<string, string> = {};
+    for (const r of unique.slice(0, 10)) {
+      const addr = await reverseGeocode(r.latitude!, r.longitude!);
+      if (addr) {
+        const key = `${r.latitude!.toFixed(4)},${r.longitude!.toFixed(4)}`;
+        newAddresses[key] = addr;
+
+        // Persist address back to time_records
+        (supabase as any).from("time_records")
+          .update({ address: addr })
+          .eq("id", r.id)
+          .then(() => {});
+      }
+      // Rate limit
+      await new Promise((res) => setTimeout(res, 1100));
+    }
+
+    // Map resolved addresses to all matching records
+    const resolved: Record<string, string> = {};
+    for (const r of toResolve) {
+      const key = `${r.latitude!.toFixed(4)},${r.longitude!.toFixed(4)}`;
+      if (newAddresses[key]) {
+        resolved[r.id] = newAddresses[key];
+      }
+    }
+
+    if (Object.keys(resolved).length > 0) {
+      setResolvedAddresses((prev) => ({ ...prev, ...resolved }));
+    }
+  }, []);
+
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Group by employee → journeys (handles overnight shifts)
+  // Group by employee → journeys
   const grouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
 
   const formatTime = (d: string) =>
     new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  const openPhoto = async (photoUrl: string) => {
+    setPhotoLoading(true);
+    setPhotoModalOpen(true);
+    try {
+      let path = photoUrl;
+      const prefix = "/storage/v1/object/public/punch-photos/";
+      const idx = path.indexOf(prefix);
+      if (idx !== -1) path = decodeURIComponent(path.substring(idx + prefix.length));
+      const { data } = await supabase.storage.from("punch-photos").createSignedUrl(path, 300);
+      if (data?.signedUrl) {
+        setPhotoModalUrl(data.signedUrl);
+      } else {
+        toast.error("Erro ao gerar link da foto");
+        setPhotoModalOpen(false);
+      }
+    } catch {
+      toast.error("Erro ao carregar foto");
+      setPhotoModalOpen(false);
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
 
   const deleteRecord = async (id: string) => {
     if (!confirm("Excluir este registro?")) return;
     const { error } = await supabase.from("time_records").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir"); return; }
 
-    // Audit log
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
       admin_user_id: user?.id, action: "delete_time_record", target_type: "time_records",
@@ -163,7 +274,6 @@ export default function RecordsTab({ employees }: Props) {
 
     if (error) { toast.error("Erro ao inserir registro"); setAddLoading(false); return; }
 
-    // Audit log
     const { data: { user } } = await supabase.auth.getUser();
     const emp = employees.find(e => e.id === addEmployeeId);
     await supabase.from("audit_logs").insert({
@@ -177,6 +287,13 @@ export default function RecordsTab({ employees }: Props) {
     setAddReason("");
     setAddLoading(false);
     fetchRecords();
+  };
+
+  /** Get the display address for a record */
+  const getAddress = (rec: PunchRecord): string | null => {
+    if (rec.address) return rec.address;
+    if (resolvedAddresses[rec.id]) return resolvedAddresses[rec.id];
+    return null;
   };
 
   if (error) {
@@ -279,6 +396,7 @@ export default function RecordsTab({ employees }: Props) {
                     </div>
                     {journey.records.map((rec) => {
                       const sync = SYNC_LABELS[(rec as any).sync_status || "synced"] || SYNC_LABELS.synced;
+                      const address = getAddress(rec as PunchRecord);
                       return (
                         <div key={rec.id} className="flex items-start justify-between text-sm gap-2 pl-3 border-l-2 border-border">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -293,24 +411,17 @@ export default function RecordsTab({ employees }: Props) {
                               {sync.label}
                             </span>
                             {(rec as any).photo_url && (
-                              <button onClick={async () => {
-                                let path = (rec as any).photo_url!;
-                                const prefix = "/storage/v1/object/public/punch-photos/";
-                                const idx = path.indexOf(prefix);
-                                if (idx !== -1) path = decodeURIComponent(path.substring(idx + prefix.length));
-                                const { data } = await supabase.storage.from("punch-photos").createSignedUrl(path, 300);
-                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                                else toast.error("Erro ao gerar link da foto");
-                              }} className="text-primary hover:text-primary/80" title="Ver foto">
+                              <button onClick={() => openPhoto((rec as any).photo_url!)}
+                                className="text-primary hover:text-primary/80" title="Ver foto">
                                 <Camera className="w-4 h-4" />
                               </button>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
-                            {(rec as any).address ? (
+                            {address ? (
                               <a href={`https://maps.google.com/?q=${(rec as any).latitude},${(rec as any).longitude}`} target="_blank"
-                                rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 max-w-[120px]">
-                                <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{(rec as any).address}</span>
+                                rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 max-w-[200px]">
+                                <MapPin className="w-3 h-3 flex-shrink-0 text-primary" /><span className="truncate">{address}</span>
                               </a>
                             ) : (rec as any).latitude && (rec as any).longitude ? (
                               <a href={`https://maps.google.com/?q=${(rec as any).latitude},${(rec as any).longitude}`} target="_blank"
@@ -334,6 +445,14 @@ export default function RecordsTab({ employees }: Props) {
           ))}
         </div>
       )}
+
+      {/* Photo Modal */}
+      <PhotoModal
+        open={photoModalOpen}
+        onClose={() => { setPhotoModalOpen(false); setPhotoModalUrl(null); }}
+        photoUrl={photoModalUrl}
+        loading={photoLoading}
+      />
     </div>
   );
 }

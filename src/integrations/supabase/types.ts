@@ -202,6 +202,7 @@ export type Database = {
       }
       time_records: {
         Row: {
+          address: string | null
           created_at: string
           employee_id: string
           id: string
@@ -213,6 +214,7 @@ export type Database = {
           sync_status: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           employee_id: string
           id?: string
@@ -224,6 +226,7 @@ export type Database = {
           sync_status?: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           employee_id?: string
           id?: string
