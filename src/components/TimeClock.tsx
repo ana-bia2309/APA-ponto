@@ -504,6 +504,7 @@ export default function TimeClock() {
   const navigate = useNavigate();
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
+  const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -594,11 +595,13 @@ export default function TimeClock() {
 
   /** Fetch pending EPI count for current employee */
   const fetchPendingEpiCount = useCallback(async (cpf: string) => {
-    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); return; }
+    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); setPendingEpis([]); return; }
     try {
       const { data } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: normalizeCpf(cpf) } as any);
-      setPendingEpiCount(Array.isArray(data) ? data.length : 0);
-    } catch { setPendingEpiCount(0); }
+      const arr = Array.isArray(data) ? data : [];
+      setPendingEpiCount(arr.length);
+      setPendingEpis(arr.map((d: any) => ({ epi_name: d.epi_name, delivered_at: d.delivered_at })));
+    } catch { setPendingEpiCount(0); setPendingEpis([]); }
   }, []);
 
   const resetToStart = useCallback(() => {
@@ -623,6 +626,7 @@ export default function TimeClock() {
     setShowJustification(false);
     setShowEpiAcceptance(false);
     setPendingEpiCount(0);
+    setPendingEpis([]);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
@@ -1859,6 +1863,57 @@ export default function TimeClock() {
         </div>
       </div>
 
+      {/* EPI pending card - prominent position */}
+      {pendingEpiCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(40 80% 15%), hsl(35 60% 11%))",
+            borderColor: "hsl(40 70% 30%)",
+            boxShadow: "0 4px 24px hsl(40 80% 20% / 0.35), inset 0 1px 0 hsl(40 90% 50% / 0.1)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(40 90% 50%), hsl(35 85% 45%))" }}>
+                <HardHat className="w-5.5 h-5.5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(40 90% 75%)" }}>
+                  {pendingEpiCount === 1 ? "EPI pendente de aceite" : `${pendingEpiCount} EPIs pendentes de aceite`}
+                </p>
+                {pendingEpiCount === 1 && pendingEpis[0] ? (
+                  <div className="mt-1.5 space-y-0.5">
+                    <p className="text-xs font-medium" style={{ color: "hsl(40 60% 65%)" }}>
+                      🦺 {pendingEpis[0].epi_name}
+                    </p>
+                    <p className="text-[11px]" style={{ color: "hsl(40 40% 50%)" }}>
+                      Entrega: {new Date(pendingEpis[0].delivered_at + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs mt-1" style={{ color: "hsl(40 50% 55%)" }}>
+                    Você possui {pendingEpiCount} EPIs aguardando sua assinatura
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowEpiAcceptance(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, hsl(40 85% 45%), hsl(35 80% 40%))",
+                color: "white",
+                boxShadow: "0 2px 10px hsl(40 80% 35% / 0.4)",
+              }}
+            >
+              Ver e assinar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Steps timeline */}
       <div className="w-full max-w-md p-6 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5)" }}>
         <div className="space-y-4">
@@ -1985,25 +2040,6 @@ export default function TimeClock() {
               Total: {getWorkedTime()}
             </p>
           </div>
-        )}
-
-        {/* EPI pending notification */}
-        {pendingEpiCount > 0 && (
-          <button
-            onClick={() => setShowEpiAcceptance(true)}
-            className="w-full mb-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5 flex items-center gap-3"
-            style={{ background: "linear-gradient(135deg, hsl(40 80% 15%), hsl(35 70% 12%))", borderColor: "hsl(40 80% 35%)", boxShadow: "0 4px 16px hsl(40 80% 20% / 0.3)" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "hsl(40 90% 50%)" }}>
-              <HardHat className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{ color: "hsl(40 90% 75%)" }}>
-                {pendingEpiCount} EPI{pendingEpiCount > 1 ? "s" : ""} pendente{pendingEpiCount > 1 ? "s" : ""} de aceite
-              </p>
-              <p className="text-xs" style={{ color: "hsl(40 50% 55%)" }}>Toque para visualizar e assinar</p>
-            </div>
-          </button>
         )}
 
         {/* Secondary actions */}
