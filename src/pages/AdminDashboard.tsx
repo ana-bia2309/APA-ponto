@@ -235,6 +235,11 @@ export default function AdminDashboard() {
                   <option value="noturno">🌙 Noturno</option>
                 </select>
               </div>
+              <div className="flex gap-2">
+                <Input placeholder="Cargo" value={newCargo} onChange={(e) => setNewCargo(e.target.value)} className="flex-1" />
+                <Input placeholder="Matrícula" value={newMatricula} onChange={(e) => setNewMatricula(e.target.value)} className="flex-1" />
+                <Input placeholder="Departamento" value={newDepartamento} onChange={(e) => setNewDepartamento(e.target.value)} className="flex-1" />
+              </div>
             </form>
 
             {/* Report download */}
@@ -247,7 +252,7 @@ export default function AdminDashboard() {
               {employees.map((emp) => (
                 <Card key={emp.id} className="p-4">
                   {editingId === emp.id ? (
-                    <div className="space-y-2">
+                     <div className="space-y-2">
                       <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
                       <div className="flex gap-2">
                         <Input value={editCpf} onChange={(e) => setEditCpf(formatCpf(e.target.value))}
@@ -262,6 +267,11 @@ export default function AdminDashboard() {
                           <option value="diurno">☀ Diurno</option>
                           <option value="noturno">🌙 Noturno</option>
                         </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input value={editCargo} onChange={(e) => setEditCargo(e.target.value)} placeholder="Cargo" className="flex-1" />
+                        <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Matrícula" className="flex-1" />
+                        <Input value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)} placeholder="Departamento" className="flex-1" />
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" /> Salvar</Button>
