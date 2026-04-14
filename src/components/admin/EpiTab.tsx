@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   HardHat, Plus, Trash2, Package, AlertTriangle, CheckCircle,
-  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown,
+  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown, Eye,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateEpiTermo } from "@/lib/generateEpiTermo";
 import type { Tables } from "@/integrations/supabase/types";
 
