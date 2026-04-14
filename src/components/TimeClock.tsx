@@ -34,6 +34,7 @@ import {
   type TimeRecordInsert,
   type TimeRecordRow,
 } from "@/lib/time-records";
+import { groupRecordsIntoJourneys } from "@/lib/group-journeys";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
