@@ -320,6 +320,11 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{d.epis?.name || "EPI"}</span>
+                    {d.status === "aceito" ? (
+                      <Badge className="bg-emerald-600 text-white text-[10px]">✓ Aceito</Badge>
+                    ) : (
+                      <Badge className="bg-amber-500 text-white text-[10px]">Pendente</Badge>
+                    )}
                     {expiryBadge(d.expires_at)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
@@ -328,6 +333,12 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                     Vence: {new Date(d.expires_at + "T00:00:00").toLocaleDateString("pt-BR")}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Resp: {d.delivered_by || "—"}</div>
+                  {d.status === "aceito" && d.accepted_at && (
+                    <div className="text-[10px] text-emerald-500 mt-0.5">
+                      Aceito em: {new Date(d.accepted_at).toLocaleString("pt-BR")}
+                      {d.signature_url && " • Assinatura registrada ✓"}
+                    </div>
+                  )}
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">
                   <Trash2 className="w-3.5 h-3.5" />
