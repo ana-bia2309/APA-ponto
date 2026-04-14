@@ -587,7 +587,16 @@ export default function TimeClock() {
     }
   }, []);
 
-  const resetToStart = useCallback(() => {
+  /** Fetch pending EPI count for current employee */
+  const fetchPendingEpiCount = useCallback(async (cpf: string) => {
+    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); return; }
+    try {
+      const { data } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: normalizeCpf(cpf) } as any);
+      setPendingEpiCount(Array.isArray(data) ? data.length : 0);
+    } catch { setPendingEpiCount(0); }
+  }, []);
+
+
     setShowSuccess(false);
     setSuccessMessage("");
     setSelectedEmployee(null);
