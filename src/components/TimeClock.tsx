@@ -617,6 +617,8 @@ export default function TimeClock() {
     setShowCamera(false);
     setShowManualPunch(false);
     setShowJustification(false);
+    setShowEpiAcceptance(false);
+    setPendingEpiCount(0);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
