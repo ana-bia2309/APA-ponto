@@ -1783,6 +1783,46 @@ export default function TimeClock() {
                 Base offline atualizada em {new Date(employeesSyncedAt).toLocaleString("pt-BR")}
               </p>
             )}
+            <button
+              onClick={async () => {
+                setIsSyncing(true);
+                setStatusNotice("Forçando atualização...");
+                try {
+                  // Force SW update
+                  if ("serviceWorker" in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(regs.map(r => r.update().catch(() => {})));
+                    // Clear all caches
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(n => caches.delete(n)));
+                  }
+                  // Re-fetch all data
+                  await fetchEmployees();
+                  if (selectedEmployee) await fetchTodayRecords(selectedEmployee.id);
+                  if (validatedContext?.cpf_normalized) {
+                    await fetchNextStep(validatedContext.cpf_normalized);
+                    await fetchPendingEpiCount(validatedContext.cpf_normalized);
+                  }
+                  setStatusNotice("Dados atualizados com sucesso!");
+                  toast.success("App atualizado com os dados mais recentes.");
+                } catch {
+                  setStatusNotice("Erro ao atualizar. Tente novamente.");
+                  toast.error("Falha ao forçar atualização.");
+                } finally {
+                  setIsSyncing(false);
+                }
+              }}
+              disabled={isSyncing || !isOnline}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed mt-1"
+              style={{
+                background: "linear-gradient(135deg, hsl(210 60% 30%), hsl(200 50% 35%))",
+                color: "hsl(200 80% 80%)",
+                boxShadow: "0 2px 8px hsl(210 60% 20% / 0.3)",
+              }}
+            >
+              <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Atualizando..." : "Forçar atualização"}
+            </button>
           </div>
         )}
 
