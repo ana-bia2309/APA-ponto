@@ -2042,25 +2042,6 @@ export default function TimeClock() {
           </div>
         )}
 
-        {/* EPI pending notification */}
-        {pendingEpiCount > 0 && (
-          <button
-            onClick={() => setShowEpiAcceptance(true)}
-            className="w-full mb-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5 flex items-center gap-3"
-            style={{ background: "linear-gradient(135deg, hsl(40 80% 15%), hsl(35 70% 12%))", borderColor: "hsl(40 80% 35%)", boxShadow: "0 4px 16px hsl(40 80% 20% / 0.3)" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "hsl(40 90% 50%)" }}>
-              <HardHat className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{ color: "hsl(40 90% 75%)" }}>
-                {pendingEpiCount} EPI{pendingEpiCount > 1 ? "s" : ""} pendente{pendingEpiCount > 1 ? "s" : ""} de aceite
-              </p>
-              <p className="text-xs" style={{ color: "hsl(40 50% 55%)" }}>Toque para visualizar e assinar</p>
-            </div>
-          </button>
-        )}
-
         {/* Secondary actions */}
         <div className="flex gap-2 flex-wrap">
           <button
