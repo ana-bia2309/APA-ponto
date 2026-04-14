@@ -703,12 +703,15 @@ export default function TimeClock() {
       if (document.visibilityState === "visible" && navigator.onLine) {
         fetchEmployees();
         if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
-        if (validatedContext?.cpf_normalized) fetchNextStep(validatedContext.cpf_normalized);
+        if (validatedContext?.cpf_normalized) {
+          fetchNextStep(validatedContext.cpf_normalized);
+          fetchPendingEpiCount(validatedContext.cpf_normalized);
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [selectedEmployee, validatedContext]);
+  }, [selectedEmployee, validatedContext, fetchPendingEpiCount]);
 
   useEffect(() => {
     if (selectedEmployee) {
