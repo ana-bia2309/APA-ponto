@@ -17,6 +17,7 @@ import {
   History,
   CheckCircle2,
   RefreshCw,
+  HardHat,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-apa.png";
@@ -28,6 +29,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
+import EpiAcceptance from "@/components/EpiAcceptance";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -496,6 +498,8 @@ export default function TimeClock() {
     records_today: { record_type: string; recorded_at: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
+  const [pendingEpiCount, setPendingEpiCount] = useState(0);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -584,6 +588,15 @@ export default function TimeClock() {
     }
   }, []);
 
+  /** Fetch pending EPI count for current employee */
+  const fetchPendingEpiCount = useCallback(async (cpf: string) => {
+    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); return; }
+    try {
+      const { data } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: normalizeCpf(cpf) } as any);
+      setPendingEpiCount(Array.isArray(data) ? data.length : 0);
+    } catch { setPendingEpiCount(0); }
+  }, []);
+
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
     setSuccessMessage("");
@@ -604,6 +617,8 @@ export default function TimeClock() {
     setShowCamera(false);
     setShowManualPunch(false);
     setShowJustification(false);
+    setShowEpiAcceptance(false);
+    setPendingEpiCount(0);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
@@ -1112,6 +1127,7 @@ export default function TimeClock() {
   };
 
 
+
   const getRecordForStep = (key: PunchStep) =>
     sequenceState.accepted.find((r) => r.step === key);
 
@@ -1165,6 +1181,18 @@ export default function TimeClock() {
         cpf={validatedContext.cpf_normalized}
         onClose={() => setShowJustification(false)}
         onSuccess={() => {}}
+      />
+    );
+  }
+
+  if (showEpiAcceptance && selectedEmployee && validatedContext) {
+    return (
+      <EpiAcceptance
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowEpiAcceptance(false)}
+        pendingCount={pendingEpiCount}
+        onAccepted={() => fetchPendingEpiCount(validatedContext.cpf_normalized)}
       />
     );
   }
@@ -1224,6 +1252,7 @@ export default function TimeClock() {
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       setStatusNotice("CPF validado offline.");
       toast.info("CPF validado offline ✓");
+      fetchPendingEpiCount(ctx.cpf_normalized);
       return;
     }
 
@@ -1261,6 +1290,7 @@ export default function TimeClock() {
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
       // Fetch server-driven next step
       await fetchNextStep(ctx.cpf_normalized);
+      fetchPendingEpiCount(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
@@ -1953,8 +1983,27 @@ export default function TimeClock() {
           </div>
         )}
 
+        {/* EPI pending notification */}
+        {pendingEpiCount > 0 && (
+          <button
+            onClick={() => setShowEpiAcceptance(true)}
+            className="w-full mb-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5 flex items-center gap-3"
+            style={{ background: "linear-gradient(135deg, hsl(40 80% 15%), hsl(35 70% 12%))", borderColor: "hsl(40 80% 35%)", boxShadow: "0 4px 16px hsl(40 80% 20% / 0.3)" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "hsl(40 90% 50%)" }}>
+              <HardHat className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: "hsl(40 90% 75%)" }}>
+                {pendingEpiCount} EPI{pendingEpiCount > 1 ? "s" : ""} pendente{pendingEpiCount > 1 ? "s" : ""} de aceite
+              </p>
+              <p className="text-xs" style={{ color: "hsl(40 50% 55%)" }}>Toque para visualizar e assinar</p>
+            </div>
+          </button>
+        )}
+
         {/* Secondary actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
             style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}

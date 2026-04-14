@@ -123,6 +123,8 @@ export type Database = {
       }
       epi_deliveries: {
         Row: {
+          accepted_at: string | null
+          accepted_by: string | null
           created_at: string
           delivered_at: string
           delivered_by: string
@@ -131,8 +133,12 @@ export type Database = {
           expires_at: string
           id: string
           notes: string | null
+          signature_url: string | null
+          status: string
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           created_at?: string
           delivered_at?: string
           delivered_by?: string
@@ -141,8 +147,12 @@ export type Database = {
           expires_at: string
           id?: string
           notes?: string | null
+          signature_url?: string | null
+          status?: string
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           created_at?: string
           delivered_at?: string
           delivered_by?: string
@@ -151,6 +161,8 @@ export type Database = {
           expires_at?: string
           id?: string
           notes?: string | null
+          signature_url?: string | null
+          status?: string
         }
         Relationships: [
           {
@@ -333,6 +345,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_epi_delivery: {
+        Args: { p_cpf: string; p_delivery_id: string; p_signature_url: string }
+        Returns: boolean
+      }
       get_active_employee_by_cpf: {
         Args: { p_cpf: string }
         Returns: {
@@ -384,6 +400,20 @@ export type Database = {
           next_step: string
           records_today: Json
           shift: string
+        }[]
+      }
+      get_pending_epi_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          delivered_at: string
+          delivered_by: string
+          delivery_id: string
+          employee_id: string
+          employee_name: string
+          epi_category: string
+          epi_name: string
+          expires_at: string
+          notes: string
         }[]
       }
       get_today_records_for_employee: {
