@@ -97,6 +97,14 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [deliveryEmployee, setDeliveryEmployee] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [deliveryBy, setDeliveryBy] = useState("");
+  const [deliveryTamanho, setDeliveryTamanho] = useState("");
+  const [deliveryQuantidade, setDeliveryQuantidade] = useState("1");
+  const [deliveryEstado, setDeliveryEstado] = useState("Novo");
+  const [deliveryFinalidade, setDeliveryFinalidade] = useState("");
+  const [deliveryEmpresa, setDeliveryEmpresa] = useState("");
+  const [deliverySetor, setDeliverySetor] = useState("");
+  const [deliveryLocal, setDeliveryLocal] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // History
   const [historyEmployee, setHistoryEmployee] = useState("");
