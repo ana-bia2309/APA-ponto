@@ -10,6 +10,7 @@ import {
   Pencil, Trash2, Plus, Calendar, X, Check
 } from "lucide-react";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
+import { groupByEmployeeJourneys } from "@/lib/group-journeys";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PunchRecord = DisplayPunchRecord & { employees?: { name: string } };
@@ -111,13 +112,8 @@ export default function RecordsTab({ employees }: Props) {
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Group by employee
-  const grouped = records.reduce((acc, rec) => {
-    const name = rec.employees?.name || "Desconhecido";
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(rec);
-    return acc;
-  }, {} as Record<string, PunchRecord[]>);
+  // Group by employee → journeys (handles overnight shifts)
+  const grouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
 
   const formatTime = (d: string) =>
     new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -257,59 +253,70 @@ export default function RecordsTab({ employees }: Props) {
         <p className="text-center text-muted-foreground py-8">Nenhum registro neste período</p>
       ) : (
         <div className="space-y-4">
-          {Object.entries(grouped).map(([name, recs]) => (
+          {Object.entries(grouped).map(([name, journeys]) => (
             <Card key={name} className="p-4">
               <h3 className="font-semibold text-foreground mb-3">{name}</h3>
-              <div className="space-y-2">
-                {recs.map((rec) => {
-                  const sync = SYNC_LABELS[rec.sync_status || "synced"] || SYNC_LABELS.synced;
-                  return (
-                    <div key={rec.id} className="flex items-start justify-between text-sm gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs font-medium">
-                          {STEP_LABELS[rec.step] || rec.step}
-                        </span>
-                        <span className="text-foreground tabular-nums">{formatTime(rec.punched_at)}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {MODE_LABELS[rec.mode || "online"] || rec.mode}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${sync.className}`}>
-                          {sync.label}
-                        </span>
-                        {rec.photo_url && (
-                          <button onClick={async () => {
-                            let path = rec.photo_url!;
-                            const prefix = "/storage/v1/object/public/punch-photos/";
-                            const idx = path.indexOf(prefix);
-                            if (idx !== -1) path = decodeURIComponent(path.substring(idx + prefix.length));
-                            const { data } = await supabase.storage.from("punch-photos").createSignedUrl(path, 300);
-                            if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                            else toast.error("Erro ao gerar link da foto");
-                          }} className="text-primary hover:text-primary/80" title="Ver foto">
-                            <Camera className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {rec.address ? (
-                          <a href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`} target="_blank"
-                            rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 max-w-[120px]">
-                            <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{rec.address}</span>
-                          </a>
-                        ) : rec.latitude && rec.longitude ? (
-                          <a href={`https://maps.google.com/?q=${rec.latitude},${rec.longitude}`} target="_blank"
-                            rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />{rec.latitude.toFixed(3)},{rec.longitude.toFixed(3)}
-                          </a>
-                        ) : null}
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => deleteRecord(rec.id)} title="Excluir">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
+              <div className="space-y-4">
+                {journeys.map((journey, ji) => (
+                  <div key={ji} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground capitalize">{journey.label}</span>
+                      {!journey.complete && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-medium">Jornada aberta</span>
+                      )}
                     </div>
-                  );
-                })}
+                    {journey.records.map((rec) => {
+                      const sync = SYNC_LABELS[(rec as any).sync_status || "synced"] || SYNC_LABELS.synced;
+                      return (
+                        <div key={rec.id} className="flex items-start justify-between text-sm gap-2 pl-3 border-l-2 border-border">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs font-medium">
+                              {STEP_LABELS[rec.step] || rec.step}
+                            </span>
+                            <span className="text-foreground tabular-nums">{formatTime(rec.punched_at)}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {MODE_LABELS[(rec as any).mode || "online"] || (rec as any).mode}
+                            </span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${sync.className}`}>
+                              {sync.label}
+                            </span>
+                            {(rec as any).photo_url && (
+                              <button onClick={async () => {
+                                let path = (rec as any).photo_url!;
+                                const prefix = "/storage/v1/object/public/punch-photos/";
+                                const idx = path.indexOf(prefix);
+                                if (idx !== -1) path = decodeURIComponent(path.substring(idx + prefix.length));
+                                const { data } = await supabase.storage.from("punch-photos").createSignedUrl(path, 300);
+                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                else toast.error("Erro ao gerar link da foto");
+                              }} className="text-primary hover:text-primary/80" title="Ver foto">
+                                <Camera className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {(rec as any).address ? (
+                              <a href={`https://maps.google.com/?q=${(rec as any).latitude},${(rec as any).longitude}`} target="_blank"
+                                rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 max-w-[120px]">
+                                <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{(rec as any).address}</span>
+                              </a>
+                            ) : (rec as any).latitude && (rec as any).longitude ? (
+                              <a href={`https://maps.google.com/?q=${(rec as any).latitude},${(rec as any).longitude}`} target="_blank"
+                                rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />{(rec as any).latitude.toFixed(3)},{(rec as any).longitude.toFixed(3)}
+                              </a>
+                            ) : null}
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => deleteRecord(rec.id)} title="Excluir">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {ji < journeys.length - 1 && <hr className="border-border" />}
+                  </div>
+                ))}
               </div>
             </Card>
           ))}

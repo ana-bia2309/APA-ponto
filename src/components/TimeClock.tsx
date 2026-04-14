@@ -34,6 +34,7 @@ import {
   type TimeRecordInsert,
   type TimeRecordRow,
 } from "@/lib/time-records";
+import { groupRecordsIntoJourneys } from "@/lib/group-journeys";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
@@ -1421,12 +1422,7 @@ export default function TimeClock() {
 
   // History screen
   if (showHistory && selectedEmployee) {
-    const groupedHistory = historyRecords.reduce((acc, rec) => {
-      const day = new Date(rec.punched_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
-      if (!acc[day]) acc[day] = [];
-      acc[day].push(rec);
-      return acc;
-    }, {} as Record<string, PunchRecord[]>);
+    const journeys = groupRecordsIntoJourneys(historyRecords).reverse();
 
     const STEP_LABELS: Record<string, string> = { entrada: "Entrada", intervalo: "Intervalo", retorno: "Retorno", saida: "Saída" };
 
@@ -1451,23 +1447,28 @@ export default function TimeClock() {
             {selectedEmployee.name} • Últimos 30 dias
           </p>
 
-          {Object.keys(groupedHistory).length === 0 ? (
+          {journeys.length === 0 ? (
             <div className="text-center py-12">
               <p style={{ color: "hsl(210 15% 45%)" }}>Nenhum registro encontrado.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {Object.entries(groupedHistory).map(([day, recs]) => (
-                <div key={day} className="p-4 rounded-xl border border-white/10" style={{ background: "hsl(210 30% 13%)" }}>
-                  <p className="text-sm font-semibold mb-2 capitalize" style={{ color: "hsl(210 20% 65%)" }}>{day}</p>
+              {journeys.map((journey, ji) => (
+                <div key={ji} className="p-4 rounded-xl border border-white/10" style={{ background: "hsl(210 30% 13%)" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-sm font-semibold capitalize" style={{ color: "hsl(210 20% 65%)" }}>{journey.label}</p>
+                    {!journey.complete && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "hsl(40 80% 50% / 0.15)", color: "hsl(40 80% 60%)" }}>Aberta</span>
+                    )}
+                  </div>
                   <div className="space-y-1.5">
-                    {recs.map((rec) => (
+                    {journey.records.map((rec) => (
                       <div key={rec.id} className="flex items-center justify-between text-sm">
                         <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: "hsl(210 30% 20%)", color: "hsl(200 70% 65%)" }}>
                           {STEP_LABELS[rec.step] || rec.step}
                         </span>
                         <div className="flex items-center gap-2">
-                          {rec.address && <MapPin className="w-3 h-3" style={{ color: "hsl(152 55% 50%)" }} />}
+                          {(rec as any).address && <MapPin className="w-3 h-3" style={{ color: "hsl(152 55% 50%)" }} />}
                           <span className="tabular-nums" style={{ color: "hsl(0 0% 80%)" }}>
                             {formatTime(rec.punched_at)}
                           </span>
