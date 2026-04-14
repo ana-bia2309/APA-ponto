@@ -595,13 +595,22 @@ export default function TimeClock() {
 
   /** Fetch pending EPI count for current employee */
   const fetchPendingEpiCount = useCallback(async (cpf: string) => {
-    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); setPendingEpis([]); return; }
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits) {
+      setPendingEpiCount(0);
+      setPendingEpis([]);
+      return;
+    }
+    if (!navigator.onLine) return;
     try {
-      const { data } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: normalizeCpf(cpf) } as any);
+      const { data, error } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: cpfDigits } as any);
+      if (error) throw error;
       const arr = Array.isArray(data) ? data : [];
       setPendingEpiCount(arr.length);
       setPendingEpis(arr.map((d: any) => ({ epi_name: d.epi_name, delivered_at: d.delivered_at })));
-    } catch { setPendingEpiCount(0); setPendingEpis([]); }
+    } catch (error) {
+      console.error("DEBUG EPI [fetchPendingEpiCount]: erro ao revalidar pendências", error);
+    }
   }, []);
 
   const resetToStart = useCallback(() => {
@@ -642,6 +651,16 @@ export default function TimeClock() {
       setIsSyncing(true);
       const result = await syncOfflineQueue();
       await fetchEmployees();
+      const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
+      if (activeEmployeeId) {
+        await fetchTodayRecords(activeEmployeeId);
+      }
+      if (validatedContext?.cpf_normalized) {
+        await Promise.allSettled([
+          fetchNextStep(validatedContext.cpf_normalized),
+          fetchPendingEpiCount(validatedContext.cpf_normalized),
+        ]);
+      }
       setIsSyncing(false);
       if (result.synced > 0 || result.skipped > 0) {
         const detail = result.skipped > 0
@@ -649,7 +668,6 @@ export default function TimeClock() {
           : `${result.synced} registro(s)`;
         toast.success(`Sincronização concluída: ${detail}.`);
         setStatusNotice("Sincronização concluída.");
-        if (selectedEmployee) void fetchTodayRecords(selectedEmployee.id);
       } else if (result.failed > 0) {
         setStatusNotice("Alguns registros continuam pendentes e serão reenviados automaticamente.");
       } else {
@@ -699,19 +717,58 @@ export default function TimeClock() {
 
   // Revalidate on app focus (returning from background)
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
-        fetchEmployees();
-        if (selectedEmployee) fetchTodayRecords(selectedEmployee.id);
-        if (validatedContext?.cpf_normalized) {
-          fetchNextStep(validatedContext.cpf_normalized);
-          fetchPendingEpiCount(validatedContext.cpf_normalized);
-        }
+    let refreshTimer: number | null = null;
+
+    const revalidateHomeData = () => {
+      if (!navigator.onLine) return;
+      void fetchEmployees();
+
+      const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
+      if (activeEmployeeId) {
+        void fetchTodayRecords(activeEmployeeId);
+      }
+
+      if (validatedContext?.cpf_normalized) {
+        void fetchNextStep(validatedContext.cpf_normalized);
+        void fetchPendingEpiCount(validatedContext.cpf_normalized);
       }
     };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        revalidateHomeData();
+      }
+    };
+
+    const handleAppResume = () => {
+      revalidateHomeData();
+
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = window.setTimeout(() => {
+        revalidateHomeData();
+      }, 1200);
+    };
+
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [selectedEmployee, validatedContext, fetchPendingEpiCount]);
+    window.addEventListener("pageshow", handleAppResume);
+    window.addEventListener("focus", handleAppResume);
+
+    if (validatedContext?.cpf_normalized) {
+      handleAppResume();
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pageshow", handleAppResume);
+      window.removeEventListener("focus", handleAppResume);
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+    };
+  }, [selectedEmployee, validatedContext, fetchPendingEpiCount, fetchNextStep]);
 
   useEffect(() => {
     if (selectedEmployee) {

@@ -20,11 +20,30 @@ if (isPreviewHost || isInIframe) {
     registrations.forEach((r) => r.unregister());
   });
 } else if ("serviceWorker" in navigator) {
-  // Force update check on every app open for published PWA
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((reg) => {
-      reg.update().catch(() => {});
+  const updatePublishedServiceWorkers = () => {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((reg) => {
+        reg.update().catch(() => {});
+      });
     });
+  };
+
+  const schedulePublishedUpdateCheck = () => {
+    updatePublishedServiceWorkers();
+    window.setTimeout(() => {
+      updatePublishedServiceWorkers();
+    }, 1200);
+  };
+
+  // Force update check on every app open/resume for published PWA
+  schedulePublishedUpdateCheck();
+  window.addEventListener("focus", schedulePublishedUpdateCheck);
+  window.addEventListener("pageshow", schedulePublishedUpdateCheck);
+  window.addEventListener("online", schedulePublishedUpdateCheck);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      schedulePublishedUpdateCheck();
+    }
   });
 
   // Listen for new SW activation and reload to get latest version
