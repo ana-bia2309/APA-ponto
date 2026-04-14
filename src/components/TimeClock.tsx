@@ -504,6 +504,7 @@ export default function TimeClock() {
   const navigate = useNavigate();
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
+  const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -594,11 +595,13 @@ export default function TimeClock() {
 
   /** Fetch pending EPI count for current employee */
   const fetchPendingEpiCount = useCallback(async (cpf: string) => {
-    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); return; }
+    if (!cpf || !navigator.onLine) { setPendingEpiCount(0); setPendingEpis([]); return; }
     try {
       const { data } = await supabase.rpc("get_pending_epi_by_cpf", { p_cpf: normalizeCpf(cpf) } as any);
-      setPendingEpiCount(Array.isArray(data) ? data.length : 0);
-    } catch { setPendingEpiCount(0); }
+      const arr = Array.isArray(data) ? data : [];
+      setPendingEpiCount(arr.length);
+      setPendingEpis(arr.map((d: any) => ({ epi_name: d.epi_name, delivered_at: d.delivered_at })));
+    } catch { setPendingEpiCount(0); setPendingEpis([]); }
   }, []);
 
   const resetToStart = useCallback(() => {
@@ -623,6 +626,7 @@ export default function TimeClock() {
     setShowJustification(false);
     setShowEpiAcceptance(false);
     setPendingEpiCount(0);
+    setPendingEpis([]);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
