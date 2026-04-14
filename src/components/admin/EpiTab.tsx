@@ -32,6 +32,10 @@ interface EpiDelivery {
   delivered_by: string;
   notes: string | null;
   created_at: string;
+  status: string;
+  signature_url: string | null;
+  accepted_at: string | null;
+  accepted_by: string | null;
   epis?: { name: string; category: string };
   employees?: { name: string };
 }
