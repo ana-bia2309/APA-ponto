@@ -250,6 +250,34 @@ export default function AdminDashboard() {
                     <span className="text-xs text-muted-foreground">Mês do relatório</span>
                   </div>
 
+                  {/* Employee search */}
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="Buscar por nome, CPF ou matrícula..."
+                      value={employeeSearch}
+                      onChange={(e) => setEmployeeSearch(e.target.value)}
+                      className="max-w-md"
+                    />
+                    {employeeSearch && (
+                      <Button variant="ghost" size="sm" onClick={() => setEmployeeSearch("")}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {(() => {
+                        const filtered = employees.filter(emp => {
+                          const search = employeeSearch.toLowerCase().trim();
+                          if (!search) return true;
+                          const nameMatch = emp.name.toLowerCase().includes(search);
+                          const cpfMatch = (emp as any).cpf?.toLowerCase().includes(search.replace(/\D/g, ""));
+                          const matriculaMatch = (emp as any).matricula?.toLowerCase().includes(search);
+                          return nameMatch || cpfMatch || matriculaMatch;
+                        });
+                        return `${filtered.length} funcionário${filtered.length !== 1 ? 's' : ''}`;
+                      })()}
+                    </span>
+                  </div>
+
                   {/* Employee list */}
                   <div className="space-y-2">
                     {employees.map((emp) => (
