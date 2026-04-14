@@ -71,8 +71,13 @@ function expiryBadge(expiresAt: string) {
   return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">OK ({days}d)</Badge>;
 }
 
-export default function EpiTab({ employees }: { employees: Employee[] }) {
+export default function EpiTab({ employees, activeSubTab }: { employees: Employee[]; activeSubTab?: SubTab }) {
   const [subTab, setSubTab] = useState<SubTab>("catalog");
+
+  // Sync with external sub-tab control (from sidebar)
+  useEffect(() => {
+    if (activeSubTab) setSubTab(activeSubTab);
+  }, [activeSubTab]);
   const [epis, setEpis] = useState<Epi[]>([]);
   const [deliveries, setDeliveries] = useState<EpiDelivery[]>([]);
   const [loading, setLoading] = useState(true);
