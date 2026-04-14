@@ -40,8 +40,15 @@ interface EpiDelivery {
   signature_url: string | null;
   accepted_at: string | null;
   accepted_by: string | null;
-  epis?: { name: string; category: string };
-  employees?: { name: string };
+  tamanho: string;
+  quantidade: number;
+  estado: string;
+  finalidade: string;
+  empresa: string;
+  setor: string;
+  local_entrega: string;
+  epis?: { name: string; category: string; ca: string; marca: string; codigo: string };
+  employees?: { name: string; cpf: string; cargo: string; departamento: string; matricula: string };
 }
 
 type SubTab = "catalog" | "deliveries" | "alerts" | "history";
