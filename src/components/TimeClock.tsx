@@ -1058,6 +1058,14 @@ export default function TimeClock() {
           console.warn("DEBUG PONTO [punch_records]: erro ao salvar:", prError.message);
         }
 
+        // Also save address to time_records for direct display
+        if (returnedId && location?.address) {
+          (supabase as any).from("time_records")
+            .update({ address: location.address })
+            .eq("id", returnedId)
+            .then(() => {});
+        }
+
         // Refresh records and next step from server
         await fetchTodayRecords(employeeId);
         await fetchNextStep(cpfDigits);
