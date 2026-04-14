@@ -94,27 +94,39 @@ export type Database = {
       employees: {
         Row: {
           active: boolean
+          cargo: string | null
           cpf: string | null
           created_at: string
+          data_admissao: string | null
+          departamento: string | null
           id: string
+          matricula: string | null
           name: string
           punch_mode: string
           shift: string
         }
         Insert: {
           active?: boolean
+          cargo?: string | null
           cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          departamento?: string | null
           id?: string
+          matricula?: string | null
           name: string
           punch_mode?: string
           shift?: string
         }
         Update: {
           active?: boolean
+          cargo?: string | null
           cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          departamento?: string | null
           id?: string
+          matricula?: string | null
           name?: string
           punch_mode?: string
           shift?: string
@@ -129,12 +141,19 @@ export type Database = {
           delivered_at: string
           delivered_by: string
           employee_id: string
+          empresa: string | null
           epi_id: string
+          estado: string | null
           expires_at: string
+          finalidade: string | null
           id: string
+          local_entrega: string | null
           notes: string | null
+          quantidade: number | null
+          setor: string | null
           signature_url: string | null
           status: string
+          tamanho: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -143,12 +162,19 @@ export type Database = {
           delivered_at?: string
           delivered_by?: string
           employee_id: string
+          empresa?: string | null
           epi_id: string
+          estado?: string | null
           expires_at: string
+          finalidade?: string | null
           id?: string
+          local_entrega?: string | null
           notes?: string | null
+          quantidade?: number | null
+          setor?: string | null
           signature_url?: string | null
           status?: string
+          tamanho?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -157,12 +183,19 @@ export type Database = {
           delivered_at?: string
           delivered_by?: string
           employee_id?: string
+          empresa?: string | null
           epi_id?: string
+          estado?: string | null
           expires_at?: string
+          finalidade?: string | null
           id?: string
+          local_entrega?: string | null
           notes?: string | null
+          quantidade?: number | null
+          setor?: string | null
           signature_url?: string | null
           status?: string
+          tamanho?: string | null
         }
         Relationships: [
           {
@@ -184,30 +217,39 @@ export type Database = {
       epis: {
         Row: {
           active: boolean
+          ca: string | null
           category: string
+          codigo: string | null
           created_at: string
           id: string
           mandatory: boolean
+          marca: string | null
           name: string
           updated_at: string
           validity_days: number
         }
         Insert: {
           active?: boolean
+          ca?: string | null
           category?: string
+          codigo?: string | null
           created_at?: string
           id?: string
           mandatory?: boolean
+          marca?: string | null
           name: string
           updated_at?: string
           validity_days?: number
         }
         Update: {
           active?: boolean
+          ca?: string | null
           category?: string
+          codigo?: string | null
           created_at?: string
           id?: string
           mandatory?: boolean
+          marca?: string | null
           name?: string
           updated_at?: string
           validity_days?: number

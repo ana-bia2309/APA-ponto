@@ -33,6 +33,12 @@ export default function AdminDashboard() {
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
+  const [newCargo, setNewCargo] = useState("");
+  const [newMatricula, setNewMatricula] = useState("");
+  const [newDepartamento, setNewDepartamento] = useState("");
+  const [editCargo, setEditCargo] = useState("");
+  const [editMatricula, setEditMatricula] = useState("");
+  const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [authReady, setAuthReady] = useState(false);
 
@@ -62,10 +68,14 @@ export default function AdminDashboard() {
     if (!newName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .insert({ name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift } as any);
+      .insert({
+        name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
+        cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
+      } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
     setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno");
+    setNewCargo(""); setNewMatricula(""); setNewDepartamento("");
     fetchEmployees();
   };
 
@@ -75,13 +85,19 @@ export default function AdminDashboard() {
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
     setEditShift((emp as any).shift === "noturno" ? "noturno" : "diurno");
+    setEditCargo((emp as any).cargo || "");
+    setEditMatricula((emp as any).matricula || "");
+    setEditDepartamento((emp as any).departamento || "");
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
     const { error } = await supabase
       .from("employees")
-      .update({ name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift } as any)
+      .update({
+        name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
+        cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
+      } as any)
       .eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
 
@@ -219,6 +235,11 @@ export default function AdminDashboard() {
                   <option value="noturno">🌙 Noturno</option>
                 </select>
               </div>
+              <div className="flex gap-2">
+                <Input placeholder="Cargo" value={newCargo} onChange={(e) => setNewCargo(e.target.value)} className="flex-1" />
+                <Input placeholder="Matrícula" value={newMatricula} onChange={(e) => setNewMatricula(e.target.value)} className="flex-1" />
+                <Input placeholder="Departamento" value={newDepartamento} onChange={(e) => setNewDepartamento(e.target.value)} className="flex-1" />
+              </div>
             </form>
 
             {/* Report download */}
@@ -231,7 +252,7 @@ export default function AdminDashboard() {
               {employees.map((emp) => (
                 <Card key={emp.id} className="p-4">
                   {editingId === emp.id ? (
-                    <div className="space-y-2">
+                     <div className="space-y-2">
                       <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
                       <div className="flex gap-2">
                         <Input value={editCpf} onChange={(e) => setEditCpf(formatCpf(e.target.value))}
@@ -246,6 +267,11 @@ export default function AdminDashboard() {
                           <option value="diurno">☀ Diurno</option>
                           <option value="noturno">🌙 Noturno</option>
                         </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input value={editCargo} onChange={(e) => setEditCargo(e.target.value)} placeholder="Cargo" className="flex-1" />
+                        <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Matrícula" className="flex-1" />
+                        <Input value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)} placeholder="Departamento" className="flex-1" />
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" /> Salvar</Button>

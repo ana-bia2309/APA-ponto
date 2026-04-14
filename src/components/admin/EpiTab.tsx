@@ -22,6 +22,9 @@ interface Epi {
   mandatory: boolean;
   active: boolean;
   created_at: string;
+  codigo: string;
+  ca: string;
+  marca: string;
 }
 
 interface EpiDelivery {
@@ -37,8 +40,15 @@ interface EpiDelivery {
   signature_url: string | null;
   accepted_at: string | null;
   accepted_by: string | null;
-  epis?: { name: string; category: string };
-  employees?: { name: string };
+  tamanho: string;
+  quantidade: number;
+  estado: string;
+  finalidade: string;
+  empresa: string;
+  setor: string;
+  local_entrega: string;
+  epis?: { name: string; category: string; ca: string; marca: string; codigo: string };
+  employees?: { name: string; cpf: string; cargo: string; departamento: string; matricula: string };
 }
 
 type SubTab = "catalog" | "deliveries" | "alerts" | "history";
@@ -70,6 +80,12 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [newCategory, setNewCategory] = useState("Geral");
   const [newValidity, setNewValidity] = useState("365");
   const [newMandatory, setNewMandatory] = useState(false);
+  const [newCodigo, setNewCodigo] = useState("");
+  const [newCa, setNewCa] = useState("");
+  const [newMarca, setNewMarca] = useState("");
+  const [editCodigo, setEditCodigo] = useState("");
+  const [editCa, setEditCa] = useState("");
+  const [editMarca, setEditMarca] = useState("");
   const [editingEpi, setEditingEpi] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("");
@@ -81,6 +97,14 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [deliveryEmployee, setDeliveryEmployee] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [deliveryBy, setDeliveryBy] = useState("");
+  const [deliveryTamanho, setDeliveryTamanho] = useState("");
+  const [deliveryQuantidade, setDeliveryQuantidade] = useState("1");
+  const [deliveryEstado, setDeliveryEstado] = useState("Novo");
+  const [deliveryFinalidade, setDeliveryFinalidade] = useState("");
+  const [deliveryEmpresa, setDeliveryEmpresa] = useState("");
+  const [deliverySetor, setDeliverySetor] = useState("");
+  const [deliveryLocal, setDeliveryLocal] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // History
   const [historyEmployee, setHistoryEmployee] = useState("");
@@ -94,7 +118,7 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const fetchDeliveries = useCallback(async () => {
     const { data } = await supabase
       .from("epi_deliveries")
-      .select("*, epis(name, category), employees(name)")
+      .select("*, epis(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula)")
       .order("delivered_at", { ascending: false });
     if (data) setDeliveries(data as any);
   }, []);
@@ -112,10 +136,14 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       category: newCategory,
       validity_days: parseInt(newValidity) || 365,
       mandatory: newMandatory,
+      codigo: newCodigo.trim(),
+      ca: newCa.trim(),
+      marca: newMarca.trim(),
     } as any);
     if (error) { toast.error("Erro ao cadastrar EPI"); return; }
     toast.success("EPI cadastrado!");
     setNewName(""); setNewCategory("Geral"); setNewValidity("365"); setNewMandatory(false);
+    setNewCodigo(""); setNewCa(""); setNewMarca("");
     fetchEpis();
   };
 
@@ -125,6 +153,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
     setEditCategory(epi.category);
     setEditValidity(String(epi.validity_days));
     setEditMandatory(epi.mandatory);
+    setEditCodigo(epi.codigo || "");
+    setEditCa(epi.ca || "");
+    setEditMarca(epi.marca || "");
   };
 
   const saveEditEpi = async () => {
@@ -134,6 +165,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       category: editCategory,
       validity_days: parseInt(editValidity) || 365,
       mandatory: editMandatory,
+      codigo: editCodigo.trim(),
+      ca: editCa.trim(),
+      marca: editMarca.trim(),
     } as any).eq("id", editingEpi);
     if (error) { toast.error("Erro ao atualizar"); return; }
     toast.success("EPI atualizado!");
@@ -168,10 +202,21 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       delivered_at: deliveryDate,
       expires_at: expiresAt.toISOString().slice(0, 10),
       delivered_by: deliveryBy.trim(),
+      tamanho: deliveryTamanho.trim(),
+      quantidade: parseInt(deliveryQuantidade) || 1,
+      estado: deliveryEstado,
+      finalidade: deliveryFinalidade.trim(),
+      empresa: deliveryEmpresa.trim(),
+      setor: deliverySetor.trim(),
+      local_entrega: deliveryLocal.trim(),
+      notes: deliveryNotes.trim() || null,
     } as any);
     if (error) { toast.error("Erro ao registrar entrega"); return; }
     toast.success("Entrega registrada!");
     setDeliveryEpi(""); setDeliveryEmployee(""); setDeliveryBy("");
+    setDeliveryTamanho(""); setDeliveryQuantidade("1"); setDeliveryEstado("Novo");
+    setDeliveryFinalidade(""); setDeliveryEmpresa(""); setDeliverySetor("");
+    setDeliveryLocal(""); setDeliveryNotes("");
     fetchDeliveries();
   };
 
@@ -227,9 +272,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       {/* ===== CATÁLOGO ===== */}
       {subTab === "catalog" && (
         <div className="space-y-3">
-          <form onSubmit={addEpi} className="space-y-2">
+           <form onSubmit={addEpi} className="space-y-2">
             <div className="flex gap-2">
-              <Input placeholder="Nome do EPI" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1" />
+              <Input placeholder="Nome do EPI *" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1" />
               <Button type="submit" size="sm"><Plus className="w-4 h-4" /></Button>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -244,23 +289,33 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                 Obrigatório
               </label>
             </div>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Código / Referência" value={newCodigo} onChange={e => setNewCodigo(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="CA (Cert. Aprovação)" value={newCa} onChange={e => setNewCa(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Marca / Fabricante" value={newMarca} onChange={e => setNewMarca(e.target.value)} className="h-9 text-xs flex-1" />
+            </div>
           </form>
 
           {epis.map(epi => (
             <Card key={epi.id} className="p-3">
               {editingEpi === epi.id ? (
                 <div className="space-y-2">
-                  <Input value={editName} onChange={e => setEditName(e.target.value)} />
+                  <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nome do EPI" />
                   <div className="flex gap-2 flex-wrap">
                     <select value={editCategory} onChange={e => setEditCategory(e.target.value)}
                       className="h-9 rounded-md border border-input bg-background px-2 text-xs">
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} className="w-28 h-9 text-xs" />
+                    <Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} className="w-28 h-9 text-xs" placeholder="Validade" />
                     <label className="flex items-center gap-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={editMandatory} onChange={e => setEditMandatory(e.target.checked)} />
                       Obrigatório
                     </label>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Input placeholder="Código" value={editCodigo} onChange={e => setEditCodigo(e.target.value)} className="h-9 text-xs flex-1" />
+                    <Input placeholder="CA" value={editCa} onChange={e => setEditCa(e.target.value)} className="h-9 text-xs flex-1" />
+                    <Input placeholder="Marca" value={editMarca} onChange={e => setEditMarca(e.target.value)} className="h-9 text-xs flex-1" />
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={saveEditEpi}><Check className="w-3.5 h-3.5 mr-1" /> Salvar</Button>
@@ -277,6 +332,8 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-[10px]">{epi.category}</Badge>
                       <span className="text-[10px] text-muted-foreground">Validade: {epi.validity_days} dias</span>
+                      {epi.ca && <span className="text-[10px] text-muted-foreground">CA: {epi.ca}</span>}
+                      {epi.marca && <span className="text-[10px] text-muted-foreground">{epi.marca}</span>}
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -295,24 +352,46 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       {subTab === "deliveries" && (
         <div className="space-y-3">
           <form onSubmit={addDelivery} className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Identificação</p>
             <div className="flex gap-2">
               <select value={deliveryEpi} onChange={e => setDeliveryEpi(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-xs">
-                <option value="">Selecione o EPI</option>
-                {epis.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                <option value="">Selecione o EPI *</option>
+                {epis.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name} {e.ca ? `(CA: ${e.ca})` : ""}</option>)}
               </select>
               <select value={deliveryEmployee} onChange={e => setDeliveryEmployee(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-xs">
-                <option value="">Selecione o colaborador</option>
+                <option value="">Selecione o colaborador *</option>
                 {employees.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div className="flex gap-2">
-              <Input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="h-9 text-xs flex-1" />
-              <Input placeholder="Responsável pela entrega" value={deliveryBy}
-                onChange={e => setDeliveryBy(e.target.value)} className="h-9 text-xs flex-1" />
-              <Button type="submit" size="sm"><Plus className="w-4 h-4" /></Button>
+
+            <p className="text-xs font-medium text-muted-foreground pt-1">Empresa / Local</p>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Empresa / Órgão" value={deliveryEmpresa} onChange={e => setDeliveryEmpresa(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Setor" value={deliverySetor} onChange={e => setDeliverySetor(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Local" value={deliveryLocal} onChange={e => setDeliveryLocal(e.target.value)} className="h-9 text-xs flex-1" />
             </div>
+
+            <p className="text-xs font-medium text-muted-foreground pt-1">Detalhes da entrega</p>
+            <div className="flex gap-2 flex-wrap">
+              <Input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="h-9 text-xs w-36" />
+              <Input placeholder="Responsável *" value={deliveryBy}
+                onChange={e => setDeliveryBy(e.target.value)} className="h-9 text-xs flex-1" />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Tamanho" value={deliveryTamanho} onChange={e => setDeliveryTamanho(e.target.value)} className="h-9 text-xs w-24" />
+              <Input type="number" placeholder="Qtd" value={deliveryQuantidade} onChange={e => setDeliveryQuantidade(e.target.value)} className="h-9 text-xs w-16" min="1" />
+              <select value={deliveryEstado} onChange={e => setDeliveryEstado(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-xs">
+                <option value="Novo">Novo</option>
+                <option value="Bom estado">Bom estado</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <Input placeholder="Finalidade de uso" value={deliveryFinalidade} onChange={e => setDeliveryFinalidade(e.target.value)} className="h-9 text-xs" />
+            <Input placeholder="Observações (opcional)" value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} className="h-9 text-xs" />
+            <Button type="submit" size="sm" className="w-full"><Plus className="w-4 h-4 mr-1" /> Registrar Entrega</Button>
           </form>
 
           {deliveries.slice(0, 50).map(d => (
@@ -346,10 +425,23 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                     onClick={() => {
                       const emp = employees.find(e => e.id === d.employee_id);
                       generateEpiTermo({
+                        empresa: d.empresa || "",
+                        setor: d.setor || "",
+                        localEntrega: d.local_entrega || "",
                         employeeName: d.employees?.name || emp?.name || "—",
-                        employeeCpf: emp?.cpf || "",
+                        employeeCpf: emp?.cpf || d.employees?.cpf || "",
+                        cargo: d.employees?.cargo || "",
+                        departamento: d.employees?.departamento || "",
+                        matricula: d.employees?.matricula || "",
                         epiName: d.epis?.name || "EPI",
                         epiCategory: d.epis?.category || "",
+                        codigo: d.epis?.codigo || "",
+                        ca: d.epis?.ca || "",
+                        marca: d.epis?.marca || "",
+                        tamanho: d.tamanho || "",
+                        quantidade: d.quantidade || 1,
+                        estado: d.estado || "Novo",
+                        finalidade: d.finalidade || "",
                         deliveredAt: d.delivered_at,
                         expiresAt: d.expires_at,
                         deliveredBy: d.delivered_by,
