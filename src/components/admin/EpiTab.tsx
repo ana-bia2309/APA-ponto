@@ -75,6 +75,8 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [epis, setEpis] = useState<Epi[]>([]);
   const [deliveries, setDeliveries] = useState<EpiDelivery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signatureModal, setSignatureModal] = useState<{ url: string; name: string; date: string } | null>(null);
+  const [signatureImgUrl, setSignatureImgUrl] = useState<string | null>(null);
 
   // Catalog form
   const [newName, setNewName] = useState("");
