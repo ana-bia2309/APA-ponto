@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [authReady, setAuthReady] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -249,9 +250,47 @@ export default function AdminDashboard() {
                     <span className="text-xs text-muted-foreground">Mês do relatório</span>
                   </div>
 
+                  {/* Employee search */}
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="Buscar por nome, CPF ou matrícula..."
+                      value={employeeSearch}
+                      onChange={(e) => setEmployeeSearch(e.target.value)}
+                      className="max-w-md"
+                    />
+                    {employeeSearch && (
+                      <Button variant="ghost" size="sm" onClick={() => setEmployeeSearch("")}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {(() => {
+                        const filtered = employees.filter(emp => {
+                          const search = employeeSearch.toLowerCase().trim();
+                          if (!search) return true;
+                          const nameMatch = emp.name.toLowerCase().includes(search);
+                          const cpfMatch = (emp as any).cpf?.toLowerCase().includes(search.replace(/\D/g, ""));
+                          const matriculaMatch = (emp as any).matricula?.toLowerCase().includes(search);
+                          return nameMatch || cpfMatch || matriculaMatch;
+                        });
+                        return `${filtered.length} funcionário${filtered.length !== 1 ? 's' : ''}`;
+                      })()}
+                    </span>
+                  </div>
+
                   {/* Employee list */}
                   <div className="space-y-2">
-                    {employees.map((emp) => (
+                    {(() => {
+                      const filteredEmployees = employees.filter(emp => {
+                        const search = employeeSearch.toLowerCase().trim();
+                        if (!search) return true;
+                        const nameMatch = emp.name.toLowerCase().includes(search);
+                        const cpfMatch = (emp as any).cpf?.replace(/\D/g, "").includes(search.replace(/\D/g, ""));
+                        const matriculaMatch = (emp as any).matricula?.toLowerCase().includes(search);
+                        return nameMatch || cpfMatch || matriculaMatch;
+                      });
+                      
+                      return filteredEmployees.length > 0 ? filteredEmployees.map((emp) => (
                       <Card key={emp.id} className="p-4">
                         {editingId === emp.id ? (
                           <div className="space-y-3">
@@ -328,10 +367,12 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </Card>
-                    ))}
-                    {employees.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">Nenhum funcionário cadastrado</p>
-                    )}
+                    )) : (
+                      <p className="text-center text-muted-foreground py-8">
+                        {employeeSearch ? "Nenhum funcionário encontrado para esta busca" : "Nenhum funcionário cadastrado"}
+                      </p>
+                    );
+                    })()}
                   </div>
                 </div>
               )}
