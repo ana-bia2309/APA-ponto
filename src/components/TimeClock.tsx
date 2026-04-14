@@ -1182,7 +1182,19 @@ export default function TimeClock() {
     );
   }
 
-  const formatCpfInput = (value: string) => {
+  if (showEpiAcceptance && selectedEmployee && validatedContext) {
+    return (
+      <EpiAcceptance
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowEpiAcceptance(false)}
+        pendingCount={pendingEpiCount}
+        onAccepted={() => fetchPendingEpiCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+
+
     const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
