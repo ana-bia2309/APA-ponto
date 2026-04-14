@@ -367,10 +367,12 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </Card>
-                    ))}
-                    {employees.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">Nenhum funcionário cadastrado</p>
-                    )}
+                    )) : (
+                      <p className="text-center text-muted-foreground py-8">
+                        {employeeSearch ? "Nenhum funcionário encontrado para esta busca" : "Nenhum funcionário cadastrado"}
+                      </p>
+                    );
+                    })()}
                   </div>
                 </div>
               )}
