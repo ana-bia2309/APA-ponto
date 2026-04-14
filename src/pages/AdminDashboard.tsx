@@ -280,7 +280,17 @@ export default function AdminDashboard() {
 
                   {/* Employee list */}
                   <div className="space-y-2">
-                    {employees.map((emp) => (
+                    {(() => {
+                      const filteredEmployees = employees.filter(emp => {
+                        const search = employeeSearch.toLowerCase().trim();
+                        if (!search) return true;
+                        const nameMatch = emp.name.toLowerCase().includes(search);
+                        const cpfMatch = (emp as any).cpf?.replace(/\D/g, "").includes(search.replace(/\D/g, ""));
+                        const matriculaMatch = (emp as any).matricula?.toLowerCase().includes(search);
+                        return nameMatch || cpfMatch || matriculaMatch;
+                      });
+                      
+                      return filteredEmployees.length > 0 ? filteredEmployees.map((emp) => (
                       <Card key={emp.id} className="p-4">
                         {editingId === emp.id ? (
                           <div className="space-y-3">
