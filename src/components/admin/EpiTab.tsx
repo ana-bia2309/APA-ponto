@@ -118,7 +118,7 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const fetchDeliveries = useCallback(async () => {
     const { data } = await supabase
       .from("epi_deliveries")
-      .select("*, epis(name, category), employees(name)")
+      .select("*, epis(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula)")
       .order("delivered_at", { ascending: false });
     if (data) setDeliveries(data as any);
   }, []);
@@ -136,10 +136,14 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       category: newCategory,
       validity_days: parseInt(newValidity) || 365,
       mandatory: newMandatory,
+      codigo: newCodigo.trim(),
+      ca: newCa.trim(),
+      marca: newMarca.trim(),
     } as any);
     if (error) { toast.error("Erro ao cadastrar EPI"); return; }
     toast.success("EPI cadastrado!");
     setNewName(""); setNewCategory("Geral"); setNewValidity("365"); setNewMandatory(false);
+    setNewCodigo(""); setNewCa(""); setNewMarca("");
     fetchEpis();
   };
 
@@ -149,6 +153,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
     setEditCategory(epi.category);
     setEditValidity(String(epi.validity_days));
     setEditMandatory(epi.mandatory);
+    setEditCodigo(epi.codigo || "");
+    setEditCa(epi.ca || "");
+    setEditMarca(epi.marca || "");
   };
 
   const saveEditEpi = async () => {
@@ -158,6 +165,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       category: editCategory,
       validity_days: parseInt(editValidity) || 365,
       mandatory: editMandatory,
+      codigo: editCodigo.trim(),
+      ca: editCa.trim(),
+      marca: editMarca.trim(),
     } as any).eq("id", editingEpi);
     if (error) { toast.error("Erro ao atualizar"); return; }
     toast.success("EPI atualizado!");
@@ -192,10 +202,21 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       delivered_at: deliveryDate,
       expires_at: expiresAt.toISOString().slice(0, 10),
       delivered_by: deliveryBy.trim(),
+      tamanho: deliveryTamanho.trim(),
+      quantidade: parseInt(deliveryQuantidade) || 1,
+      estado: deliveryEstado,
+      finalidade: deliveryFinalidade.trim(),
+      empresa: deliveryEmpresa.trim(),
+      setor: deliverySetor.trim(),
+      local_entrega: deliveryLocal.trim(),
+      notes: deliveryNotes.trim() || null,
     } as any);
     if (error) { toast.error("Erro ao registrar entrega"); return; }
     toast.success("Entrega registrada!");
     setDeliveryEpi(""); setDeliveryEmployee(""); setDeliveryBy("");
+    setDeliveryTamanho(""); setDeliveryQuantidade("1"); setDeliveryEstado("Novo");
+    setDeliveryFinalidade(""); setDeliveryEmpresa(""); setDeliverySetor("");
+    setDeliveryLocal(""); setDeliveryNotes("");
     fetchDeliveries();
   };
 
