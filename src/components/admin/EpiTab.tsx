@@ -80,6 +80,12 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [newCategory, setNewCategory] = useState("Geral");
   const [newValidity, setNewValidity] = useState("365");
   const [newMandatory, setNewMandatory] = useState(false);
+  const [newCodigo, setNewCodigo] = useState("");
+  const [newCa, setNewCa] = useState("");
+  const [newMarca, setNewMarca] = useState("");
+  const [editCodigo, setEditCodigo] = useState("");
+  const [editCa, setEditCa] = useState("");
+  const [editMarca, setEditMarca] = useState("");
   const [editingEpi, setEditingEpi] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("");
