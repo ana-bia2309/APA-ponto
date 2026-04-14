@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   HardHat, Plus, Trash2, Package, AlertTriangle, CheckCircle,
-  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check,
+  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown,
 } from "lucide-react";
+import { generateEpiTermo } from "@/lib/generateEpiTermo";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
@@ -340,9 +341,30 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                     </div>
                   )}
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" title="Baixar Termo"
+                    onClick={() => {
+                      const emp = employees.find(e => e.id === d.employee_id);
+                      generateEpiTermo({
+                        employeeName: d.employees?.name || emp?.name || "—",
+                        employeeCpf: emp?.cpf || "",
+                        epiName: d.epis?.name || "EPI",
+                        epiCategory: d.epis?.category || "",
+                        deliveredAt: d.delivered_at,
+                        expiresAt: d.expires_at,
+                        deliveredBy: d.delivered_by,
+                        notes: d.notes,
+                        status: d.status,
+                        acceptedAt: d.accepted_at,
+                        signatureUrl: d.signature_url,
+                      });
+                    }}>
+                    <FileDown className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
