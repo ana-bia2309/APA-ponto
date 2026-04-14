@@ -783,24 +783,46 @@ export default function TimeClock() {
     const { dayKey, startIso, endIso } = getLocalDayRange();
     setRecordsLoading(true);
 
+    // Also build yesterday's range for overnight journey detection
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const { dayKey: yesterdayKey, startIso: yesterdayStartIso } = getLocalDayRange(yesterday);
+
     if (!navigator.onLine) {
-      const cached = getCachedRecords(employeeId, dayKey);
-      const pending = getPendingRecordsForEmployee(employeeId, dayKey);
-      const merged = mergePunchRecords(cached, pending);
+      const cachedToday = getCachedRecords(employeeId, dayKey);
+      const cachedYesterday = getCachedRecords(employeeId, yesterdayKey);
+      const pendingToday = getPendingRecordsForEmployee(employeeId, dayKey);
+      const pendingYesterday = getPendingRecordsForEmployee(employeeId, yesterdayKey);
+      // Check for open overnight journey (has entrada yesterday, no saida)
+      const allRecords = mergePunchRecords(cachedYesterday, cachedToday, pendingYesterday, pendingToday);
+      const hasEntradaYesterday = cachedYesterday.some(r => r.step === "entrada");
+      const hasSaida = allRecords.some(r => r.step === "saida");
+      const merged = (hasEntradaYesterday && !hasSaida) ? allRecords : mergePunchRecords(cachedToday, pendingToday);
       setRecords(merged);
       setRecordsLoading(false);
       return merged;
     }
 
+    // Fetch from yesterday to today to detect overnight journeys
     const { data, error } = await (supabase as any).rpc("get_today_records_for_employee", {
       p_employee_id: employeeId,
-      p_start_ts: startIso,
+      p_start_ts: yesterdayStartIso,
       p_end_ts: endIso,
     });
-    console.log("DEBUG PONTO [fetchTodayRecords]: employee_id:", employeeId, "range:", startIso, "→", endIso, "result:", data?.length ?? 0, "rows, error:", error);
+    console.log("DEBUG PONTO [fetchTodayRecords]: employee_id:", employeeId, "range:", yesterdayStartIso, "→", endIso, "result:", data?.length ?? 0, "rows, error:", error);
     if (!error && data) {
-      const mapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
-      const merged = mergePunchRecords(mapped, getPendingRecordsForEmployee(employeeId, dayKey));
+      const allMapped = (data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord);
+      // Check for open overnight journey
+      const todayStart = new Date(startIso).getTime();
+      const yesterdayRecords = allMapped.filter(r => new Date(r.punched_at).getTime() < todayStart);
+      const todayRecords = allMapped.filter(r => new Date(r.punched_at).getTime() >= todayStart);
+      const hasEntradaYesterday = yesterdayRecords.some(r => r.step === "entrada");
+      const hasSaida = allMapped.some(r => r.step === "saida");
+      
+      // Use full journey (yesterday+today) if overnight journey is open
+      const relevantRecords = (hasEntradaYesterday && !hasSaida) ? allMapped : todayRecords;
+      const pending = getPendingRecordsForEmployee(employeeId, dayKey);
+      const merged = mergePunchRecords(relevantRecords, pending);
       setRecords(merged);
       cacheRecords(employeeId, merged);
       setRecordsLoading(false);
