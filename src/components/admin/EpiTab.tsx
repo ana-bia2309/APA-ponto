@@ -428,9 +428,15 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                   </div>
                   <div className="text-[10px] text-muted-foreground">Resp: {d.delivered_by || "—"}</div>
                   {d.status === "aceito" && d.accepted_at && (
-                    <div className="text-[10px] text-emerald-500 mt-0.5">
+                    <div className="text-[10px] text-emerald-500 mt-0.5 flex items-center gap-1">
                       Aceito em: {new Date(d.accepted_at).toLocaleString("pt-BR")}
-                      {d.signature_url && " • Assinatura registrada ✓"}
+                      {d.signature_url && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openSignature(d.signature_url!, d.employees?.name || "—", d.accepted_at!); }}
+                          className="underline hover:text-emerald-400 inline-flex items-center gap-0.5">
+                          <Eye className="w-3 h-3" /> Ver assinatura
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
