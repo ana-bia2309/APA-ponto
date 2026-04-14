@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   LogOut, Plus, Trash2, Users, Clock, ToggleLeft, ToggleRight,
-  Pencil, Download, X, Check, Sun, Moon, Activity, FileText, Shield,
+  Pencil, Download, X, Check, Sun, Moon, Activity, FileText, Shield, HardHat,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -16,6 +16,7 @@ import DashboardTab from "@/components/admin/DashboardTab";
 import RecordsTab from "@/components/admin/RecordsTab";
 import AuditTab from "@/components/admin/AuditTab";
 import DebugLogsTab from "@/components/admin/DebugLogsTab";
+import EpiTab from "@/components/admin/EpiTab";
 
 type Employee = Tables<"employees">;
 
@@ -26,7 +27,7 @@ export default function AdminDashboard() {
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
-  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit" | "debug">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "employees" | "records" | "justifications" | "audit" | "epi" | "debug">("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
@@ -163,6 +164,7 @@ export default function AdminDashboard() {
     { key: "employees" as const, label: "Funcionários", icon: Users },
     { key: "records" as const, label: "Registros", icon: Clock },
     { key: "justifications" as const, label: "Atestados", icon: FileText },
+    { key: "epi" as const, label: "EPIs", icon: HardHat },
     { key: "audit" as const, label: "Auditoria", icon: Shield },
     { key: "debug" as const, label: "🔍 Logs", icon: Activity },
   ];
@@ -191,6 +193,7 @@ export default function AdminDashboard() {
         {tab === "dashboard" && <DashboardTab />}
         {tab === "records" && <RecordsTab employees={employees} />}
         {tab === "justifications" && <JustificationsTab />}
+        {tab === "epi" && <EpiTab employees={employees} />}
         {tab === "audit" && <AuditTab />}
         {tab === "debug" && <DebugLogsTab />}
 
