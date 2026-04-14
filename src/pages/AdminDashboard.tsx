@@ -33,6 +33,12 @@ export default function AdminDashboard() {
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
+  const [newCargo, setNewCargo] = useState("");
+  const [newMatricula, setNewMatricula] = useState("");
+  const [newDepartamento, setNewDepartamento] = useState("");
+  const [editCargo, setEditCargo] = useState("");
+  const [editMatricula, setEditMatricula] = useState("");
+  const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [authReady, setAuthReady] = useState(false);
 
