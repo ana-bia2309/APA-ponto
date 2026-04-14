@@ -240,6 +240,17 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
     ? deliveries.filter(d => d.employee_id === historyEmployee)
     : deliveries;
 
+  const openSignature = async (signatureUrl: string, name: string, date: string) => {
+    setSignatureModal({ url: signatureUrl, name, date });
+    setSignatureImgUrl(null);
+    try {
+      const { data } = await supabase.storage.from("epi-signatures").createSignedUrl(signatureUrl, 300);
+      if (data?.signedUrl) setSignatureImgUrl(data.signedUrl);
+    } catch {
+      toast.error("Erro ao carregar assinatura");
+    }
+  };
+
   const subTabs: { key: SubTab; label: string; icon: typeof Package }[] = [
     { key: "catalog", label: "Catálogo", icon: Package },
     { key: "deliveries", label: "Entregas", icon: HardHat },
