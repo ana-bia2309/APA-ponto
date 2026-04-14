@@ -497,6 +497,8 @@ export default function TimeClock() {
     records_today: { record_type: string; recorded_at: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
+  const [pendingEpiCount, setPendingEpiCount] = useState(0);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
