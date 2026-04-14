@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateEpiTermo } from "@/lib/generateEpiTermo";
+import EpiHistoryTab from "./EpiHistoryTab";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
