@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateEpiTermo } from "@/lib/generateEpiTermo";
+import EpiHistoryTab from "./EpiHistoryTab";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
@@ -110,7 +111,6 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // History
-  const [historyEmployee, setHistoryEmployee] = useState("");
   const [expandedEpi, setExpandedEpi] = useState<string | null>(null);
 
   const fetchEpis = useCallback(async () => {
@@ -234,11 +234,6 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const alertDeliveries = deliveries.filter(d => daysUntilExpiry(d.expires_at) <= 30);
   const expiredCount = deliveries.filter(d => daysUntilExpiry(d.expires_at) < 0).length;
   const soonCount = alertDeliveries.length - expiredCount;
-
-  // History data
-  const historyFiltered = historyEmployee
-    ? deliveries.filter(d => d.employee_id === historyEmployee)
-    : deliveries;
 
   const openSignature = async (signatureUrl: string, name: string, date: string) => {
     setSignatureModal({ url: signatureUrl, name, date });
@@ -531,54 +526,7 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
 
       {/* ===== HISTÓRICO ===== */}
       {subTab === "history" && (
-        <div className="space-y-3">
-          <select value={historyEmployee} onChange={e => setHistoryEmployee(e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs">
-            <option value="">Todos os colaboradores</option>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
-
-          {/* Group by employee */}
-          {(() => {
-            const byEmployee = new Map<string, EpiDelivery[]>();
-            historyFiltered.forEach(d => {
-              const key = d.employee_id;
-              if (!byEmployee.has(key)) byEmployee.set(key, []);
-              byEmployee.get(key)!.push(d);
-            });
-
-            return Array.from(byEmployee.entries()).map(([empId, dels]) => (
-              <Card key={empId} className="p-3">
-                <button onClick={() => setExpandedEpi(expandedEpi === empId ? null : empId)}
-                  className="flex items-center justify-between w-full text-left">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" />
-                    <span className="font-medium text-sm">{dels[0]?.employees?.name || "—"}</span>
-                    <Badge variant="outline" className="text-[10px]">{dels.length} entrega(s)</Badge>
-                  </div>
-                  {expandedEpi === empId ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {expandedEpi === empId && (
-                  <div className="mt-2 space-y-1.5 pl-6 border-l-2 border-muted">
-                    {dels.map(d => (
-                      <div key={d.id} className="flex items-center justify-between text-xs">
-                        <div>
-                          <span className="font-medium">{d.epis?.name}</span>
-                          <span className="text-muted-foreground ml-2">
-                            {new Date(d.delivered_at + "T00:00:00").toLocaleDateString("pt-BR")}
-                          </span>
-                        </div>
-                        {expiryBadge(d.expires_at)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            ));
-          })()}
-
-          {historyFiltered.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nenhum histórico encontrado</p>}
-        </div>
+        <EpiHistoryTab employees={employees} deliveries={deliveries} />
       )}
       {/* Signature Modal */}
       <Dialog open={!!signatureModal} onOpenChange={() => setSignatureModal(null)}>
