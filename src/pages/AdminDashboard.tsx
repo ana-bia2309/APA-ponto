@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [authReady, setAuthReady] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
