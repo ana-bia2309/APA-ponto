@@ -10,6 +10,7 @@ import {
   Pencil, Trash2, Plus, Calendar, X, Check
 } from "lucide-react";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
+import { groupByEmployeeJourneys } from "@/lib/group-journeys";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PunchRecord = DisplayPunchRecord & { employees?: { name: string } };
@@ -111,13 +112,8 @@ export default function RecordsTab({ employees }: Props) {
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Group by employee
-  const grouped = records.reduce((acc, rec) => {
-    const name = rec.employees?.name || "Desconhecido";
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(rec);
-    return acc;
-  }, {} as Record<string, PunchRecord[]>);
+  // Group by employee → journeys (handles overnight shifts)
+  const grouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
 
   const formatTime = (d: string) =>
     new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
