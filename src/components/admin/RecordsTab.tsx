@@ -55,21 +55,33 @@ export default function RecordsTab({ employees }: Props) {
   const getDateRange = useCallback((): { start: string; end: string } => {
     const today = new Date();
     if (quickFilter === "today") {
-      const d = today.toISOString().split("T")[0];
-      return { start: `${d}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
-    }
-    if (quickFilter === "yesterday") {
+      // Include yesterday to capture overnight shifts that started the day before
       const y = new Date(today);
       y.setDate(y.getDate() - 1);
+      const yd = y.toISOString().split("T")[0];
+      const d = today.toISOString().split("T")[0];
+      return { start: `${yd}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
+    }
+    if (quickFilter === "yesterday") {
+      // Include the day before yesterday to capture overnight shifts
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      const yy = new Date(today);
+      yy.setDate(yy.getDate() - 2);
       const d = y.toISOString().split("T")[0];
-      return { start: `${d}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
+      const dd = yy.toISOString().split("T")[0];
+      return { start: `${dd}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
     }
     if (quickFilter === "week") {
       const w = new Date(today);
-      w.setDate(w.getDate() - 7);
+      w.setDate(w.getDate() - 8); // Extra day for overnight shifts
       return { start: w.toISOString(), end: today.toISOString() };
     }
-    return { start: `${customDate}T00:00:00.000Z`, end: `${customDate}T23:59:59.999Z` };
+    // Custom date: include previous day for overnight shifts
+    const prev = new Date(customDate + "T00:00:00");
+    prev.setDate(prev.getDate() - 1);
+    const pd = prev.toISOString().split("T")[0];
+    return { start: `${pd}T00:00:00.000Z`, end: `${customDate}T23:59:59.999Z` };
   }, [quickFilter, customDate]);
 
   const fetchRecords = useCallback(async () => {
