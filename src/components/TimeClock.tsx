@@ -596,7 +596,7 @@ export default function TimeClock() {
     } catch { setPendingEpiCount(0); }
   }, []);
 
-
+  const resetToStart = useCallback(() => {
     setShowSuccess(false);
     setSuccessMessage("");
     setSelectedEmployee(null);
