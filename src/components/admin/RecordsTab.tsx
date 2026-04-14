@@ -47,11 +47,13 @@ async function reverseGeocode(lat: number, lon: number): Promise<string | null> 
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.display_name) return null;
-    // Build a shorter, friendlier address
+    // Use detailed address fields including building/amenity names
     const addr = data.address || {};
     const parts = [
-      addr.road || addr.pedestrian || addr.neighbourhood,
-      addr.suburb || addr.city_district,
+      addr.building || addr.amenity || addr.office || addr.shop || addr.tourism || addr.leisure,
+      addr.road || addr.pedestrian,
+      addr.house_number ? `nº ${addr.house_number}` : null,
+      addr.neighbourhood || addr.suburb || addr.city_district,
       addr.city || addr.town || addr.village,
       addr.state,
     ].filter(Boolean);
