@@ -193,6 +193,7 @@ export default function AdminDashboard() {
         {tab === "dashboard" && <DashboardTab />}
         {tab === "records" && <RecordsTab employees={employees} />}
         {tab === "justifications" && <JustificationsTab />}
+        {tab === "epi" && <EpiTab employees={employees} />}
         {tab === "audit" && <AuditTab />}
         {tab === "debug" && <DebugLogsTab />}
 
