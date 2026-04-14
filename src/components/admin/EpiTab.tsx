@@ -22,6 +22,9 @@ interface Epi {
   mandatory: boolean;
   active: boolean;
   created_at: string;
+  codigo: string;
+  ca: string;
+  marca: string;
 }
 
 interface EpiDelivery {
