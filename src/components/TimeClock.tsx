@@ -965,8 +965,8 @@ export default function TimeClock() {
       return;
     }
     setLoading(true);
+    let uploadedPhotoPath: string | null = null;
     try {
-      void photoBlob;
       const location = await getLocation();
 
       // Use server's next_step as the ONLY source of truth for record_type when online
@@ -1036,6 +1036,35 @@ export default function TimeClock() {
         // RPC returned a UUID = insert confirmed by the database. Trust it.
         const returnedId = rpcResponse.data;
         console.log("DEBUG PONTO [insert]: SUCESSO CONFIRMADO pelo banco, id:", returnedId);
+
+        // Upload photo and save punch_record with photo link
+        if (photoBlob) {
+          uploadedPhotoPath = await uploadPhoto(photoBlob, employeeId);
+          console.log("DEBUG PONTO [photo]: upload resultado:", uploadedPhotoPath);
+        }
+
+        // Insert into punch_records to link photo and address
+        const punchRecordPayload: any = {
+          employee_id: employeeId,
+          step: recordType,
+          punched_at: recordedAt,
+          latitude: location?.lat ?? null,
+          longitude: location?.lng ?? null,
+          address: location?.address ?? null,
+          photo_url: uploadedPhotoPath,
+        };
+        const { error: prError } = await supabase.from("punch_records").insert(punchRecordPayload);
+        if (prError) {
+          console.warn("DEBUG PONTO [punch_records]: erro ao salvar:", prError.message);
+        }
+
+        // Also save address to time_records for direct display
+        if (returnedId && location?.address) {
+          (supabase as any).from("time_records")
+            .update({ address: location.address })
+            .eq("id", returnedId)
+            .then(() => {});
+        }
 
         // Refresh records and next step from server
         await fetchTodayRecords(employeeId);
