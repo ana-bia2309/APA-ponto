@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   HardHat, Plus, Trash2, Package, AlertTriangle, CheckCircle,
-  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check,
+  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown,
 } from "lucide-react";
+import { generateEpiTermo } from "@/lib/generateEpiTermo";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
