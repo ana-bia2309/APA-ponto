@@ -28,6 +28,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
+import EpiAcceptance from "@/components/EpiAcceptance";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
