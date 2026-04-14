@@ -164,6 +164,7 @@ export default function AdminDashboard() {
     { key: "employees" as const, label: "Funcionários", icon: Users },
     { key: "records" as const, label: "Registros", icon: Clock },
     { key: "justifications" as const, label: "Atestados", icon: FileText },
+    { key: "epi" as const, label: "EPIs", icon: HardHat },
     { key: "audit" as const, label: "Auditoria", icon: Shield },
     { key: "debug" as const, label: "🔍 Logs", icon: Activity },
   ];
