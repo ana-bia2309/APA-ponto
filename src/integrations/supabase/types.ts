@@ -121,6 +121,87 @@ export type Database = {
         }
         Relationships: []
       }
+      epi_deliveries: {
+        Row: {
+          created_at: string
+          delivered_at: string
+          delivered_by: string
+          employee_id: string
+          epi_id: string
+          expires_at: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string
+          delivered_by?: string
+          employee_id: string
+          epi_id: string
+          expires_at: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string
+          delivered_by?: string
+          employee_id?: string
+          epi_id?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epi_deliveries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_deliveries_epi_id_fkey"
+            columns: ["epi_id"]
+            isOneToOne: false
+            referencedRelation: "epis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epis: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          mandatory: boolean
+          name: string
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          name: string
+          updated_at?: string
+          validity_days?: number
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          name?: string
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: []
+      }
       manual_punches: {
         Row: {
           created_at: string
