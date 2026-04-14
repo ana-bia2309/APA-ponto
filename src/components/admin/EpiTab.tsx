@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   HardHat, Plus, Trash2, Package, AlertTriangle, CheckCircle,
-  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown,
+  Clock, User, ChevronDown, ChevronUp, Pencil, X, Check, FileDown, Eye,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateEpiTermo } from "@/lib/generateEpiTermo";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -74,6 +75,8 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [epis, setEpis] = useState<Epi[]>([]);
   const [deliveries, setDeliveries] = useState<EpiDelivery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signatureModal, setSignatureModal] = useState<{ url: string; name: string; date: string } | null>(null);
+  const [signatureImgUrl, setSignatureImgUrl] = useState<string | null>(null);
 
   // Catalog form
   const [newName, setNewName] = useState("");
@@ -236,6 +239,17 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const historyFiltered = historyEmployee
     ? deliveries.filter(d => d.employee_id === historyEmployee)
     : deliveries;
+
+  const openSignature = async (signatureUrl: string, name: string, date: string) => {
+    setSignatureModal({ url: signatureUrl, name, date });
+    setSignatureImgUrl(null);
+    try {
+      const { data } = await supabase.storage.from("epi-signatures").createSignedUrl(signatureUrl, 300);
+      if (data?.signedUrl) setSignatureImgUrl(data.signedUrl);
+    } catch {
+      toast.error("Erro ao carregar assinatura");
+    }
+  };
 
   const subTabs: { key: SubTab; label: string; icon: typeof Package }[] = [
     { key: "catalog", label: "Catálogo", icon: Package },
@@ -414,9 +428,15 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                   </div>
                   <div className="text-[10px] text-muted-foreground">Resp: {d.delivered_by || "—"}</div>
                   {d.status === "aceito" && d.accepted_at && (
-                    <div className="text-[10px] text-emerald-500 mt-0.5">
+                    <div className="text-[10px] text-emerald-500 mt-0.5 flex items-center gap-1">
                       Aceito em: {new Date(d.accepted_at).toLocaleString("pt-BR")}
-                      {d.signature_url && " • Assinatura registrada ✓"}
+                      {d.signature_url && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openSignature(d.signature_url!, d.employees?.name || "—", d.accepted_at!); }}
+                          className="underline hover:text-emerald-400 inline-flex items-center gap-0.5">
+                          <Eye className="w-3 h-3" /> Ver assinatura
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -560,6 +580,29 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
           {historyFiltered.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nenhum histórico encontrado</p>}
         </div>
       )}
+      {/* Signature Modal */}
+      <Dialog open={!!signatureModal} onOpenChange={() => setSignatureModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Assinatura Digital</DialogTitle>
+          </DialogHeader>
+          {signatureModal && (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Colaborador:</strong> {signatureModal.name}</p>
+                <p><strong>Aceito em:</strong> {new Date(signatureModal.date).toLocaleString("pt-BR")}</p>
+              </div>
+              <div className="border rounded-lg p-2 bg-white flex items-center justify-center min-h-[120px]">
+                {signatureImgUrl ? (
+                  <img src={signatureImgUrl} alt="Assinatura" className="max-w-full max-h-[160px] object-contain" />
+                ) : (
+                  <div className="text-xs text-muted-foreground">Carregando assinatura...</div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
