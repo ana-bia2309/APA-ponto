@@ -272,9 +272,9 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
       {/* ===== CATÁLOGO ===== */}
       {subTab === "catalog" && (
         <div className="space-y-3">
-          <form onSubmit={addEpi} className="space-y-2">
+           <form onSubmit={addEpi} className="space-y-2">
             <div className="flex gap-2">
-              <Input placeholder="Nome do EPI" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1" />
+              <Input placeholder="Nome do EPI *" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1" />
               <Button type="submit" size="sm"><Plus className="w-4 h-4" /></Button>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -289,23 +289,33 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                 Obrigatório
               </label>
             </div>
+            <div className="flex gap-2 flex-wrap">
+              <Input placeholder="Código / Referência" value={newCodigo} onChange={e => setNewCodigo(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="CA (Cert. Aprovação)" value={newCa} onChange={e => setNewCa(e.target.value)} className="h-9 text-xs flex-1" />
+              <Input placeholder="Marca / Fabricante" value={newMarca} onChange={e => setNewMarca(e.target.value)} className="h-9 text-xs flex-1" />
+            </div>
           </form>
 
           {epis.map(epi => (
             <Card key={epi.id} className="p-3">
               {editingEpi === epi.id ? (
                 <div className="space-y-2">
-                  <Input value={editName} onChange={e => setEditName(e.target.value)} />
+                  <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nome do EPI" />
                   <div className="flex gap-2 flex-wrap">
                     <select value={editCategory} onChange={e => setEditCategory(e.target.value)}
                       className="h-9 rounded-md border border-input bg-background px-2 text-xs">
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} className="w-28 h-9 text-xs" />
+                    <Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} className="w-28 h-9 text-xs" placeholder="Validade" />
                     <label className="flex items-center gap-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={editMandatory} onChange={e => setEditMandatory(e.target.checked)} />
                       Obrigatório
                     </label>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Input placeholder="Código" value={editCodigo} onChange={e => setEditCodigo(e.target.value)} className="h-9 text-xs flex-1" />
+                    <Input placeholder="CA" value={editCa} onChange={e => setEditCa(e.target.value)} className="h-9 text-xs flex-1" />
+                    <Input placeholder="Marca" value={editMarca} onChange={e => setEditMarca(e.target.value)} className="h-9 text-xs flex-1" />
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={saveEditEpi}><Check className="w-3.5 h-3.5 mr-1" /> Salvar</Button>
@@ -322,6 +332,8 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-[10px]">{epi.category}</Badge>
                       <span className="text-[10px] text-muted-foreground">Validade: {epi.validity_days} dias</span>
+                      {epi.ca && <span className="text-[10px] text-muted-foreground">CA: {epi.ca}</span>}
+                      {epi.marca && <span className="text-[10px] text-muted-foreground">{epi.marca}</span>}
                     </div>
                   </div>
                   <div className="flex gap-1">
