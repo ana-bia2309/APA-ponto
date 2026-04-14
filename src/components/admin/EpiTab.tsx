@@ -111,7 +111,6 @@ export default function EpiTab({ employees }: { employees: Employee[] }) {
   const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // History
-  const [historyEmployee, setHistoryEmployee] = useState("");
   const [expandedEpi, setExpandedEpi] = useState<string | null>(null);
 
   const fetchEpis = useCallback(async () => {
