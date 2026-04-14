@@ -965,8 +965,8 @@ export default function TimeClock() {
       return;
     }
     setLoading(true);
+    let uploadedPhotoPath: string | null = null;
     try {
-      void photoBlob;
       const location = await getLocation();
 
       // Use server's next_step as the ONLY source of truth for record_type when online
