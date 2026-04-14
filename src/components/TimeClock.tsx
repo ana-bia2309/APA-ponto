@@ -1237,6 +1237,7 @@ export default function TimeClock() {
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       setStatusNotice("CPF validado offline.");
       toast.info("CPF validado offline ✓");
+      fetchPendingEpiCount(ctx.cpf_normalized);
       return;
     }
 
