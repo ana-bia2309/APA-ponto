@@ -99,6 +99,7 @@ export type Database = {
           created_at: string
           data_admissao: string | null
           departamento: string | null
+          escala: string
           id: string
           matricula: string | null
           name: string
@@ -112,6 +113,7 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           departamento?: string | null
+          escala?: string
           id?: string
           matricula?: string | null
           name: string
@@ -125,6 +127,7 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           departamento?: string | null
+          escala?: string
           id?: string
           matricula?: string | null
           name?: string

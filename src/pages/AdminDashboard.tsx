@@ -43,12 +43,14 @@ export default function AdminDashboard() {
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
+  const [newEscala, setNewEscala] = useState<string>("padrao");
   const [tab, setTab] = useState<AdminTab>("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
+  const [editEscala, setEditEscala] = useState<string>("padrao");
   const [newCargo, setNewCargo] = useState("");
   const [newMatricula, setNewMatricula] = useState("");
   const [newDepartamento, setNewDepartamento] = useState("");
@@ -85,10 +87,11 @@ export default function AdminDashboard() {
     const { error } = await supabase.from("employees").insert({
       name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
       cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
+      escala: newEscala,
     } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
-    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno");
+    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno"); setNewEscala("padrao");
     setNewCargo(""); setNewMatricula(""); setNewDepartamento("");
     fetchEmployees();
   };
@@ -99,6 +102,7 @@ export default function AdminDashboard() {
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
     setEditShift((emp as any).shift === "noturno" ? "noturno" : "diurno");
+    setEditEscala((emp as any).escala || "padrao");
     setEditCargo((emp as any).cargo || "");
     setEditMatricula((emp as any).matricula || "");
     setEditDepartamento((emp as any).departamento || "");
@@ -109,6 +113,7 @@ export default function AdminDashboard() {
     const { error } = await supabase.from("employees").update({
       name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
       cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
+      escala: editEscala,
     } as any).eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const { data: { user } } = await supabase.auth.getUser();
@@ -236,6 +241,11 @@ export default function AdminDashboard() {
                             <option value="diurno">☀ Diurno</option>
                             <option value="noturno">🌙 Noturno</option>
                           </select>
+                          <select value={newEscala} onChange={(e) => setNewEscala(e.target.value)}
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
+                            <option value="padrao">Escala Padrão</option>
+                            <option value="12x36">12×36</option>
+                          </select>
                         </div>
                       </div>
                       <Button type="submit" className="w-full sm:w-auto">
@@ -312,6 +322,11 @@ export default function AdminDashboard() {
                                   <option value="diurno">☀ Diurno</option>
                                   <option value="noturno">🌙 Noturno</option>
                                 </select>
+                                <select value={editEscala} onChange={(e) => setEditEscala(e.target.value)}
+                                  className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
+                                  <option value="padrao">Padrão</option>
+                                  <option value="12x36">12×36</option>
+                                </select>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -340,6 +355,11 @@ export default function AdminDashboard() {
                                   <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                                     {(emp as any).shift === "noturno" ? <><Moon className="w-3 h-3" /> Noturno</> : <><Sun className="w-3 h-3" /> Diurno</>}
                                   </span>
+                                  {(emp as any).escala && (emp as any).escala !== "padrao" && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground font-medium">
+                                      {(emp as any).escala === "12x36" ? "12×36" : (emp as any).escala}
+                                    </span>
+                                  )}
                                 </div>
                                 {(emp as any).cpf && (
                                   <p className="text-xs text-muted-foreground">

@@ -219,6 +219,7 @@ function mapCachedEmployeeToEmployee(employee: CachedEmployee): Employee {
     departamento: "",
     matricula: "",
     data_admissao: null,
+    escala: "padrao",
   } as Employee;
 }
 
