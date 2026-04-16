@@ -19,6 +19,8 @@ import RecordsTab from "@/components/admin/RecordsTab";
 import AuditTab from "@/components/admin/AuditTab";
 import DebugLogsTab from "@/components/admin/DebugLogsTab";
 import EpiTab from "@/components/admin/EpiTab";
+import UsersTab from "@/components/admin/UsersTab";
+import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
 
@@ -34,10 +36,12 @@ const tabTitles: Record<AdminTab, string> = {
   "epi-history": "EPIs — Histórico",
   audit: "Auditoria",
   debug: "Logs do Sistema",
+  users: "Gerenciar Usuários",
 };
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
@@ -58,23 +62,11 @@ export default function AdminDashboard() {
   const [editMatricula, setEditMatricula] = useState("");
   const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [authReady, setAuthReady] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) navigate("/admin/login");
-      else setAuthReady(true);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) navigate("/admin/login");
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (authReady) fetchEmployees();
-  }, [authReady]);
+    fetchEmployees();
+  }, []);
 
   const fetchEmployees = async () => {
     const { data } = await supabase.from("employees").select("*").order("name");
@@ -157,7 +149,7 @@ export default function AdminDashboard() {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/admin/login");
   };
 
@@ -176,17 +168,6 @@ export default function AdminDashboard() {
     } catch { toast.error("Erro ao gerar relatório"); }
   };
 
-  if (!authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Carregando painel...</p>
-        </div>
-      </div>
-    );
-  }
-
   const epiSubTab = tab.startsWith("epi-") ? tab.replace("epi-", "") as "catalog" | "deliveries" | "alerts" | "history" : undefined;
   const showEpi = tab.startsWith("epi-");
 
@@ -204,6 +185,9 @@ export default function AdminDashboard() {
                 {tabTitles[tab]}
               </h1>
             </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{profile?.full_name || user?.email}</span>
+            </div>
           </header>
 
           {/* Content */}
@@ -215,6 +199,7 @@ export default function AdminDashboard() {
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
+              {tab === "users" && <UsersTab />}
 
               {tab === "employees" && (
                 <div className="space-y-6">
