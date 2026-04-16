@@ -400,6 +400,19 @@ export default function RecordsTab({ employees }: Props) {
                   <div key={ji} className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-muted-foreground capitalize">{journey.label}</span>
+                      {(() => {
+                        // Check if journey spans multiple days
+                        const first = new Date(journey.records[0].punched_at);
+                        const last = new Date(journey.records[journey.records.length - 1].punched_at);
+                        if (first.toDateString() !== last.toDateString()) {
+                          return (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">
+                              Jornada noturna
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                       {!journey.complete && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-medium">Jornada aberta</span>
                       )}
