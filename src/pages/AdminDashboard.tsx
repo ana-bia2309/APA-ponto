@@ -149,7 +149,7 @@ export default function AdminDashboard() {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/admin/login");
   };
 
@@ -167,17 +167,6 @@ export default function AdminDashboard() {
       toast.success("Relatório baixado!");
     } catch { toast.error("Erro ao gerar relatório"); }
   };
-
-  if (!authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Carregando painel...</p>
-        </div>
-      </div>
-    );
-  }
 
   const epiSubTab = tab.startsWith("epi-") ? tab.replace("epi-", "") as "catalog" | "deliveries" | "alerts" | "history" : undefined;
   const showEpi = tab.startsWith("epi-");
