@@ -43,12 +43,14 @@ export default function AdminDashboard() {
   const [newCpf, setNewCpf] = useState("");
   const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
   const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
+  const [newEscala, setNewEscala] = useState<string>("padrao");
   const [tab, setTab] = useState<AdminTab>("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
+  const [editEscala, setEditEscala] = useState<string>("padrao");
   const [newCargo, setNewCargo] = useState("");
   const [newMatricula, setNewMatricula] = useState("");
   const [newDepartamento, setNewDepartamento] = useState("");
@@ -85,10 +87,11 @@ export default function AdminDashboard() {
     const { error } = await supabase.from("employees").insert({
       name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
       cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
+      escala: newEscala,
     } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
-    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno");
+    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno"); setNewEscala("padrao");
     setNewCargo(""); setNewMatricula(""); setNewDepartamento("");
     fetchEmployees();
   };
@@ -99,6 +102,7 @@ export default function AdminDashboard() {
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
     setEditShift((emp as any).shift === "noturno" ? "noturno" : "diurno");
+    setEditEscala((emp as any).escala || "padrao");
     setEditCargo((emp as any).cargo || "");
     setEditMatricula((emp as any).matricula || "");
     setEditDepartamento((emp as any).departamento || "");
@@ -109,6 +113,7 @@ export default function AdminDashboard() {
     const { error } = await supabase.from("employees").update({
       name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
       cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
+      escala: editEscala,
     } as any).eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const { data: { user } } = await supabase.auth.getUser();
