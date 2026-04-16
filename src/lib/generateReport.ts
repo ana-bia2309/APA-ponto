@@ -282,6 +282,10 @@ export async function generateMonthlyReport(
   infoItems.push(`Escala: ${escalaLabel}`);
   if ((employee as any).cargo) infoItems.push(`Cargo: ${(employee as any).cargo}`);
   if ((employee as any).departamento) infoItems.push(`Depto: ${(employee as any).departamento}`);
+  if ((employee as any).data_admissao) {
+    const admDate = new Date((employee as any).data_admissao + "T12:00:00");
+    infoItems.push(`Admissão: ${admDate.toLocaleDateString("pt-BR")}`);
+  }
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
