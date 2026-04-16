@@ -241,6 +241,11 @@ export default function AdminDashboard() {
                             <option value="diurno">☀ Diurno</option>
                             <option value="noturno">🌙 Noturno</option>
                           </select>
+                          <select value={newEscala} onChange={(e) => setNewEscala(e.target.value)}
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
+                            <option value="padrao">Escala Padrão</option>
+                            <option value="12x36">12×36</option>
+                          </select>
                         </div>
                       </div>
                       <Button type="submit" className="w-full sm:w-auto">
