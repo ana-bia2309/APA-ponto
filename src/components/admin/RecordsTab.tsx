@@ -88,32 +88,40 @@ export default function RecordsTab({ employees }: Props) {
   const [addLoading, setAddLoading] = useState(false);
 
   const getDateRange = useCallback((): { start: string; end: string } => {
-    const today = new Date();
+    // Use São Paulo timezone for date boundaries to correctly capture overnight journeys
+    const now = new Date();
+    const spFormatter = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    const todayStr = spFormatter.format(now); // YYYY-MM-DD in São Paulo
+
+    const toSPBoundary = (dateStr: string, time: string) => {
+      // Convert São Paulo local date+time to UTC ISO string
+      const dt = new Date(`${dateStr}T${time}-03:00`);
+      return dt.toISOString();
+    };
+
     if (quickFilter === "today") {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      const yd = y.toISOString().split("T")[0];
-      const d = today.toISOString().split("T")[0];
-      return { start: `${yd}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = spFormatter.format(yesterday);
+      return { start: toSPBoundary(yesterdayStr, "00:00:00"), end: toSPBoundary(todayStr, "23:59:59") };
     }
     if (quickFilter === "yesterday") {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      const yy = new Date(today);
-      yy.setDate(yy.getDate() - 2);
-      const d = y.toISOString().split("T")[0];
-      const dd = yy.toISOString().split("T")[0];
-      return { start: `${dd}T00:00:00.000Z`, end: `${d}T23:59:59.999Z` };
+      const y1 = new Date(now); y1.setDate(y1.getDate() - 1);
+      const y2 = new Date(now); y2.setDate(y2.getDate() - 2);
+      return { start: toSPBoundary(spFormatter.format(y2), "00:00:00"), end: toSPBoundary(spFormatter.format(y1), "23:59:59") };
     }
     if (quickFilter === "week") {
-      const w = new Date(today);
-      w.setDate(w.getDate() - 8);
-      return { start: w.toISOString(), end: today.toISOString() };
+      const w = new Date(now); w.setDate(w.getDate() - 8);
+      return { start: toSPBoundary(spFormatter.format(w), "00:00:00"), end: toSPBoundary(todayStr, "23:59:59") };
     }
-    const prev = new Date(customDate + "T00:00:00");
+    // Custom date
+    const prev = new Date(customDate + "T12:00:00"); // noon to avoid DST edge
     prev.setDate(prev.getDate() - 1);
-    const pd = prev.toISOString().split("T")[0];
-    return { start: `${pd}T00:00:00.000Z`, end: `${customDate}T23:59:59.999Z` };
+    const prevStr = spFormatter.format(prev);
+    return { start: toSPBoundary(prevStr, "00:00:00"), end: toSPBoundary(customDate, "23:59:59") };
   }, [quickFilter, customDate]);
 
   const fetchRecords = useCallback(async () => {
