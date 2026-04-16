@@ -29,7 +29,8 @@ export type AdminTab =
   | "epi-alerts"
   | "epi-history"
   | "audit"
-  | "debug";
+  | "debug"
+  | "users";
 
 interface Props {
   activeTab: AdminTab;
@@ -52,6 +53,7 @@ const epiItems = [
 ];
 
 const systemItems = [
+  { key: "users" as const, label: "Usuários", icon: Users },
   { key: "audit" as const, label: "Auditoria", icon: Shield },
   { key: "debug" as const, label: "Logs", icon: Activity },
 ];
