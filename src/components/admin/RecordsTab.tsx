@@ -88,40 +88,53 @@ export default function RecordsTab({ employees }: Props) {
   const [addLoading, setAddLoading] = useState(false);
 
   const getDateRange = useCallback((): { start: string; end: string } => {
-    // Use São Paulo timezone for date boundaries to correctly capture overnight journeys
+    // Use São Paulo timezone for date boundaries.
+    // For overnight/12x36 journeys, we extend the end by +12h to capture
+    // records that belong to a journey starting the previous evening but
+    // whose pausa/retorno/saída fall in the early morning of the next day.
     const now = new Date();
     const spFormatter = new Intl.DateTimeFormat("sv-SE", {
       timeZone: "America/Sao_Paulo",
       year: "numeric", month: "2-digit", day: "2-digit",
     });
-    const todayStr = spFormatter.format(now); // YYYY-MM-DD in São Paulo
+    const todayStr = spFormatter.format(now);
 
     const toSPBoundary = (dateStr: string, time: string) => {
-      // Convert São Paulo local date+time to UTC ISO string
       const dt = new Date(`${dateStr}T${time}-03:00`);
       return dt.toISOString();
+    };
+
+    // Helper: get the day after a YYYY-MM-DD string
+    const nextDay = (dateStr: string) => {
+      const d = new Date(dateStr + "T12:00:00");
+      d.setDate(d.getDate() + 1);
+      return spFormatter.format(d);
     };
 
     if (quickFilter === "today") {
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = spFormatter.format(yesterday);
-      return { start: toSPBoundary(yesterdayStr, "00:00:00"), end: toSPBoundary(todayStr, "23:59:59") };
+      // Start from yesterday to catch overnight entrada; end tomorrow noon to catch full journey
+      return { start: toSPBoundary(yesterdayStr, "00:00:00"), end: toSPBoundary(nextDay(todayStr), "12:00:00") };
     }
     if (quickFilter === "yesterday") {
       const y1 = new Date(now); y1.setDate(y1.getDate() - 1);
+      const y1Str = spFormatter.format(y1);
       const y2 = new Date(now); y2.setDate(y2.getDate() - 2);
-      return { start: toSPBoundary(spFormatter.format(y2), "00:00:00"), end: toSPBoundary(spFormatter.format(y1), "23:59:59") };
+      const y2Str = spFormatter.format(y2);
+      // Extend end to today noon to capture overnight records from yesterday's journey
+      return { start: toSPBoundary(y2Str, "00:00:00"), end: toSPBoundary(todayStr, "12:00:00") };
     }
     if (quickFilter === "week") {
       const w = new Date(now); w.setDate(w.getDate() - 8);
-      return { start: toSPBoundary(spFormatter.format(w), "00:00:00"), end: toSPBoundary(todayStr, "23:59:59") };
+      return { start: toSPBoundary(spFormatter.format(w), "00:00:00"), end: toSPBoundary(nextDay(todayStr), "12:00:00") };
     }
-    // Custom date
-    const prev = new Date(customDate + "T12:00:00"); // noon to avoid DST edge
+    // Custom date — extend end to next day noon
+    const prev = new Date(customDate + "T12:00:00");
     prev.setDate(prev.getDate() - 1);
     const prevStr = spFormatter.format(prev);
-    return { start: toSPBoundary(prevStr, "00:00:00"), end: toSPBoundary(customDate, "23:59:59") };
+    return { start: toSPBoundary(prevStr, "00:00:00"), end: toSPBoundary(nextDay(customDate), "12:00:00") };
   }, [quickFilter, customDate]);
 
   const fetchRecords = useCallback(async () => {
