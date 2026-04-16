@@ -223,8 +223,63 @@ export default function RecordsTab({ employees }: Props) {
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Group by employee → journeys
-  const grouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
+  // Group by employee → journeys, then filter by selected period
+  const rawGrouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
+
+  // Filter journeys to only show those relevant to the selected date range
+  const grouped = (() => {
+    // Determine the "target" date(s) for the current filter in São Paulo timezone
+    const now = new Date();
+    const spFormatter = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    const todayStr = spFormatter.format(now);
+
+    const getTargetDates = (): Set<string> | null => {
+      if (quickFilter === "today") {
+        return new Set([todayStr]);
+      }
+      if (quickFilter === "yesterday") {
+        const y = new Date(now); y.setDate(y.getDate() - 1);
+        return new Set([spFormatter.format(y)]);
+      }
+      if (quickFilter === "custom") {
+        return new Set([customDate]);
+      }
+      // "week" — show all, no extra filtering
+      return null;
+    };
+
+    const targetDates = getTargetDates();
+    if (!targetDates) return rawGrouped;
+
+    const filtered: Record<string, ReturnType<typeof groupByEmployeeJourneys>[string]> = {};
+    for (const [name, journeys] of Object.entries(rawGrouped)) {
+      const kept = journeys.filter((journey) => {
+        // Journey date = date of the first record (entrada) in São Paulo timezone
+        const entradaRec = journey.records.find((r) => r.step === "entrada") || journey.records[0];
+        const entradaDate = new Date(entradaRec.punched_at);
+        const entradaDateStr = spFormatter.format(entradaDate);
+
+        // Show if the journey started on one of the target dates
+        if (targetDates.has(entradaDateStr)) return true;
+
+        // Also show open (incomplete) journeys that started the day before a target date
+        // (active overnight journeys)
+        if (!journey.complete) {
+          const nextDay = new Date(entradaDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayStr = spFormatter.format(nextDay);
+          if (targetDates.has(nextDayStr)) return true;
+        }
+
+        return false;
+      });
+      if (kept.length > 0) filtered[name] = kept;
+    }
+    return filtered;
+  })();
 
   const formatTime = (d: string) =>
     new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
