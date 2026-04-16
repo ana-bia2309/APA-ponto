@@ -322,6 +322,11 @@ export default function AdminDashboard() {
                                   <option value="diurno">☀ Diurno</option>
                                   <option value="noturno">🌙 Noturno</option>
                                 </select>
+                                <select value={editEscala} onChange={(e) => setEditEscala(e.target.value)}
+                                  className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
+                                  <option value="padrao">Padrão</option>
+                                  <option value="12x36">12×36</option>
+                                </select>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -350,6 +355,11 @@ export default function AdminDashboard() {
                                   <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                                     {(emp as any).shift === "noturno" ? <><Moon className="w-3 h-3" /> Noturno</> : <><Sun className="w-3 h-3" /> Diurno</>}
                                   </span>
+                                  {(emp as any).escala && (emp as any).escala !== "padrao" && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground font-medium">
+                                      {(emp as any).escala === "12x36" ? "12×36" : (emp as any).escala}
+                                    </span>
+                                  )}
                                 </div>
                                 {(emp as any).cpf && (
                                   <p className="text-xs text-muted-foreground">
