@@ -3,6 +3,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { TimeRecordRow } from "@/lib/time-records";
+import { groupRecordsIntoJourneys } from "@/lib/group-journeys";
 
 type Employee = Tables<"employees">;
 
@@ -22,29 +23,99 @@ function getDaysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
 }
 
+/**
+ * For overnight/12x36 employees, we fetch records with a lookback buffer
+ * and group them into journeys so that a shift starting on day X and ending
+ * on day X+1 appears entirely under day X.
+ */
+async function fetchAndGroupRecords(
+  employee: Employee,
+  year: number,
+  month: number
+): Promise<Record<number, Record<string, string>>> {
+  const daysInMonth = getDaysInMonth(year, month);
+  const isOvernight = (employee as any).shift === "noturno" || (employee as any).escala === "12x36";
+
+  // For overnight workers, fetch from previous day to capture journeys starting before midnight
+  const startDate = isOvernight
+    ? `${year}-${String(month).padStart(2, "0")}-01T00:00:00`
+    : `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
+  
+  // Fetch extra day before month start for overnight lookback
+  const lookbackDate = new Date(year, month - 1, 0); // last day of previous month
+  const fetchStart = isOvernight
+    ? `${lookbackDate.getFullYear()}-${String(lookbackDate.getMonth() + 1).padStart(2, "0")}-${String(lookbackDate.getDate()).padStart(2, "0")}T00:00:00`
+    : startDate;
+  
+  // Fetch extra day after month end for overnight shifts that end next day
+  const nextDay = new Date(year, month, 1);
+  const fetchEnd = isOvernight
+    ? `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}T23:59:59`
+    : `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
+
+  const { data: records } = await (supabase as any)
+    .from("time_records")
+    .select("*")
+    .eq("employee_id", employee.id)
+    .gte("recorded_at", fetchStart)
+    .lte("recorded_at", fetchEnd)
+    .order("recorded_at");
+
+  const recs = (records as TimeRecordRow[]) || [];
+
+  if (!isOvernight) {
+    // Simple day-based grouping for daytime employees
+    const byDay: Record<number, Record<string, string>> = {};
+    for (const rec of recs) {
+      const day = new Date(rec.recorded_at).getDate();
+      const recMonth = new Date(rec.recorded_at).getMonth() + 1;
+      if (recMonth !== month) continue;
+      if (!byDay[day]) byDay[day] = {};
+      byDay[day][rec.record_type] = formatTime(rec.recorded_at);
+    }
+    return byDay;
+  }
+
+  // Journey-based grouping for overnight/12x36
+  const journeyRecords = recs.map((r) => ({
+    id: r.id,
+    employee_id: r.employee_id,
+    step: r.record_type,
+    punched_at: r.recorded_at,
+  }));
+
+  const journeys = groupRecordsIntoJourneys(journeyRecords);
+
+  const byDay: Record<number, Record<string, string>> = {};
+  for (const journey of journeys) {
+    // Use the entrada record's date as the journey day
+    const entradaRec = journey.records.find((r) => r.step === "entrada");
+    const journeyDate = entradaRec
+      ? new Date(entradaRec.punched_at)
+      : new Date(journey.records[0].punched_at);
+
+    const journeyMonth = journeyDate.getMonth() + 1;
+    const journeyDay = journeyDate.getDate();
+
+    // Only include journeys that belong to this month
+    if (journeyMonth !== month) continue;
+
+    if (!byDay[journeyDay]) byDay[journeyDay] = {};
+    for (const rec of journey.records) {
+      byDay[journeyDay][rec.step] = formatTime(rec.punched_at);
+    }
+  }
+
+  return byDay;
+}
+
 export async function generateMonthlyReport(
   employee: Employee,
   year: number,
   month: number
 ) {
   const daysInMonth = getDaysInMonth(year, month);
-  const startDate = `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
-  const endDate = `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
-
-  const { data: records } = await (supabase as any)
-    .from("time_records")
-    .select("*")
-    .eq("employee_id", employee.id)
-    .gte("recorded_at", startDate)
-    .lte("recorded_at", endDate)
-    .order("recorded_at");
-
-  const byDay: Record<number, Record<string, string>> = {};
-  for (const rec of (records as TimeRecordRow[]) || []) {
-    const day = new Date(rec.recorded_at).getDate();
-    if (!byDay[day]) byDay[day] = {};
-    byDay[day][rec.record_type] = formatTime(rec.recorded_at);
-  }
+  const byDay = await fetchAndGroupRecords(employee, year, month);
 
   const isSimple = employee.punch_mode === "simple";
   const steps = isSimple ? ["entrada", "saida"] : ["entrada", "intervalo", "retorno", "saida"];
@@ -67,11 +138,23 @@ export async function generateMonthlyReport(
   doc.setFont("helvetica", "bold");
   doc.text(employee.name.toUpperCase(), pageWidth / 2, 32, { align: "center" });
 
+  let infoY = 32;
   if ((employee as any).cpf) {
+    infoY += 6;
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`CPF: ${(employee as any).cpf}`, pageWidth / 2, 38, { align: "center" });
+    doc.text(`CPF: ${(employee as any).cpf}`, pageWidth / 2, infoY, { align: "center" });
   }
+
+  // Show escala info
+  const escala = (employee as any).escala;
+  const shift = (employee as any).shift;
+  const escalaLabel = escala === "12x36" ? "12×36" : "Padrão";
+  const shiftLabel = shift === "noturno" ? "Noturno" : "Diurno";
+  infoY += 5;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Turno: ${shiftLabel} | Escala: ${escalaLabel}`, pageWidth / 2, infoY, { align: "center" });
 
   // Build table data
   const tableHead = [["dia", ...stepHeaders, "jornada"]];
@@ -85,7 +168,7 @@ export async function generateMonthlyReport(
     tableBody.push([String(day).padStart(2, "0"), ...cols, jornada]);
   }
 
-  const startY = (employee as any).cpf ? 44 : 38;
+  const startY = infoY + 6;
 
   autoTable(doc, {
     head: tableHead,
@@ -140,33 +223,23 @@ export async function generateMonthlyExcel(
   month: number
 ) {
   const daysInMonth = getDaysInMonth(year, month);
-  const startDate = `${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
-  const endDate = `${year}-${String(month).padStart(2, "0")}-${daysInMonth}T23:59:59`;
-
-  const { data: records } = await (supabase as any)
-    .from("time_records")
-    .select("*")
-    .eq("employee_id", employee.id)
-    .gte("recorded_at", startDate)
-    .lte("recorded_at", endDate)
-    .order("recorded_at");
-
-  const byDay: Record<number, Record<string, string>> = {};
-  for (const rec of (records as TimeRecordRow[]) || []) {
-    const day = new Date(rec.recorded_at).getDate();
-    if (!byDay[day]) byDay[day] = {};
-    byDay[day][rec.record_type] = formatTime(rec.recorded_at);
-  }
+  const byDay = await fetchAndGroupRecords(employee, year, month);
 
   const isSimple = employee.punch_mode === "simple";
   const steps = isSimple ? ["entrada", "saida"] : ["entrada", "intervalo", "retorno", "saida"];
   const stepHeaders = isSimple ? ["Entrada", "Saída"] : ["Entrada", "Pausa", "Retorno", "Saída"];
+
+  const escala = (employee as any).escala;
+  const shift = (employee as any).shift;
+  const escalaLabel = escala === "12x36" ? "12×36" : "Padrão";
+  const shiftLabel = shift === "noturno" ? "Noturno" : "Diurno";
 
   const monthLabel = `${MONTHS[month - 1]} ${year}`;
   const rows: string[][] = [];
   rows.push(["APA Ponto - Registro de Ponto"]);
   rows.push([`Colaborador: ${employee.name}`]);
   rows.push([`Período: ${monthLabel}`]);
+  rows.push([`Turno: ${shiftLabel} | Escala: ${escalaLabel}`]);
   rows.push([]);
   rows.push(["Dia", ...stepHeaders, "Jornada"]);
 
