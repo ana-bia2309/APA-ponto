@@ -223,61 +223,63 @@ export default function RecordsTab({ employees }: Props) {
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Group by employee → journeys, then filter by selected period
+  // Group by employee → journeys, then filter by journey competence date
   const rawGrouped = groupByEmployeeJourneys(records as (PunchRecord & { employees?: { name: string } })[]);
 
-  // Filter journeys to only show those relevant to the selected date range
   const grouped = (() => {
-    // Determine the "target" date(s) for the current filter in São Paulo timezone
     const now = new Date();
     const spFormatter = new Intl.DateTimeFormat("sv-SE", {
       timeZone: "America/Sao_Paulo",
-      year: "numeric", month: "2-digit", day: "2-digit",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
-    const todayStr = spFormatter.format(now);
 
-    const getTargetDates = (): Set<string> | null => {
+    const getDateStr = (date: Date) => spFormatter.format(date);
+    const todayStr = getDateStr(now);
+
+    const getPeriodBounds = (): { start: string; end: string } => {
       if (quickFilter === "today") {
-        return new Set([todayStr]);
+        return { start: todayStr, end: todayStr };
       }
+
       if (quickFilter === "yesterday") {
-        const y = new Date(now); y.setDate(y.getDate() - 1);
-        return new Set([spFormatter.format(y)]);
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const day = getDateStr(yesterday);
+        return { start: day, end: day };
       }
-      if (quickFilter === "custom") {
-        return new Set([customDate]);
+
+      if (quickFilter === "week") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 6);
+        return { start: getDateStr(start), end: todayStr };
       }
-      // "week" — show all, no extra filtering
-      return null;
+
+      return { start: customDate, end: customDate };
     };
 
-    const targetDates = getTargetDates();
-    if (!targetDates) return rawGrouped;
+    const { start, end } = getPeriodBounds();
+    const isWithinPeriod = (dateStr: string) => dateStr >= start && dateStr <= end;
 
     const filtered: Record<string, ReturnType<typeof groupByEmployeeJourneys>[string]> = {};
+
     for (const [name, journeys] of Object.entries(rawGrouped)) {
       const kept = journeys.filter((journey) => {
-        // Journey date = date of the first record (entrada) in São Paulo timezone
-        const entradaRec = journey.records.find((r) => r.step === "entrada") || journey.records[0];
-        const entradaDate = new Date(entradaRec.punched_at);
-        const entradaDateStr = spFormatter.format(entradaDate);
+        const entradaRec = journey.records.find((r) => r.step === "entrada") ?? journey.records[0];
+        const competenceDate = getDateStr(new Date(entradaRec.punched_at));
 
-        // Show if the journey started on one of the target dates
-        if (targetDates.has(entradaDateStr)) return true;
-
-        // Also show open (incomplete) journeys that started the day before a target date
-        // (active overnight journeys)
-        if (!journey.complete) {
-          const nextDay = new Date(entradaDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          const nextDayStr = spFormatter.format(nextDay);
-          if (targetDates.has(nextDayStr)) return true;
-        }
-
-        return false;
+        // Always filter by the journey competence date.
+        // Open journeys from another day must remain in their original period,
+        // including normal shifts and 12x36 overnight shifts.
+        return isWithinPeriod(competenceDate);
       });
-      if (kept.length > 0) filtered[name] = kept;
+
+      if (kept.length > 0) {
+        filtered[name] = kept;
+      }
     }
+
     return filtered;
   })();
 
