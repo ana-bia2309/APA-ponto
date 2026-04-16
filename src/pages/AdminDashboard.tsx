@@ -185,6 +185,9 @@ export default function AdminDashboard() {
                 {tabTitles[tab]}
               </h1>
             </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{profile?.full_name || user?.email}</span>
+            </div>
           </header>
 
           {/* Content */}
@@ -196,6 +199,7 @@ export default function AdminDashboard() {
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
+              {tab === "users" && <UsersTab />}
 
               {tab === "employees" && (
                 <div className="space-y-6">
