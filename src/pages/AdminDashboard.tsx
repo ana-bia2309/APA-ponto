@@ -19,6 +19,8 @@ import RecordsTab from "@/components/admin/RecordsTab";
 import AuditTab from "@/components/admin/AuditTab";
 import DebugLogsTab from "@/components/admin/DebugLogsTab";
 import EpiTab from "@/components/admin/EpiTab";
+import UsersTab from "@/components/admin/UsersTab";
+import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
 
@@ -34,10 +36,12 @@ const tabTitles: Record<AdminTab, string> = {
   "epi-history": "EPIs — Histórico",
   audit: "Auditoria",
   debug: "Logs do Sistema",
+  users: "Gerenciar Usuários",
 };
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
@@ -58,23 +62,11 @@ export default function AdminDashboard() {
   const [editMatricula, setEditMatricula] = useState("");
   const [editDepartamento, setEditDepartamento] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [authReady, setAuthReady] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) navigate("/admin/login");
-      else setAuthReady(true);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) navigate("/admin/login");
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (authReady) fetchEmployees();
-  }, [authReady]);
+    fetchEmployees();
+  }, []);
 
   const fetchEmployees = async () => {
     const { data } = await supabase.from("employees").select("*").order("name");
