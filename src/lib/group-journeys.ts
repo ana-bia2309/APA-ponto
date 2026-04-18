@@ -19,6 +19,8 @@ export interface Journey {
   records: JourneyRecord[];
   /** Whether this journey is complete (has saida) */
   complete: boolean;
+  /** True if the chronological sequence breaks the expected order Entrada→Intervalo→Retorno→Saída */
+  inconsistent?: boolean;
 }
 
 const STEP_ORDER: Record<string, number> = {
@@ -96,7 +98,23 @@ function buildJourney<T extends JourneyRecord>(records: T[]): Journey {
     (a, b) => new Date(a.punched_at).getTime() - new Date(b.punched_at).getTime(),
   );
 
-  return { label, records: sorted, complete };
+  // Detecta sequência fora da ordem ou repetida (ex: dois "retorno", "saida" antes de "entrada")
+  const expectedFull = ["entrada", "intervalo", "retorno", "saida"] as const;
+  const expectedSimple = ["entrada", "saida"] as const;
+  const isSimple = sorted.every((r) => r.step === "entrada" || r.step === "saida");
+  const expected = isSimple ? expectedSimple : expectedFull;
+  let cursor = 0;
+  let inconsistent = false;
+  for (const r of sorted) {
+    const idx = expected.indexOf(r.step as (typeof expected)[number]);
+    if (idx === -1 || idx < cursor) {
+      inconsistent = true;
+      break;
+    }
+    cursor = idx + 1;
+  }
+
+  return { label, records: sorted, complete, inconsistent };
 }
 
 /**
