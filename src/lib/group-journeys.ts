@@ -99,14 +99,14 @@ function buildJourney<T extends JourneyRecord>(records: T[]): Journey {
   );
 
   // Detecta sequência fora da ordem ou repetida (ex: dois "retorno", "saida" antes de "entrada")
-  const expectedFull = ["entrada", "intervalo", "retorno", "saida"] as const;
-  const expectedSimple = ["entrada", "saida"] as const;
   const isSimple = sorted.every((r) => r.step === "entrada" || r.step === "saida");
-  const expected = isSimple ? expectedSimple : expectedFull;
+  const expected: string[] = isSimple
+    ? ["entrada", "saida"]
+    : ["entrada", "intervalo", "retorno", "saida"];
   let cursor = 0;
   let inconsistent = false;
   for (const r of sorted) {
-    const idx = expected.indexOf(r.step as (typeof expected)[number]);
+    const idx = expected.indexOf(r.step);
     if (idx === -1 || idx < cursor) {
       inconsistent = true;
       break;
