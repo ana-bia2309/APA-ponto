@@ -486,6 +486,11 @@ export default function RecordsTab({ employees }: Props) {
                       {!journey.complete && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-medium">Jornada aberta</span>
                       )}
+                      {journey.inconsistent && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/15 text-destructive font-medium">
+                          Fluxo de jornada inconsistente
+                        </span>
+                      )}
                     </div>
                     {journey.records.map((rec) => {
                       const sync = SYNC_LABELS[(rec as any).sync_status || "synced"] || SYNC_LABELS.synced;

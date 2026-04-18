@@ -19,6 +19,8 @@ export interface Journey {
   records: JourneyRecord[];
   /** Whether this journey is complete (has saida) */
   complete: boolean;
+  /** True if the chronological sequence breaks the expected order Entrada→Intervalo→Retorno→Saída */
+  inconsistent?: boolean;
 }
 
 const STEP_ORDER: Record<string, number> = {
@@ -44,14 +46,15 @@ export function groupRecordsIntoJourneys<T extends JourneyRecord>(
 
   for (const rec of sorted) {
     if (rec.step === "entrada") {
-      // Start new journey only if no current journey or current is complete
-      if (!current || current.some((r) => r.step === "saida")) {
-        if (current) {
-          journeys.push(buildJourney(current));
-        }
-        current = [rec];
-        continue;
+      // Uma nova jornada SEMPRE começa em "entrada".
+      // Se a jornada anterior ainda estava aberta (sem "saida"), ela é fechada como
+      // "incompleta" para que o painel destaque a inconsistência ao invés de
+      // misturar registros de jornadas distintas.
+      if (current) {
+        journeys.push(buildJourney(current));
       }
+      current = [rec];
+      continue;
     }
 
     // Add to current journey, or start a new one if none exists
@@ -59,6 +62,12 @@ export function groupRecordsIntoJourneys<T extends JourneyRecord>(
       current.push(rec);
     } else {
       current = [rec];
+    }
+
+    // Fechar a jornada imediatamente após "saida" para não absorver eventos seguintes
+    if (rec.step === "saida") {
+      journeys.push(buildJourney(current));
+      current = null;
     }
   }
 
@@ -89,7 +98,23 @@ function buildJourney<T extends JourneyRecord>(records: T[]): Journey {
     (a, b) => new Date(a.punched_at).getTime() - new Date(b.punched_at).getTime(),
   );
 
-  return { label, records: sorted, complete };
+  // Detecta sequência fora da ordem ou repetida (ex: dois "retorno", "saida" antes de "entrada")
+  const isSimple = sorted.every((r) => r.step === "entrada" || r.step === "saida");
+  const expected: string[] = isSimple
+    ? ["entrada", "saida"]
+    : ["entrada", "intervalo", "retorno", "saida"];
+  let cursor = 0;
+  let inconsistent = false;
+  for (const r of sorted) {
+    const idx = expected.indexOf(r.step);
+    if (idx === -1 || idx < cursor) {
+      inconsistent = true;
+      break;
+    }
+    cursor = idx + 1;
+  }
+
+  return { label, records: sorted, complete, inconsistent };
 }
 
 /**
