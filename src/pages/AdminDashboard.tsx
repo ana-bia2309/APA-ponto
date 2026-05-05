@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Plus, Trash2, ToggleLeft, ToggleRight,
-  Pencil, Download, X, Check, Sun, Moon,
+  Pencil, Download, X, Check, Sun, Moon, Clock,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -185,8 +185,18 @@ export default function AdminDashboard() {
                 {tabTitles[tab]}
               </h1>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{profile?.full_name || user?.email}</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/")}
+                className="gap-1.5"
+                title="Voltar para registrar ponto"
+              >
+                <Clock className="w-4 h-4" />
+                <span className="hidden sm:inline">Modo Funcionário</span>
+              </Button>
+              <span className="hidden md:inline text-xs text-muted-foreground ml-2">{profile?.full_name || user?.email}</span>
             </div>
           </header>
 

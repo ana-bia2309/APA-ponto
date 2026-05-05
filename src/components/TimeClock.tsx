@@ -1812,12 +1812,13 @@ export default function TimeClock() {
       {isAdmin && (
         <button
           onClick={() => navigate("/admin")}
-          className="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/15 backdrop-blur-sm hover:bg-white/10 transition-colors"
-          style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}
+          className="fixed top-9 right-3 sm:top-10 sm:right-4 z-40 inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-full text-xs font-semibold border border-white/20 backdrop-blur-md shadow-lg hover:bg-white/10 active:scale-95 transition-all"
+          style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.85), hsl(200 50% 25% / 0.7))", color: "hsl(0 0% 100%)" }}
           title="Acessar painel administrativo"
+          aria-label="Acessar painel administrativo"
         >
           <Shield className="w-3.5 h-3.5" />
-          Painel Admin
+          <span>Painel Admin</span>
         </button>
       )}
       {/* Header */}
