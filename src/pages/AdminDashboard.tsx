@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Plus, Trash2, ToggleLeft, ToggleRight,
-  Pencil, Download, X, Check, Sun, Moon,
+  Pencil, Download, X, Check, Sun, Moon, Clock,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
