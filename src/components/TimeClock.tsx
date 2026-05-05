@@ -505,6 +505,7 @@ export default function TimeClock() {
     records_today: { record_type: string; recorded_at: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
