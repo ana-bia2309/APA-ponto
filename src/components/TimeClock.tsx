@@ -20,6 +20,8 @@ import {
   HardHat,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Shield } from "lucide-react";
 import logo from "@/assets/logo-apa.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -503,6 +505,7 @@ export default function TimeClock() {
     records_today: { record_type: string; recorded_at: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
@@ -1806,6 +1809,17 @@ export default function TimeClock() {
     <div className="min-h-screen flex flex-col items-center px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
       <ConnectionIndicator />
+      {isAdmin && (
+        <button
+          onClick={() => navigate("/admin")}
+          className="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/15 backdrop-blur-sm hover:bg-white/10 transition-colors"
+          style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}
+          title="Acessar painel administrativo"
+        >
+          <Shield className="w-3.5 h-3.5" />
+          Painel Admin
+        </button>
+      )}
       {/* Header */}
       <div className="text-center mb-8 relative z-10">
         <div className="relative inline-block mb-4">
