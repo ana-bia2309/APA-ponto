@@ -213,6 +213,9 @@ export default function AdminDashboard() {
               {tab === "records" && <RecordsTab employees={employees} />}
               {tab === "justifications" && <JustificationsTab />}
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
+              {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
+              {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
+              {tab === "payslips" && <PayslipsTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
