@@ -1,6 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,6 +29,9 @@ export type AdminTab =
   | "epi-deliveries"
   | "epi-alerts"
   | "epi-history"
+  | "payroll-settings"
+  | "payroll-closing"
+  | "payslips"
   | "audit"
   | "debug"
   | "users";
@@ -50,6 +54,12 @@ const epiItems = [
   { key: "epi-deliveries" as const, label: "Entregas", icon: Truck },
   { key: "epi-alerts" as const, label: "Alertas", icon: AlertTriangle },
   { key: "epi-history" as const, label: "Histórico", icon: History },
+];
+
+const payrollItems = [
+  { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
+  { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
+  { key: "payslips" as const, label: "Holerites", icon: Receipt },
 ];
 
 const systemItems = [
