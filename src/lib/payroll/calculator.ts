@@ -200,7 +200,7 @@ export function calculatePayroll(
     .minus(faltasValor).minus(atrasosValor);
 
   // 11. INSS
-  const { inss, base: baseInss } = calcINSS(round2(proventosTributaveis));
+  const { inss, base: baseInss } = calcINSS(proventosTributaveis.toString());
   items.push({
     kind: "desconto", code: "200", description: "INSS",
     reference: "Tabela Progressiva", amount: inss,
@@ -208,7 +208,7 @@ export function calculatePayroll(
 
   // 12. IRRF
   const { irrf, base: baseIrrf } = calcIRRF(
-    round2(proventosTributaveis), inss, settings.dependentes_irrf,
+    proventosTributaveis.toString(), inss, settings.dependentes_irrf,
   );
   if (D(irrf).gt(0)) {
     items.push({
@@ -228,7 +228,7 @@ export function calculatePayroll(
   }
 
   // 14. FGTS — informativo (não desconta do líquido)
-  const fgts = D(proventosTributaveis).mul(FGTS_ALIQUOTA);
+  const fgts = proventosTributaveis.mul(FGTS_ALIQUOTA);
   items.push({
     kind: "informativo", code: "900", description: "FGTS do Mês",
     reference: "8%", amount: round2(fgts),
