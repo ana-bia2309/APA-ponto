@@ -1,0 +1,145 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Eye, FileText } from "lucide-react";
+
+const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+export default function PayslipsTab() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [list, setList] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: period } = await supabase
+        .from("payroll_periods" as any).select("*")
+        .eq("year", year).eq("month", month).maybeSingle();
+      if (!period) { setList([]); return; }
+      const { data } = await supabase
+        .from("payslips" as any)
+        .select("*, employees(name, cpf, cargo, matricula)")
+        .eq("period_id", (period as any).id)
+        .order("created_at");
+      setList((data as any) || []);
+    })();
+  }, [year, month]);
+
+  const open = async (p: any) => {
+    setSelected(p);
+    const { data } = await supabase
+      .from("payroll_items" as any).select("*")
+      .eq("payslip_id", p.id).order("sort_order");
+    setItems((data as any) || []);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <Label>Ano</Label>
+          <Input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-28" />
+        </div>
+        <div>
+          <Label>Mês</Label>
+          <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            {Array.from({length:12},(_,i)=>i+1).map((m)=>(
+              <option key={m} value={m}>{String(m).padStart(2,"0")}</option>
+            ))}
+          </select>
+        </div>
+      </Card>
+
+      {selected ? (
+        <Card className="p-6 space-y-4">
+          <div className="flex justify-between items-start border-b border-border pb-3">
+            <div>
+              <h3 className="text-lg font-bold">Holerite — {selected.employees?.name}</h3>
+              <p className="text-xs text-muted-foreground">
+                {selected.employees?.cargo} · Matrícula {selected.employees?.matricula || "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Competência {String(month).padStart(2,"0")}/{year}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>Voltar</Button>
+          </div>
+
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40">
+              <tr className="text-left">
+                <th className="p-2">Cód.</th>
+                <th className="p-2">Descrição</th>
+                <th className="p-2">Ref.</th>
+                <th className="p-2 text-right">Provento</th>
+                <th className="p-2 text-right">Desconto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.filter((i) => i.kind !== "informativo").map((i) => (
+                <tr key={i.id} className="border-t border-border/50">
+                  <td className="p-2 text-muted-foreground">{i.code}</td>
+                  <td className="p-2">{i.description}</td>
+                  <td className="p-2 text-muted-foreground">{i.reference || ""}</td>
+                  <td className="p-2 text-right text-emerald-400">
+                    {i.kind === "provento" ? fmt(i.amount) : ""}
+                  </td>
+                  <td className="p-2 text-right text-rose-400">
+                    {i.kind === "desconto" ? fmt(i.amount) : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t-2 border-border font-semibold">
+              <tr>
+                <td colSpan={3} className="p-2 text-right">Totais</td>
+                <td className="p-2 text-right text-emerald-400">{fmt(selected.total_proventos)}</td>
+                <td className="p-2 text-right text-rose-400">{fmt(selected.total_descontos)}</td>
+              </tr>
+              <tr className="bg-primary/10">
+                <td colSpan={4} className="p-2 text-right">Líquido a Receber</td>
+                <td className="p-2 text-right text-lg font-bold">{fmt(selected.liquido)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div className="grid grid-cols-3 gap-3 text-xs text-muted-foreground border-t border-border pt-3">
+            <div>Base INSS: <strong className="text-foreground">{fmt(selected.base_inss)}</strong></div>
+            <div>Base IRRF: <strong className="text-foreground">{fmt(selected.base_irrf)}</strong></div>
+            <div>FGTS do Mês: <strong className="text-foreground">{fmt(selected.fgts_mes)}</strong></div>
+          </div>
+        </Card>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          Nenhum holerite gerado para esta competência.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((p) => (
+            <Card key={p.id} className="p-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{p.employees?.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Líquido: <span className="text-foreground font-semibold">{fmt(p.liquido)}</span>
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
+                <Eye className="w-4 h-4" /> Ver
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
