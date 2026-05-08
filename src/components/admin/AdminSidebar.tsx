@@ -138,6 +138,39 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout }: Props
           </Collapsible>
         </SidebarGroup>
 
+        {/* Folha de Pagamento */}
+        <SidebarGroup>
+          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips"}>
+            <CollapsibleTrigger className="w-full">
+              <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
+                <span className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  {!collapsed && "Folha de Pagamento"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3" />}
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {payrollItems.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={activeTab === item.key}
+                        onClick={() => onTabChange(item.key)}
+                        tooltip={item.label}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
         {/* System */}
         <SidebarGroup>
           <SidebarGroupLabel>Sistema</SidebarGroupLabel>
