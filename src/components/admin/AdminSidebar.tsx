@@ -1,6 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,6 +29,9 @@ export type AdminTab =
   | "epi-deliveries"
   | "epi-alerts"
   | "epi-history"
+  | "payroll-settings"
+  | "payroll-closing"
+  | "payslips"
   | "audit"
   | "debug"
   | "users";
@@ -50,6 +54,12 @@ const epiItems = [
   { key: "epi-deliveries" as const, label: "Entregas", icon: Truck },
   { key: "epi-alerts" as const, label: "Alertas", icon: AlertTriangle },
   { key: "epi-history" as const, label: "Histórico", icon: History },
+];
+
+const payrollItems = [
+  { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
+  { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
+  { key: "payslips" as const, label: "Holerites", icon: Receipt },
 ];
 
 const systemItems = [
@@ -111,6 +121,39 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout }: Props
               <SidebarGroupContent>
                 <SidebarMenu>
                   {epiItems.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={activeTab === item.key}
+                        onClick={() => onTabChange(item.key)}
+                        tooltip={item.label}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        {/* Folha de Pagamento */}
+        <SidebarGroup>
+          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips"}>
+            <CollapsibleTrigger className="w-full">
+              <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
+                <span className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  {!collapsed && "Folha de Pagamento"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3" />}
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {payrollItems.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton
                         isActive={activeTab === item.key}

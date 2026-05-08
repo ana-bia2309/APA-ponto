@@ -20,6 +20,9 @@ import AuditTab from "@/components/admin/AuditTab";
 import DebugLogsTab from "@/components/admin/DebugLogsTab";
 import EpiTab from "@/components/admin/EpiTab";
 import UsersTab from "@/components/admin/UsersTab";
+import PayrollSettingsTab from "@/components/admin/payroll/PayrollSettingsTab";
+import PayrollClosingTab from "@/components/admin/payroll/PayrollClosingTab";
+import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
@@ -34,6 +37,9 @@ const tabTitles: Record<AdminTab, string> = {
   "epi-deliveries": "EPIs — Entregas",
   "epi-alerts": "EPIs — Alertas",
   "epi-history": "EPIs — Histórico",
+  "payroll-settings": "Folha — Configurações Salariais",
+  "payroll-closing": "Folha — Fechamento",
+  payslips: "Folha — Holerites",
   audit: "Auditoria",
   debug: "Logs do Sistema",
   users: "Gerenciar Usuários",
@@ -207,6 +213,9 @@ export default function AdminDashboard() {
               {tab === "records" && <RecordsTab employees={employees} />}
               {tab === "justifications" && <JustificationsTab />}
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
+              {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
+              {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
+              {tab === "payslips" && <PayslipsTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
