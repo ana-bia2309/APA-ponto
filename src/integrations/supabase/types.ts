@@ -294,6 +294,267 @@ export type Database = {
           },
         ]
       }
+      payroll_custom_items: {
+        Row: {
+          active: boolean
+          amount: number
+          created_at: string
+          description: string
+          employee_id: string
+          end_date: string | null
+          id: string
+          kind: string
+          start_date: string | null
+        }
+        Insert: {
+          active?: boolean
+          amount?: number
+          created_at?: string
+          description: string
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          kind: string
+          start_date?: string | null
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          created_at?: string
+          description?: string
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          kind?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_custom_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_items: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          description: string
+          id: string
+          kind: string
+          payslip_id: string
+          reference: string | null
+          sort_order: number
+        }
+        Insert: {
+          amount?: number
+          code: string
+          created_at?: string
+          description: string
+          id?: string
+          kind: string
+          payslip_id: string
+          reference?: string | null
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          description?: string
+          id?: string
+          kind?: string
+          payslip_id?: string
+          reference?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_items_payslip_id_fkey"
+            columns: ["payslip_id"]
+            isOneToOne: false
+            referencedRelation: "payslips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          month: number
+          status: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          month: number
+          status?: string
+          year: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          month?: number
+          status?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      payroll_settings: {
+        Row: {
+          active: boolean
+          adicional_noturno_percent: number
+          carga_horaria_mensal: number
+          created_at: string
+          dependentes_irrf: number
+          desconta_vt: boolean
+          employee_id: string
+          hora_extra_habilitada: boolean
+          id: string
+          percentual_comissao: number
+          salario_base: number
+          updated_at: string
+          vale_alimentacao: number
+          vale_transporte: number
+        }
+        Insert: {
+          active?: boolean
+          adicional_noturno_percent?: number
+          carga_horaria_mensal?: number
+          created_at?: string
+          dependentes_irrf?: number
+          desconta_vt?: boolean
+          employee_id: string
+          hora_extra_habilitada?: boolean
+          id?: string
+          percentual_comissao?: number
+          salario_base?: number
+          updated_at?: string
+          vale_alimentacao?: number
+          vale_transporte?: number
+        }
+        Update: {
+          active?: boolean
+          adicional_noturno_percent?: number
+          carga_horaria_mensal?: number
+          created_at?: string
+          dependentes_irrf?: number
+          desconta_vt?: boolean
+          employee_id?: string
+          hora_extra_habilitada?: boolean
+          id?: string
+          percentual_comissao?: number
+          salario_base?: number
+          updated_at?: string
+          vale_alimentacao?: number
+          vale_transporte?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payslips: {
+        Row: {
+          atrasos_minutos: number
+          base_inss: number
+          base_irrf: number
+          created_at: string
+          employee_id: string
+          faltas_dias: number
+          fgts_mes: number
+          horas_extras_100: number
+          horas_extras_50: number
+          horas_noturnas: number
+          horas_trabalhadas: number
+          id: string
+          liquido: number
+          period_id: string
+          signature_url: string | null
+          signed_at: string | null
+          snapshot: Json
+          total_descontos: number
+          total_proventos: number
+          updated_at: string
+        }
+        Insert: {
+          atrasos_minutos?: number
+          base_inss?: number
+          base_irrf?: number
+          created_at?: string
+          employee_id: string
+          faltas_dias?: number
+          fgts_mes?: number
+          horas_extras_100?: number
+          horas_extras_50?: number
+          horas_noturnas?: number
+          horas_trabalhadas?: number
+          id?: string
+          liquido?: number
+          period_id: string
+          signature_url?: string | null
+          signed_at?: string | null
+          snapshot?: Json
+          total_descontos?: number
+          total_proventos?: number
+          updated_at?: string
+        }
+        Update: {
+          atrasos_minutos?: number
+          base_inss?: number
+          base_irrf?: number
+          created_at?: string
+          employee_id?: string
+          faltas_dias?: number
+          fgts_mes?: number
+          horas_extras_100?: number
+          horas_extras_50?: number
+          horas_noturnas?: number
+          horas_trabalhadas?: number
+          id?: string
+          liquido?: number
+          period_id?: string
+          signature_url?: string | null
+          signed_at?: string | null
+          snapshot?: Json
+          total_descontos?: number
+          total_proventos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
