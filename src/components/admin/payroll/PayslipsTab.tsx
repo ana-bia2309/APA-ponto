@@ -171,9 +171,17 @@ export default function PayslipsTab() {
                   </p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
-                <Eye className="w-4 h-4" /> Ver
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={async () => {
+                  const { data } = await supabase.from("payroll_items").select("*").eq("payslip_id", p.id).order("sort_order");
+                  downloadPayslipPdf(buildPdfData(p, data || [], year, month));
+                }} className="gap-1">
+                  <Download className="w-4 h-4" /> PDF
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
+                  <Eye className="w-4 h-4" /> Ver
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
