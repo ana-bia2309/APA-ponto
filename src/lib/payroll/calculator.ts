@@ -269,53 +269,93 @@ export function calculatePayroll(
   };
 }
 
-// Resumo de horas a partir de time_records do mês
+/**
+ * Calcula minutos no intervalo noturno (22h–5h horário local) entre dois instantes.
+ * Cobre jornadas que cruzam a meia-noite (12x36, escala noturna).
+ */
+function minutosNoturnos(ini: Date, fim: Date): number {
+  let total = 0;
+  const passo = 60_000; // 1 min
+  for (let t = ini.getTime(); t < fim.getTime(); t += passo) {
+    const h = new Date(t).getHours();
+    if (h >= 22 || h < 5) total++;
+  }
+  return total;
+}
+
+/**
+ * Resumo de horas no mês a partir de time_records.
+ * Agrupa por JORNADA (entrada→saida), suportando jornadas que cruzam meia-noite.
+ * Calcula horas extras 50% (seg-sáb), 100% (domingo), adicional noturno e faltas.
+ */
 export function summarizeWorkFromRecords(
   records: Array<{ record_type: string; recorded_at: string }>,
-  cargaHorariaDiaria = 8,
+  opts: {
+    cargaHorariaDiaria?: number;
+    diasUteisPrevistos?: number; // dias esperados de trabalho no mês
+  } = {},
 ): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"> {
-  // Agrupa por dia, soma intervalos entrada→saida descontando intervalo→retorno
-  const byDay = new Map<string, Array<{ t: string; at: Date }>>();
-  for (const r of records) {
-    const at = new Date(r.recorded_at);
-    const key = at.toISOString().slice(0, 10);
-    if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key)!.push({ t: r.record_type, at });
-  }
-  let totalMin = 0;
-  let noturnasMin = 0;
-  for (const [, evs] of byDay) {
-    evs.sort((a, b) => a.at.getTime() - b.at.getTime());
-    let entrada: Date | null = null;
-    let intervaloIni: Date | null = null;
-    let intervaloMin = 0;
-    for (const e of evs) {
-      if (e.t === "entrada") entrada = e.at;
-      else if (e.t === "intervalo") intervaloIni = e.at;
-      else if (e.t === "retorno" && intervaloIni) {
-        intervaloMin += (e.at.getTime() - intervaloIni.getTime()) / 60000;
-        intervaloIni = null;
-      } else if (e.t === "saida" && entrada) {
-        const diff = (e.at.getTime() - entrada.getTime()) / 60000 - intervaloMin;
-        totalMin += Math.max(0, diff);
-        // noturnas: 22h-05h
-        const start = entrada.getHours();
-        const end = e.at.getHours();
-        if (start >= 22 || end <= 5) noturnasMin += Math.min(diff, 7 * 60);
-        entrada = null;
-        intervaloMin = 0;
-      }
+  const cargaDiaria = opts.cargaHorariaDiaria ?? 8;
+
+  // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada")
+  const sorted = [...records]
+    .map((r) => ({ t: r.record_type, at: new Date(r.recorded_at) }))
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  type Jornada = { entrada?: Date; saida?: Date; intervaloMin: number };
+  const jornadas: Jornada[] = [];
+  let cur: Jornada | null = null;
+  let intervaloIni: Date | null = null;
+
+  for (const e of sorted) {
+    if (e.t === "entrada") {
+      if (cur) jornadas.push(cur);
+      cur = { entrada: e.at, intervaloMin: 0 };
+      intervaloIni = null;
+    } else if (e.t === "intervalo" && cur) {
+      intervaloIni = e.at;
+    } else if (e.t === "retorno" && cur && intervaloIni) {
+      cur.intervaloMin += (e.at.getTime() - intervaloIni.getTime()) / 60000;
+      intervaloIni = null;
+    } else if (e.t === "saida" && cur) {
+      cur.saida = e.at;
+      jornadas.push(cur);
+      cur = null;
     }
   }
-  const horas = totalMin / 60;
-  const previstas = byDay.size * cargaHorariaDiaria;
-  const extras = Math.max(0, horas - previstas);
+  if (cur) jornadas.push(cur);
+
+  let totalMin = 0;
+  let extras50Min = 0;
+  let extras100Min = 0;
+  let noturnasMin = 0;
+  let diasTrabalhados = 0;
+
+  for (const j of jornadas) {
+    if (!j.entrada || !j.saida) continue;
+    const bruto = (j.saida.getTime() - j.entrada.getTime()) / 60000 - j.intervaloMin;
+    if (bruto <= 0) continue;
+    diasTrabalhados++;
+    totalMin += bruto;
+
+    const previstoMin = cargaDiaria * 60;
+    const extra = Math.max(0, bruto - previstoMin);
+    // Domingo (0) → 100%; demais → 50%
+    if (j.entrada.getDay() === 0) extras100Min += extra;
+    else extras50Min += extra;
+
+    noturnasMin += minutosNoturnos(j.entrada, j.saida);
+  }
+
+  const previstos = opts.diasUteisPrevistos ?? jornadas.length;
+  const faltas = Math.max(0, previstos - diasTrabalhados);
+
   return {
-    horas_trabalhadas: horas.toFixed(2),
-    horas_extras_50: extras.toFixed(2),
-    horas_extras_100: "0",
+    horas_trabalhadas: (totalMin / 60).toFixed(2),
+    horas_extras_50: (extras50Min / 60).toFixed(2),
+    horas_extras_100: (extras100Min / 60).toFixed(2),
     horas_noturnas: (noturnasMin / 60).toFixed(2),
-    faltas_dias: "0",
+    faltas_dias: faltas.toFixed(0),
     atrasos_minutos: 0,
   };
 }
