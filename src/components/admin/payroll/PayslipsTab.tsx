@@ -99,7 +99,15 @@ export default function PayslipsTab() {
                 Competência {String(month).padStart(2,"0")}/{year}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>Voltar</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => printPayslipPdf(buildPdfData(selected, items, year, month))} className="gap-1">
+                <Printer className="w-4 h-4" /> Imprimir
+              </Button>
+              <Button variant="default" size="sm" onClick={() => downloadPayslipPdf(buildPdfData(selected, items, year, month))} className="gap-1">
+                <Download className="w-4 h-4" /> Baixar PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelected(null)}>Voltar</Button>
+            </div>
           </div>
 
           <table className="w-full text-sm">
