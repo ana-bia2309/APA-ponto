@@ -4,9 +4,39 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Eye, FileText } from "lucide-react";
+import { Eye, FileText, Download, Printer } from "lucide-react";
+import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
 const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+const buildPdfData = (selected: any, items: any[], year: number, month: number): PayslipPdfData => ({
+  funcionario: {
+    nome: selected.employees?.name || "—",
+    cpf: selected.employees?.cpf,
+    cargo: selected.employees?.cargo,
+    matricula: selected.employees?.matricula,
+    departamento: selected.employees?.departamento,
+    admissao: selected.employees?.data_admissao,
+  },
+  competencia: { mes: month, ano: year },
+  itens: items.map((i) => ({
+    code: i.code, description: i.description, reference: i.reference,
+    kind: i.kind, amount: Number(i.amount),
+  })),
+  totais: {
+    proventos: selected.total_proventos, descontos: selected.total_descontos,
+    liquido: selected.liquido, base_inss: selected.base_inss,
+    base_irrf: selected.base_irrf, fgts_mes: selected.fgts_mes,
+  },
+  banco_horas: {
+    horas_trabalhadas: selected.horas_trabalhadas,
+    horas_extras_50: selected.horas_extras_50,
+    horas_extras_100: selected.horas_extras_100,
+    horas_noturnas: selected.horas_noturnas,
+    faltas_dias: selected.faltas_dias,
+  },
+  signatureDataUrl: selected.signature_url || undefined,
+});
 
 export default function PayslipsTab() {
   const now = new Date();
@@ -24,7 +54,7 @@ export default function PayslipsTab() {
       if (!period) { setList([]); return; }
       const { data } = await supabase
         .from("payslips" as any)
-        .select("*, employees(name, cpf, cargo, matricula)")
+        .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
         .eq("period_id", (period as any).id)
         .order("created_at");
       setList((data as any) || []);
@@ -69,7 +99,15 @@ export default function PayslipsTab() {
                 Competência {String(month).padStart(2,"0")}/{year}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>Voltar</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => printPayslipPdf(buildPdfData(selected, items, year, month))} className="gap-1">
+                <Printer className="w-4 h-4" /> Imprimir
+              </Button>
+              <Button variant="default" size="sm" onClick={() => downloadPayslipPdf(buildPdfData(selected, items, year, month))} className="gap-1">
+                <Download className="w-4 h-4" /> Baixar PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelected(null)}>Voltar</Button>
+            </div>
           </div>
 
           <table className="w-full text-sm">
@@ -133,9 +171,17 @@ export default function PayslipsTab() {
                   </p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
-                <Eye className="w-4 h-4" /> Ver
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={async () => {
+                  const { data } = await supabase.from("payroll_items").select("*").eq("payslip_id", p.id).order("sort_order");
+                  downloadPayslipPdf(buildPdfData(p, data || [], year, month));
+                }} className="gap-1">
+                  <Download className="w-4 h-4" /> PDF
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
+                  <Eye className="w-4 h-4" /> Ver
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
