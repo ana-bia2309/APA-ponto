@@ -4,9 +4,39 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Eye, FileText } from "lucide-react";
+import { Eye, FileText, Download, Printer } from "lucide-react";
+import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
 const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+const buildPdfData = (selected: any, items: any[], year: number, month: number): PayslipPdfData => ({
+  funcionario: {
+    nome: selected.employees?.name || "—",
+    cpf: selected.employees?.cpf,
+    cargo: selected.employees?.cargo,
+    matricula: selected.employees?.matricula,
+    departamento: selected.employees?.departamento,
+    admissao: selected.employees?.data_admissao,
+  },
+  competencia: { mes: month, ano: year },
+  itens: items.map((i) => ({
+    code: i.code, description: i.description, reference: i.reference,
+    kind: i.kind, amount: Number(i.amount),
+  })),
+  totais: {
+    proventos: selected.total_proventos, descontos: selected.total_descontos,
+    liquido: selected.liquido, base_inss: selected.base_inss,
+    base_irrf: selected.base_irrf, fgts_mes: selected.fgts_mes,
+  },
+  banco_horas: {
+    horas_trabalhadas: selected.horas_trabalhadas,
+    horas_extras_50: selected.horas_extras_50,
+    horas_extras_100: selected.horas_extras_100,
+    horas_noturnas: selected.horas_noturnas,
+    faltas_dias: selected.faltas_dias,
+  },
+  signatureDataUrl: selected.signature_url || undefined,
+});
 
 export default function PayslipsTab() {
   const now = new Date();
