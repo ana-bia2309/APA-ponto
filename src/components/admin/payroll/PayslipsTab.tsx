@@ -54,7 +54,7 @@ export default function PayslipsTab() {
       if (!period) { setList([]); return; }
       const { data } = await supabase
         .from("payslips" as any)
-        .select("*, employees(name, cpf, cargo, matricula)")
+        .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
         .eq("period_id", (period as any).id)
         .order("created_at");
       setList((data as any) || []);
