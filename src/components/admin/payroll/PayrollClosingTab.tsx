@@ -90,14 +90,14 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     };
     const { data: ps, error } = await supabase
       .from("payslips")
-      .upsert(payload, { onConflict: "period_id,employee_id" })
+      .upsert(payload as any, { onConflict: "period_id,employee_id" })
       .select().single();
     if (error) { console.error(error); return false; }
     await supabase.from("payroll_items").delete().eq("payslip_id", ps.id);
     const itemRows = result.items.map((it, idx) => ({
       payslip_id: ps.id, kind: it.kind, code: it.code,
       description: it.description, reference: it.reference || null,
-      amount: it.amount, sort_order: idx,
+      amount: Number(it.amount), sort_order: idx,
     }));
     if (itemRows.length) await supabase.from("payroll_items").insert(itemRows);
     return true;
