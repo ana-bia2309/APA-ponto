@@ -756,6 +756,47 @@ export type Database = {
           shift: string
         }[]
       }
+      get_payslip_items_by_cpf: {
+        Args: { p_cpf: string; p_payslip_id: string }
+        Returns: {
+          amount: number
+          code: string
+          description: string
+          id: string
+          kind: string
+          reference: string
+          sort_order: number
+        }[]
+      }
+      get_payslips_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          base_inss: number
+          base_irrf: number
+          cargo: string
+          cpf: string
+          created_at: string
+          data_admissao: string
+          departamento: string
+          employee_name: string
+          faltas_dias: number
+          fgts_mes: number
+          horas_extras_100: number
+          horas_extras_50: number
+          horas_noturnas: number
+          horas_trabalhadas: number
+          liquido: number
+          matricula: string
+          month: number
+          payslip_id: string
+          period_id: string
+          signature_url: string
+          status: string
+          total_descontos: number
+          total_proventos: number
+          year: number
+        }[]
+      }
       get_pending_epi_by_cpf: {
         Args: { p_cpf: string }
         Returns: {
