@@ -2061,6 +2061,46 @@ export default function TimeClock() {
         </div>
       )}
 
+      {/* Payslip pending card */}
+      {pendingPayslipCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(210 60% 16%), hsl(215 55% 12%))",
+            borderColor: "hsl(210 70% 35%)",
+            boxShadow: "0 4px 24px hsl(210 80% 20% / 0.35), inset 0 1px 0 hsl(210 90% 60% / 0.1)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(210 80% 50%), hsl(200 85% 50%))" }}>
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(210 90% 80%)" }}>
+                  {pendingPayslipCount === 1 ? "Holerite pendente de assinatura" : `${pendingPayslipCount} holerites pendentes`}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "hsl(210 50% 65%)" }}>
+                  Assine digitalmente para confirmar o recebimento.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPayslipSign(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, hsl(210 80% 45%), hsl(200 85% 45%))",
+                color: "white",
+                boxShadow: "0 2px 10px hsl(210 80% 35% / 0.4)",
+              }}
+            >
+              Ver e assinar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Steps timeline */}
       <div className="w-full max-w-md p-6 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5)" }}>
         <div className="space-y-4">
