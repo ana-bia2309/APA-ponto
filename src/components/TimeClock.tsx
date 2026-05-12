@@ -679,6 +679,7 @@ export default function TimeClock() {
         await Promise.allSettled([
           fetchNextStep(validatedContext.cpf_normalized),
           fetchPendingEpiCount(validatedContext.cpf_normalized),
+          fetchPendingPayslipCount(validatedContext.cpf_normalized),
         ]);
       }
       setIsSyncing(false);
@@ -751,6 +752,7 @@ export default function TimeClock() {
       if (validatedContext?.cpf_normalized) {
         void fetchNextStep(validatedContext.cpf_normalized);
         void fetchPendingEpiCount(validatedContext.cpf_normalized);
+        void fetchPendingPayslipCount(validatedContext.cpf_normalized);
       }
     };
 
@@ -1285,6 +1287,17 @@ export default function TimeClock() {
     );
   }
 
+  if (showPayslipSign && selectedEmployee && validatedContext) {
+    return (
+      <PayslipSign
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowPayslipSign(false)}
+        onSigned={() => fetchPendingPayslipCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+
   const formatCpfInput = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;
@@ -1341,6 +1354,7 @@ export default function TimeClock() {
       setStatusNotice("CPF validado offline.");
       toast.info("CPF validado offline ✓");
       fetchPendingEpiCount(ctx.cpf_normalized);
+      fetchPendingPayslipCount(ctx.cpf_normalized);
       return;
     }
 
