@@ -656,6 +656,8 @@ export default function TimeClock() {
     setShowEpiAcceptance(false);
     setPendingEpiCount(0);
     setPendingEpis([]);
+    setShowPayslipSign(false);
+    setPendingPayslipCount(0);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
