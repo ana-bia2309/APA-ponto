@@ -32,6 +32,7 @@ import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
 import EpiAcceptance from "@/components/EpiAcceptance";
+import PayslipSign from "@/components/PayslipSign";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -509,6 +510,8 @@ export default function TimeClock() {
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
+  const [showPayslipSign, setShowPayslipSign] = useState(false);
+  const [pendingPayslipCount, setPendingPayslipCount] = useState(0);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
