@@ -620,6 +620,19 @@ export default function TimeClock() {
     }
   }, []);
 
+  /** Fetch pending payslips count for current employee */
+  const fetchPendingPayslipCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingPayslipCount(0); return; }
+    try {
+      const { data, error } = await supabase.rpc("get_pending_payslips_by_cpf" as any, { p_cpf: cpfDigits });
+      if (error) throw error;
+      setPendingPayslipCount(Array.isArray(data) ? data.length : 0);
+    } catch (e) {
+      console.error("Erro ao buscar holerites pendentes", e);
+    }
+  }, []);
+
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
     setSuccessMessage("");
