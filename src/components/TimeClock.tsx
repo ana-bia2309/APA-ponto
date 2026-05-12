@@ -1393,6 +1393,7 @@ export default function TimeClock() {
       // Fetch server-driven next step
       await fetchNextStep(ctx.cpf_normalized);
       fetchPendingEpiCount(ctx.cpf_normalized);
+      fetchPendingPayslipCount(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
