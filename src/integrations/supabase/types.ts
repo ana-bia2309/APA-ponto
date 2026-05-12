@@ -471,6 +471,36 @@ export type Database = {
           },
         ]
       }
+      payslip_otps: {
+        Row: {
+          code: string
+          created_at: string
+          employee_id: string
+          expires_at: string
+          id: string
+          payslip_id: string
+          used_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          employee_id: string
+          expires_at: string
+          id?: string
+          payslip_id: string
+          used_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          employee_id?: string
+          expires_at?: string
+          id?: string
+          payslip_id?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       payslips: {
         Row: {
           atrasos_minutos: number
@@ -487,8 +517,12 @@ export type Database = {
           id: string
           liquido: number
           period_id: string
+          signature_method: string | null
           signature_url: string | null
           signed_at: string | null
+          signed_device: string | null
+          signed_ip: string | null
+          signed_user_agent: string | null
           snapshot: Json
           total_descontos: number
           total_proventos: number
@@ -509,8 +543,12 @@ export type Database = {
           id?: string
           liquido?: number
           period_id: string
+          signature_method?: string | null
           signature_url?: string | null
           signed_at?: string | null
+          signed_device?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
           snapshot?: Json
           total_descontos?: number
           total_proventos?: number
@@ -531,8 +569,12 @@ export type Database = {
           id?: string
           liquido?: number
           period_id?: string
+          signature_method?: string | null
           signature_url?: string | null
           signed_at?: string | null
+          signed_device?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
           snapshot?: Json
           total_descontos?: number
           total_proventos?: number
@@ -703,6 +745,10 @@ export type Database = {
         Args: { p_cpf: string; p_delivery_id: string; p_signature_url: string }
         Returns: boolean
       }
+      generate_payslip_otp: {
+        Args: { p_cpf: string; p_payslip_id: string }
+        Returns: string
+      }
       get_active_employee_by_cpf: {
         Args: { p_cpf: string }
         Returns: {
@@ -811,6 +857,17 @@ export type Database = {
           notes: string
         }[]
       }
+      get_pending_payslips_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          employee_name: string
+          liquido: number
+          month: number
+          payslip_id: string
+          status: string
+          year: number
+        }[]
+      }
       get_today_records_for_employee: {
         Args: { p_employee_id: string; p_end_ts: string; p_start_ts: string }
         Returns: {
@@ -864,6 +921,20 @@ export type Database = {
       }
       is_active_employee: { Args: { p_employee_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      sign_payslip_by_cpf: {
+        Args: {
+          p_cpf: string
+          p_device?: string
+          p_ip?: string
+          p_method: string
+          p_otp?: string
+          p_password?: string
+          p_payslip_id: string
+          p_signature_url?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       validate_employee_cpf: {
         Args: { p_cpf: string; p_employee_id: string }
         Returns: boolean

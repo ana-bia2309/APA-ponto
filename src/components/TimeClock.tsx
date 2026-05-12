@@ -32,6 +32,7 @@ import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
 import EpiAcceptance from "@/components/EpiAcceptance";
+import PayslipSign from "@/components/PayslipSign";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -509,6 +510,8 @@ export default function TimeClock() {
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
+  const [showPayslipSign, setShowPayslipSign] = useState(false);
+  const [pendingPayslipCount, setPendingPayslipCount] = useState(0);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -617,6 +620,19 @@ export default function TimeClock() {
     }
   }, []);
 
+  /** Fetch pending payslips count for current employee */
+  const fetchPendingPayslipCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingPayslipCount(0); return; }
+    try {
+      const { data, error } = await supabase.rpc("get_pending_payslips_by_cpf" as any, { p_cpf: cpfDigits });
+      if (error) throw error;
+      setPendingPayslipCount(Array.isArray(data) ? data.length : 0);
+    } catch (e) {
+      console.error("Erro ao buscar holerites pendentes", e);
+    }
+  }, []);
+
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
     setSuccessMessage("");
@@ -640,6 +656,8 @@ export default function TimeClock() {
     setShowEpiAcceptance(false);
     setPendingEpiCount(0);
     setPendingEpis([]);
+    setShowPayslipSign(false);
+    setPendingPayslipCount(0);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
@@ -663,6 +681,7 @@ export default function TimeClock() {
         await Promise.allSettled([
           fetchNextStep(validatedContext.cpf_normalized),
           fetchPendingEpiCount(validatedContext.cpf_normalized),
+          fetchPendingPayslipCount(validatedContext.cpf_normalized),
         ]);
       }
       setIsSyncing(false);
@@ -735,6 +754,7 @@ export default function TimeClock() {
       if (validatedContext?.cpf_normalized) {
         void fetchNextStep(validatedContext.cpf_normalized);
         void fetchPendingEpiCount(validatedContext.cpf_normalized);
+        void fetchPendingPayslipCount(validatedContext.cpf_normalized);
       }
     };
 
@@ -1269,6 +1289,17 @@ export default function TimeClock() {
     );
   }
 
+  if (showPayslipSign && selectedEmployee && validatedContext) {
+    return (
+      <PayslipSign
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowPayslipSign(false)}
+        onSigned={() => fetchPendingPayslipCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+
   const formatCpfInput = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;
@@ -1325,6 +1356,7 @@ export default function TimeClock() {
       setStatusNotice("CPF validado offline.");
       toast.info("CPF validado offline ✓");
       fetchPendingEpiCount(ctx.cpf_normalized);
+      fetchPendingPayslipCount(ctx.cpf_normalized);
       return;
     }
 
@@ -1363,6 +1395,7 @@ export default function TimeClock() {
       // Fetch server-driven next step
       await fetchNextStep(ctx.cpf_normalized);
       fetchPendingEpiCount(ctx.cpf_normalized);
+      fetchPendingPayslipCount(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
@@ -2022,6 +2055,46 @@ export default function TimeClock() {
                 background: "linear-gradient(135deg, hsl(40 85% 45%), hsl(35 80% 40%))",
                 color: "white",
                 boxShadow: "0 2px 10px hsl(40 80% 35% / 0.4)",
+              }}
+            >
+              Ver e assinar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Payslip pending card */}
+      {pendingPayslipCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(210 60% 16%), hsl(215 55% 12%))",
+            borderColor: "hsl(210 70% 35%)",
+            boxShadow: "0 4px 24px hsl(210 80% 20% / 0.35), inset 0 1px 0 hsl(210 90% 60% / 0.1)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(210 80% 50%), hsl(200 85% 50%))" }}>
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(210 90% 80%)" }}>
+                  {pendingPayslipCount === 1 ? "Holerite pendente de assinatura" : `${pendingPayslipCount} holerites pendentes`}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "hsl(210 50% 65%)" }}>
+                  Assine digitalmente para confirmar o recebimento.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPayslipSign(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, hsl(210 80% 45%), hsl(200 85% 45%))",
+                color: "white",
+                boxShadow: "0 2px 10px hsl(210 80% 35% / 0.4)",
               }}
             >
               Ver e assinar
