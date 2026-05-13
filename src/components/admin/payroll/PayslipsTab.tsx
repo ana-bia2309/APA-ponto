@@ -46,20 +46,33 @@ export default function PayslipsTab() {
   const [selected, setSelected] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const { data: period } = await supabase
-        .from("payroll_periods" as any).select("*")
-        .eq("year", year).eq("month", month).maybeSingle();
-      if (!period) { setList([]); return; }
-      const { data } = await supabase
-        .from("payslips" as any)
-        .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
-        .eq("period_id", (period as any).id)
-        .order("created_at");
-      setList((data as any) || []);
-    })();
+  const fetchList = useCallback(async () => {
+    const { data: period } = await supabase
+      .from("payroll_periods" as any).select("*")
+      .eq("year", year).eq("month", month).maybeSingle();
+    if (!period) { setList([]); return; }
+    const { data } = await supabase
+      .from("payslips" as any)
+      .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
+      .eq("period_id", (period as any).id)
+      .order("created_at");
+    setList((data as any) || []);
+    // refresh selected payslip too if it exists in the new list
+    setSelected((prev: any) => prev ? ((data as any) || []).find((p: any) => p.id === prev.id) || prev : prev);
   }, [year, month]);
+
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  // Realtime: refresh when any payslip changes (sign / update / insert)
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-payslips-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payslips" }, () => {
+        fetchList();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchList]);
 
   const open = async (p: any) => {
     setSelected(p);
@@ -67,6 +80,13 @@ export default function PayslipsTab() {
       .from("payroll_items" as any).select("*")
       .eq("payslip_id", p.id).order("sort_order");
     setItems((data as any) || []);
+  };
+
+  const methodLabel = (m: string | null) => {
+    if (m === "senha") return { label: "Senha (CPF)", icon: KeyRound };
+    if (m === "otp") return { label: "Código OTP", icon: MessageSquare };
+    if (m === "desenho") return { label: "Assinatura desenhada", icon: Pencil };
+    return { label: m || "—", icon: ShieldCheck };
   };
 
   return (
