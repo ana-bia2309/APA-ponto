@@ -223,9 +223,23 @@ export default function PayslipsTab() {
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">{p.employees?.name}</p>
+                  <p className="font-medium flex items-center gap-2">
+                    {p.employees?.name}
+                    {p.signed_at ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <ShieldCheck className="w-3 h-3" /> Assinado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <Clock className="w-3 h-3" /> Pendente
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Líquido: <span className="text-foreground font-semibold">{fmt(p.liquido)}</span>
+                    {p.signed_at && (
+                      <span className="ml-2">· Assinado {new Date(p.signed_at).toLocaleString("pt-BR")}</span>
+                    )}
                   </p>
                 </div>
               </div>
