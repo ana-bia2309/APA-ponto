@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Eye, FileText, Download, Printer } from "lucide-react";
+import { Eye, FileText, Download, Printer, ShieldCheck, Clock, Globe, Smartphone, KeyRound, MessageSquare, Pencil } from "lucide-react";
 import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
 const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -46,20 +46,33 @@ export default function PayslipsTab() {
   const [selected, setSelected] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const { data: period } = await supabase
-        .from("payroll_periods" as any).select("*")
-        .eq("year", year).eq("month", month).maybeSingle();
-      if (!period) { setList([]); return; }
-      const { data } = await supabase
-        .from("payslips" as any)
-        .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
-        .eq("period_id", (period as any).id)
-        .order("created_at");
-      setList((data as any) || []);
-    })();
+  const fetchList = useCallback(async () => {
+    const { data: period } = await supabase
+      .from("payroll_periods" as any).select("*")
+      .eq("year", year).eq("month", month).maybeSingle();
+    if (!period) { setList([]); return; }
+    const { data } = await supabase
+      .from("payslips" as any)
+      .select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
+      .eq("period_id", (period as any).id)
+      .order("created_at");
+    setList((data as any) || []);
+    // refresh selected payslip too if it exists in the new list
+    setSelected((prev: any) => prev ? ((data as any) || []).find((p: any) => p.id === prev.id) || prev : prev);
   }, [year, month]);
+
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  // Realtime: refresh when any payslip changes (sign / update / insert)
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-payslips-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payslips" }, () => {
+        fetchList();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchList]);
 
   const open = async (p: any) => {
     setSelected(p);
@@ -67,6 +80,13 @@ export default function PayslipsTab() {
       .from("payroll_items" as any).select("*")
       .eq("payslip_id", p.id).order("sort_order");
     setItems((data as any) || []);
+  };
+
+  const methodLabel = (m: string | null) => {
+    if (m === "senha") return { label: "Senha (CPF)", icon: KeyRound };
+    if (m === "otp") return { label: "Código OTP", icon: MessageSquare };
+    if (m === "desenho") return { label: "Assinatura desenhada", icon: Pencil };
+    return { label: m || "—", icon: ShieldCheck };
   };
 
   return (
@@ -153,6 +173,44 @@ export default function PayslipsTab() {
             <div>Base IRRF: <strong className="text-foreground">{fmt(selected.base_irrf)}</strong></div>
             <div>FGTS do Mês: <strong className="text-foreground">{fmt(selected.fgts_mes)}</strong></div>
           </div>
+
+          {/* Signature audit panel */}
+          <div className="border-t border-border pt-3">
+            {selected.signed_at ? (() => {
+              const m = methodLabel(selected.signature_method);
+              const Icon = m.icon;
+              return (
+                <div className="rounded-lg p-4 bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                    <ShieldCheck className="w-4 h-4" /> Holerite assinado digitalmente
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" />
+                      <span>Assinado em: <strong className="text-foreground">{new Date(selected.signed_at).toLocaleString("pt-BR")}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Icon className="w-3.5 h-3.5" />
+                      <span>Método: <strong className="text-foreground">{m.label}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5" />
+                      <span>IP: <strong className="text-foreground">{selected.signed_ip || "—"}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Smartphone className="w-3.5 h-3.5" />
+                      <span>Dispositivo: <strong className="text-foreground">{selected.signed_device || "—"}</strong></span>
+                    </div>
+                    {selected.signed_user_agent && (
+                      <div className="md:col-span-2 text-[11px] text-muted-foreground/80 break-all">
+                        User-Agent: {selected.signed_user_agent}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })() : (
+              <div className="rounded-lg p-3 bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Aguardando assinatura digital do colaborador.
+              </div>
+            )}
+          </div>
         </Card>
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
@@ -165,9 +223,23 @@ export default function PayslipsTab() {
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">{p.employees?.name}</p>
+                  <p className="font-medium flex items-center gap-2">
+                    {p.employees?.name}
+                    {p.signed_at ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <ShieldCheck className="w-3 h-3" /> Assinado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <Clock className="w-3 h-3" /> Pendente
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Líquido: <span className="text-foreground font-semibold">{fmt(p.liquido)}</span>
+                    {p.signed_at && (
+                      <span className="ml-2">· Assinado {new Date(p.signed_at).toLocaleString("pt-BR")}</span>
+                    )}
                   </p>
                 </div>
               </div>
