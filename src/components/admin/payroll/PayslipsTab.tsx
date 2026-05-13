@@ -173,6 +173,44 @@ export default function PayslipsTab() {
             <div>Base IRRF: <strong className="text-foreground">{fmt(selected.base_irrf)}</strong></div>
             <div>FGTS do Mês: <strong className="text-foreground">{fmt(selected.fgts_mes)}</strong></div>
           </div>
+
+          {/* Signature audit panel */}
+          <div className="border-t border-border pt-3">
+            {selected.signed_at ? (() => {
+              const m = methodLabel(selected.signature_method);
+              const Icon = m.icon;
+              return (
+                <div className="rounded-lg p-4 bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                    <ShieldCheck className="w-4 h-4" /> Holerite assinado digitalmente
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" />
+                      <span>Assinado em: <strong className="text-foreground">{new Date(selected.signed_at).toLocaleString("pt-BR")}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Icon className="w-3.5 h-3.5" />
+                      <span>Método: <strong className="text-foreground">{m.label}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5" />
+                      <span>IP: <strong className="text-foreground">{selected.signed_ip || "—"}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2"><Smartphone className="w-3.5 h-3.5" />
+                      <span>Dispositivo: <strong className="text-foreground">{selected.signed_device || "—"}</strong></span>
+                    </div>
+                    {selected.signed_user_agent && (
+                      <div className="md:col-span-2 text-[11px] text-muted-foreground/80 break-all">
+                        User-Agent: {selected.signed_user_agent}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })() : (
+              <div className="rounded-lg p-3 bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Aguardando assinatura digital do colaborador.
+              </div>
+            )}
+          </div>
         </Card>
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
