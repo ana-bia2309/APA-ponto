@@ -41,7 +41,6 @@ export default function DebugLogsTab() {
     fetchLatest();
   }, [fetchLatest]);
 
-  // Auto-refresh every 5s
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(fetchLatest, 5000);
@@ -95,12 +94,6 @@ export default function DebugLogsTab() {
         </div>
       </div>
 
-      <Card className="border border-amber-500/30 bg-amber-500/5 p-3">
-        <p className="text-xs text-amber-600 font-medium">
-          ⚠ Aba temporária de debug — mostra os últimos 20 registros em time_records com CPF validado, funcionário encontrado e resultado do insert.
-        </p>
-      </Card>
-
       {records.length === 0 && !loading && (
         <Card className="p-6 text-center">
           <p className="text-sm text-muted-foreground">Nenhum registro encontrado.</p>
@@ -117,23 +110,18 @@ export default function DebugLogsTab() {
             <Card key={rec.id} className="p-3 border border-border/50">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  {/* Funcionário */}
                   <div className="flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     <span className="text-sm font-semibold text-foreground truncate">
                       {emp?.name || "Desconhecido"}
                     </span>
                   </div>
-
-                  {/* CPF validado */}
                   <div className="flex items-center gap-1.5">
                     <Hash className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="text-xs text-muted-foreground font-mono">
                       CPF: {maskCpf(emp?.cpf ?? null)}
                     </span>
                   </div>
-
-                  {/* Detalhes do registro */}
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">
                       {STEP_LABELS[rec.record_type] || rec.record_type}
@@ -143,14 +131,7 @@ export default function DebugLogsTab() {
                       {rec.mode}
                     </span>
                   </div>
-
-                  {/* IDs para debug */}
-                  <div className="text-[10px] font-mono text-muted-foreground/60 break-all">
-                    employee_id: {rec.employee_id} · record_id: {rec.id.slice(0, 8)}…
-                  </div>
                 </div>
-
-                {/* Status */}
                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
                   <StatusIcon className={`w-5 h-5 ${statusInfo.color}`} />
                   <span className={`text-[10px] font-medium ${statusInfo.color}`}>
