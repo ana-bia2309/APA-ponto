@@ -1933,24 +1933,10 @@ export default function TimeClock() {
         )}
 
         {selectedEmployee && !recordsLoading && (
-          <div className="mt-3 space-y-1">
+      <div className="mt-3 space-y-1">
             <p className="text-xs font-semibold" style={{ color: "hsl(200 65% 70%)" }}>
               {allDone ? "Todos os registros do dia já foram concluídos" : `Próximo registro: ${nextAllowedStep?.label}`}
             </p>
-            <div className="text-[11px] space-y-0.5 p-2 rounded-lg border border-yellow-500/30" style={{ color: "hsl(50 80% 70%)", background: "hsl(50 30% 15% / 0.5)" }}>
-              <p className="font-bold">🔍 DEBUG v2 — {new Date().toLocaleTimeString("pt-BR")}</p>
-              <p>colaborador: {selectedEmployee.name}</p>
-              <p>jornada: {punchMode === "simple" ? "simplificada" : "completa"}</p>
-              <p className="font-bold" style={{ color: serverStepInfo ? "hsl(150 70% 60%)" : "hsl(0 70% 60%)" }}>
-                fonte: {serverStepInfo ? "✅ SERVIDOR (RPC)" : "⚠️ LOCAL (versão antiga!)"}
-              </p>
-              <p>server next_step: {serverStepInfo?.next_step ?? "null"}</p>
-              <p>server day_complete: {serverStepInfo?.day_complete ? "SIM" : "NÃO"}</p>
-              <p>server records: {serverStepInfo?.records_today?.map((r: any) => r.record_type).join(", ") || "nenhum"}</p>
-              <p>botão exibe: {nextAllowedStep?.label ?? "nenhum (dia concluído)"}</p>
-              <p>record_type que será enviado: {serverStepInfo?.next_step ?? nextAllowedStep?.key ?? "N/A"}</p>
-              <p>registros local: {sequenceState.ordered.map((record) => `${record.step} ${formatTime(record.punched_at)}`).join(" • ") || "nenhum"}</p>
-            </div>
           </div>
         )}
 
