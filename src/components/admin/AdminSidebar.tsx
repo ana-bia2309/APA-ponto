@@ -1,7 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +29,7 @@ export type AdminTab =
   | "epi-deliveries"
   | "epi-alerts"
   | "epi-history"
+  | "payroll-dashboard"
   | "payroll-settings"
   | "payroll-closing"
   | "payslips"
@@ -57,6 +58,7 @@ const epiItems = [
 ];
 
 const payrollItems = [
+  { key: "payroll-dashboard" as const, label: "Dashboard", icon: BarChart2 },
   { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
   { key: "payslips" as const, label: "Holerites", icon: Receipt },

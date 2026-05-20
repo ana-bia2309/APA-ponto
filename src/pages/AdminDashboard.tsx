@@ -22,6 +22,7 @@ import EpiTab from "@/components/admin/EpiTab";
 import UsersTab from "@/components/admin/UsersTab";
 import PayrollSettingsTab from "@/components/admin/payroll/PayrollSettingsTab";
 import PayrollClosingTab from "@/components/admin/payroll/PayrollClosingTab";
+import PayrollDashboardTab from "@/components/admin/payroll/PayrollDashboardTab";
 import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -37,6 +38,7 @@ const tabTitles: Record<AdminTab, string> = {
   "epi-deliveries": "EPIs — Entregas",
   "epi-alerts": "EPIs — Alertas",
   "epi-history": "EPIs — Histórico",
+  "payroll-dashboard": "Folha — Dashboard",
   "payroll-settings": "Folha — Configurações Salariais",
   "payroll-closing": "Folha — Fechamento",
   payslips: "Folha — Holerites",
