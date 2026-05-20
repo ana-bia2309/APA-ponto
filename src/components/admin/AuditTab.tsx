@@ -21,6 +21,15 @@ const ACTION_LABELS: Record<string, string> = {
   update_employee: "Editou colaborador",
   delete_employee: "Excluiu colaborador",
   toggle_employee: "Ativou/desativou colaborador",
+  payroll_calculated_employee: "Calculou folha do funcionário",
+  payroll_period_closed: "Fechou período da folha",
+  payroll_period_closed_auto: "Fechamento automático da folha",
+  payroll_period_reopened: "Reabriu período da folha",
+  create_employee: "Cadastrou colaborador",
+  epi_delivered: "Registrou entrega de EPI",
+  epi_accepted: "Colaborador aceitou EPI",
+  create_user: "Criou usuário",
+  delete_user: "Excluiu usuário",
 };
 
 export default function AuditTab() {
