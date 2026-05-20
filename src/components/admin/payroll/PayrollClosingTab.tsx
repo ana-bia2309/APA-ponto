@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Calculator, Lock, Unlock, RefreshCw, TrendingUp, Wallet, Receipt, Users } from "lucide-react";
+import { Calculator, Lock, Unlock, RefreshCw, TrendingUp, Wallet, Receipt, Users, Trash2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { calculatePayroll, summarizeWorkFromRecords } from "@/lib/payroll/calculator";
 
@@ -183,6 +183,16 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     toast.success("Competência reaberta!");
   };
 
+  const deletePayslip = async (emp: Employee) => {
+    if (!periodId) return;
+    if (!confirm(`Excluir holerite de ${emp.name}?`)) return;
+    const ps = payslips.find((p) => p.employee_id === emp.id);
+    if (!ps) return;
+    await supabase.from("payroll_items").delete().eq("payslip_id", ps.id);
+    await supabase.from("payslips").delete().eq("id", ps.id);
+    await loadPeriod();
+    toast.success(`Holerite de ${emp.name} excluído.`);
+  };
   const summary = useMemo(() => {
     return payslips.reduce(
       (a, p) => ({
@@ -266,7 +276,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
             </tr>
           </thead>
           <tbody>
-            {employees.map((emp) => {
+      {employees.map((emp) => {
               const ps = payslips.find((p) => p.employee_id === emp.id);
               return (
                 <tr key={emp.id} className="border-t border-border/50">
@@ -276,11 +286,21 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
                   <td className="p-3 text-right font-bold">{ps ? fmt(ps.liquido) : "—"}</td>
                   <td className="p-3 text-right text-muted-foreground">{ps ? fmt(ps.fgts_mes) : "—"}</td>
                   <td className="p-3 text-right">
-                    <Button size="sm" variant="ghost" onClick={() => calcOne(emp)}
-                      disabled={!!busy || periodStatus === "fechado"} className="gap-1">
-                      {busy === emp.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calculator className="w-3 h-3" />}
-                      Recalcular
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => calcOne(emp)}
+                        disabled={!!busy || periodStatus === "fechado"} className="gap-1">
+                        {busy === emp.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calculator className="w-3 h-3" />}
+                        Recalcular
+                      </Button>
+                      {ps && (
+                        <Button size="sm" variant="ghost" onClick={() => deletePayslip(emp)}
+                          disabled={!!busy || periodStatus === "fechado"}
+                          className="gap-1 text-destructive hover:text-destructive">
+                          <Trash2 className="w-3 h-3" />
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
