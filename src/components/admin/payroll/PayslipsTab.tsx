@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, FileText, Download, Printer, ShieldCheck, Clock, Globe, Smartphone, KeyRound, MessageSquare, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
 const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -248,10 +249,27 @@ export default function PayslipsTab() {
                   const { data } = await supabase.from("payroll_items").select("*").eq("payslip_id", p.id).order("sort_order");
                   downloadPayslipPdf(buildPdfData(p, data || [], year, month));
                 }} className="gap-1">
-                  <Download className="w-4 h-4" /> PDF
+          <Download className="w-4 h-4" /> PDF
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => open(p)} className="gap-1">
                   <Eye className="w-4 h-4" /> Ver
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1 text-blue-500 hover:text-blue-400"
+                  onClick={() => {
+                    const emp = Array.isArray(p.employees) ? p.employees[0] : p.employees;
+                    const email = emp?.email || "";
+                    if (!email) {
+                      toast.error("Funcionário não tem email cadastrado.");
+                      return;
+                    }
+                    if (!confirm(`Enviar holerite por email para ${emp?.name}?\n\n${email}`)) return;
+                    toast.info("Envio por email será disponibilizado em breve.");
+                  }}
+                >
+                  <MessageSquare className="w-4 h-4" /> Email
                 </Button>
               </div>
             </Card>

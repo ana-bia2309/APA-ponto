@@ -70,9 +70,11 @@ export default function AdminDashboard() {
   const [newCargo, setNewCargo] = useState("");
   const [newMatricula, setNewMatricula] = useState("");
   const [newDepartamento, setNewDepartamento] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [editCargo, setEditCargo] = useState("");
   const [editMatricula, setEditMatricula] = useState("");
   const [editDepartamento, setEditDepartamento] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [employeeSearch, setEmployeeSearch] = useState("");
 
@@ -92,11 +94,11 @@ export default function AdminDashboard() {
       name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
       cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
       escala: newEscala,
-    } as any);
+      } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
     setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno"); setNewEscala("padrao");
-    setNewCargo(""); setNewMatricula(""); setNewDepartamento("");
+    setNewCargo(""); setNewMatricula(""); setNewDepartamento(""); setNewEmail("");
     fetchEmployees();
   };
 
@@ -110,6 +112,7 @@ export default function AdminDashboard() {
     setEditCargo((emp as any).cargo || "");
     setEditMatricula((emp as any).matricula || "");
     setEditDepartamento((emp as any).departamento || "");
+    setEditEmail((emp as any).email || "");
   };
 
   const saveEdit = async () => {
@@ -118,7 +121,7 @@ export default function AdminDashboard() {
       name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
       cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
       escala: editEscala,
-    } as any).eq("id", editingId);
+      } as any).eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
@@ -243,6 +246,7 @@ export default function AdminDashboard() {
                         <Input placeholder="Cargo" value={newCargo} onChange={(e) => setNewCargo(e.target.value)} />
                         <Input placeholder="Matrícula" value={newMatricula} onChange={(e) => setNewMatricula(e.target.value)} />
                         <Input placeholder="Departamento" value={newDepartamento} onChange={(e) => setNewDepartamento(e.target.value)} />
+                        <Input placeholder="Email (para envio de holerite)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} type="email" />
                         <div className="flex gap-2">
                           <select value={newPunchMode} onChange={(e) => setNewPunchMode(e.target.value as any)}
                             className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
@@ -324,6 +328,7 @@ export default function AdminDashboard() {
                               <Input value={editCargo} onChange={(e) => setEditCargo(e.target.value)} placeholder="Cargo" />
                               <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Matrícula" />
                               <Input value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)} placeholder="Departamento" />
+                              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" type="email" />
                               <div className="flex gap-2">
                                 <select value={editPunchMode} onChange={(e) => setEditPunchMode(e.target.value as any)}
                                   className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
