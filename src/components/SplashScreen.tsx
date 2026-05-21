@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import logoApa from "@/assets/logo-apa.png";
 
 const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [fadeOut, setFadeOut] = useState(false);
@@ -20,16 +19,9 @@ const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
       }`}
       style={{ background: "linear-gradient(180deg, hsl(220 25% 8%) 0%, hsl(220 30% 14%) 100%)" }}
     >
-      <img
-        src={logoApa}
-        alt="APA Refrigeração e Climatização"
-        className="w-52 h-auto object-contain animate-scale-in drop-shadow-2xl"
-        fetchPriority="high"
-        width={208}
-        height={243}
-      />
-      <p className="mt-6 text-lg font-semibold tracking-widest text-white/90 animate-fade-in">
-        APA Ponto
+      <p className="text-6xl font-bold text-white animate-scale-in">AMR</p>
+      <p className="mt-4 text-lg font-semibold tracking-widest text-white/90 animate-fade-in">
+        Refrigeração e Climatização
       </p>
     </div>
   );

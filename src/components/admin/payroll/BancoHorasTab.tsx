@@ -151,7 +151,7 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
               <div>
                 <p className="text-sm font-semibold text-amber-600">Excesso de horas no banco</p>
                 <p className="text-xs text-amber-600">
-                  O saldo de {fmtHoras(saldo)} ultrapassa o limite recomendado de 40h. Considere agendar compensação.
+                  O saldo de {fmtHoras(saldo)} ultrAMRssa o limite recomendado de 40h. Considere agendar compensação.
                 </p>
               </div>
             </div>

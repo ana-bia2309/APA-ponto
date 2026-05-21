@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Save, RotateCcw, Info } from "lucide-react";
 
-const STORAGE_KEY = "apa_ponto_trabalhista_config";
+const STORAGE_KEY = "AMR_ponto_trabalhista_config";
 
 const DEFAULTS = {
   inss: [

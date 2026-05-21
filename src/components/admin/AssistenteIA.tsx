@@ -46,7 +46,7 @@ export default function AssistenteIA() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([
     {
       role: "assistant",
-      content: "Olá! Sou o assistente de RH da APA Ponto. Posso te ajudar a analisar dados de funcionários, folha de pagamento, horas extras e muito mais. O que você gostaria de saber?",
+      content: "Olá! Sou o assistente de RH da AMR Ponto. Posso te ajudar a analisar dados de funcionários, folha de pagamento, horas extras e muito mais. O que você gostaria de saber?",
     },
   ]);
   const [input, setInput] = useState("");

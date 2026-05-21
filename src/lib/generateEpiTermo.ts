@@ -353,7 +353,7 @@ O não cumprimento das obrigações acima poderá acarretar medidas administrati
   doc.line(M, H - 12, W - M, H - 12);
   doc.setFontSize(6.5);
   doc.setTextColor(...MUTED);
-  doc.text("APA Ponto — Termo de Entrega de Equipamento de Proteção Individual", W / 2, H - 8, { align: "center" });
+  doc.text("AMR Ponto — Termo de Entrega de Equipamento de Proteção Individual", W / 2, H - 8, { align: "center" });
 
   // Save
   const safeName = data.employeeName.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);

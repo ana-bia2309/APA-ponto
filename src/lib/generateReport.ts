@@ -22,7 +22,7 @@ function getBrazilianHolidays(year: number): Set<string> {
     [4, 21],  // Tiradentes
     [5, 1],   // Dia do Trabalho
     [9, 7],   // Independência
-    [10, 12], // Nossa Sra. Aparecida
+    [10, 12], // Nossa Sra. AMRrecida
     [11, 2],  // Finados
     [11, 15], // Proclamação da República
     [12, 25], // Natal
@@ -253,7 +253,7 @@ export async function generateMonthlyReport(
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...C.white);
-  doc.text("APA Ponto", margin, 14);
+  doc.text("AMR Ponto", margin, 14);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -439,7 +439,7 @@ export async function generateMonthlyReport(
   doc.setTextColor(...C.subtleText);
   doc.setFont("helvetica", "normal");
   doc.text(
-    `Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — APA Ponto`,
+    `Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — AMR Ponto`,
     pageWidth / 2,
     footerY,
     { align: "center" }
@@ -496,7 +496,7 @@ export async function generateMonthlyExcel(
 
   const monthLabel = `${MONTHS[month - 1]} ${year}`;
   const rows: string[][] = [];
-  rows.push(["APA Ponto - Folha de Ponto"]);
+  rows.push(["AMR Ponto - Folha de Ponto"]);
   rows.push([`Colaborador: ${employee.name}`]);
   rows.push([`Período: ${monthLabel}`]);
   rows.push([`Turno: ${shiftLabel} | Escala: ${escalaLabel}`]);
@@ -575,7 +575,7 @@ export async function generatePayrollReport(
   // Cabeçalho
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("APA Refrigeração e Climatização", 14, 15);
+  doc.text("AMR Refrigeração e Climatização", 14, 15);
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text(`Folha de Pagamento — ${mesNome}/${year}`, 14, 22);

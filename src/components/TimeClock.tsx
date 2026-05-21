@@ -23,7 +23,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Shield } from "lucide-react";
-import logo from "@/assets/logo-apa.png";
+import logo from "@/assets/logo-AMR.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,9 +115,9 @@ const getLocalDayRange = (date: Date | string = new Date()) => {
 };
 
 // ---- Local cache helpers ----
-const OFFLINE_QUEUE_KEY = "apa_ponto_offline_queue";
-const RECORDS_CACHE_KEY = "apa_ponto_records_cache";
-const EMPLOYEES_CACHE_KEY = "apa_ponto_employees_cache";
+const OFFLINE_QUEUE_KEY = "AMR_ponto_offline_queue";
+const RECORDS_CACHE_KEY = "AMR_ponto_records_cache";
+const EMPLOYEES_CACHE_KEY = "AMR_ponto_employees_cache";
 const OFFLINE_REQUIRED_MESSAGE = "É necessário abrir o app com internet pelo menos uma vez para habilitar o modo offline.";
 
 interface CachedEmployee {
@@ -1067,7 +1067,7 @@ export default function TimeClock() {
     // When online, MUST have server step info to prevent sending wrong record_type
     if (navigator.onLine && !serverStepInfo) {
       console.error("DEBUG PONTO [insert]: BLOQUEIO — serverStepInfo ainda não carregado");
-      toast.error("Aguarde a consulta da próxima etapa no servidor.");
+      toast.error("Aguarde a consulta da próxima etAMR no servidor.");
       return;
     }
     if (navigator.onLine && serverStepInfo?.day_complete) {
@@ -1208,7 +1208,7 @@ export default function TimeClock() {
       console.error("DEBUG PONTO [insert]: ERRO:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
       if (msg.includes("já existe")) {
-        toast.error("Este registro já foi realizado hoje. Siga a próxima etapa.");
+        toast.error("Este registro já foi realizado hoje. Siga a próxima etAMR.");
         // Refresh server state to show correct next step
         if (validatedContext?.cpf_normalized) {
           await fetchNextStep(validatedContext.cpf_normalized);
@@ -1674,7 +1674,7 @@ export default function TimeClock() {
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            APA Ponto
+            AMR Ponto
           </div>
           <p className="text-xl font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>{pendingEmployee.name}</p>
           <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>Informe seu CPF para continuar</p>
@@ -1728,12 +1728,12 @@ export default function TimeClock() {
           {/* Logo with subtle glow */}
           <div className="relative inline-block mb-6">
             <div className="absolute inset-[-20px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
-            <img src={logo} alt="APA Refrigeração e Climatização" className="w-56 h-56 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
+            <img src={logo} alt="AMR Refrigeração e Climatização" className="w-56 h-56 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
           </div>
 
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            APA Ponto
+            AMR Ponto
           </div>
 
           <p className="text-sm tracking-wider mb-6" style={{ color: "hsl(210 20% 60%)" }}>Refrigeração e Climatização</p>
@@ -1797,7 +1797,7 @@ export default function TimeClock() {
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            APA Ponto
+            AMR Ponto
           </div>
           <p className="text-sm tracking-wider mb-4" style={{ color: "hsl(210 20% 55%)" }}>Refrigeração e Climatização</p>
           <p className="text-lg font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>
@@ -1874,7 +1874,7 @@ export default function TimeClock() {
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
           <Clock className="w-3 h-3" />
-          APA Ponto
+          AMR Ponto
         </div>
         <p className="text-xs tracking-wider mb-3" style={{ color: "hsl(210 20% 50%)" }}>Refrigeração e Climatização</p>
         <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
@@ -2199,7 +2199,7 @@ export default function TimeClock() {
         ) : navigator.onLine && !serverStepInfo && validatedContext ? (
           <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
             <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Consultando próxima etapa...
+            Consultando próxima etAMR...
           </div>
         ) : !allDone && nextAllowedStep ? (
           <button

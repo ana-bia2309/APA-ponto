@@ -1,3 +1,3 @@
 PROJETO APP DE REGISTRO DE PONTO
 
-Registro de ponto APA 
+Registro de ponto AMR 

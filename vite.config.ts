@@ -47,9 +47,9 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/],
       },
       manifest: {
-        name: "APA Ponto - Refrigeração e Climatização",
-        short_name: "APA Ponto",
-        description: "APA Ponto - Sistema de registro de ponto",
+        name: "AMR Ponto - Refrigeração e Climatização",
+        short_name: "AMR Ponto",
+        description: "AMR Ponto - Sistema de registro de ponto",
         theme_color: "#1e3a5f",
         background_color: "#f5f6f8",
         display: "standalone",

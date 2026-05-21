@@ -1,5 +1,5 @@
 
-# Módulo de Folha de Pagamento e Contracheque — APA Ponto
+# Módulo de Folha de Pagamento e Contracheque — AMR Ponto
 
 Esse é um módulo grande. Proponho entregar em **3 fases** para garantir qualidade, ao invés de tudo de uma vez (o que comprometeria precisão contábil e testes).
 

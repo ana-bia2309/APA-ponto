@@ -79,7 +79,7 @@ BEGIN
       AND tr.recorded_at >= date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo';
   END IF;
 
-  -- Última etapa da jornada aberta (ou nada se não há jornada aberta)
+  -- Última etAMR da jornada aberta (ou nada se não há jornada aberta)
   IF v_journey_start IS NOT NULL THEN
     SELECT tr.record_type INTO v_last_step
     FROM public.time_records tr

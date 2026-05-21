@@ -45,7 +45,7 @@ export interface PayslipPdfData {
 }
 
 const EMPRESA_PADRAO = {
-  nome: "APA Refrigeração e Climatização",
+  nome: "AMR Refrigeração e Climatização",
   cnpj: "—",
   endereco: "Recibo de Pagamento de Salário",
 };
@@ -235,7 +235,7 @@ export function generatePayslipPdf(data: PayslipPdfData): jsPDF {
   doc.setFontSize(7);
   doc.setTextColor(140);
   doc.text(
-    `Gerado em ${new Date().toLocaleString("pt-BR")} · APA Ponto`,
+    `Gerado em ${new Date().toLocaleString("pt-BR")} · AMR Ponto`,
     W / 2, 290, { align: "center" },
   );
 
