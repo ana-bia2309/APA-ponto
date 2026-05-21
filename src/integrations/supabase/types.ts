@@ -91,44 +91,6 @@ export type Database = {
         }
         Relationships: []
       }
-      banco_horas: {
-        Row: {
-          created_at: string | null
-          data: string
-          descricao: string
-          employee_id: string | null
-          horas: number
-          id: string
-          tipo: string
-        }
-        Insert: {
-          created_at?: string | null
-          data: string
-          descricao: string
-          employee_id?: string | null
-          horas: number
-          id?: string
-          tipo: string
-        }
-        Update: {
-          created_at?: string | null
-          data?: string
-          descricao?: string
-          employee_id?: string | null
-          horas?: number
-          id?: string
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "banco_horas_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employees: {
         Row: {
           active: boolean
@@ -137,7 +99,6 @@ export type Database = {
           created_at: string
           data_admissao: string | null
           departamento: string | null
-          email: string | null
           escala: string
           id: string
           matricula: string | null
@@ -152,7 +113,6 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           departamento?: string | null
-          email?: string | null
           escala?: string
           id?: string
           matricula?: string | null
@@ -167,7 +127,6 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           departamento?: string | null
-          email?: string | null
           escala?: string
           id?: string
           matricula?: string | null
@@ -549,8 +508,6 @@ export type Database = {
           base_irrf: number
           created_at: string
           employee_id: string
-          enviado_at: string | null
-          enviado_para: string | null
           faltas_dias: number
           fgts_mes: number
           horas_extras_100: number
@@ -567,11 +524,9 @@ export type Database = {
           signed_ip: string | null
           signed_user_agent: string | null
           snapshot: Json
-          status: string | null
           total_descontos: number
           total_proventos: number
           updated_at: string
-          visualizado_at: string | null
         }
         Insert: {
           atrasos_minutos?: number
@@ -579,8 +534,6 @@ export type Database = {
           base_irrf?: number
           created_at?: string
           employee_id: string
-          enviado_at?: string | null
-          enviado_para?: string | null
           faltas_dias?: number
           fgts_mes?: number
           horas_extras_100?: number
@@ -597,11 +550,9 @@ export type Database = {
           signed_ip?: string | null
           signed_user_agent?: string | null
           snapshot?: Json
-          status?: string | null
           total_descontos?: number
           total_proventos?: number
           updated_at?: string
-          visualizado_at?: string | null
         }
         Update: {
           atrasos_minutos?: number
@@ -609,8 +560,6 @@ export type Database = {
           base_irrf?: number
           created_at?: string
           employee_id?: string
-          enviado_at?: string | null
-          enviado_para?: string | null
           faltas_dias?: number
           fgts_mes?: number
           horas_extras_100?: number
@@ -627,11 +576,9 @@ export type Database = {
           signed_ip?: string | null
           signed_user_agent?: string | null
           snapshot?: Json
-          status?: string | null
           total_descontos?: number
           total_proventos?: number
           updated_at?: string
-          visualizado_at?: string | null
         }
         Relationships: [
           {
