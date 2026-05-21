@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   RefreshCw,
   HardHat,
+  FolderOpen,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +33,7 @@ import CameraCapture from "@/components/CameraCapture";
 import ManualPunch from "@/components/ManualPunch";
 import AbsenceJustification from "@/components/AbsenceJustification";
 import EpiAcceptance from "@/components/EpiAcceptance";
+import MeusDocumentos from "@/components/MeusDocumentos";
 import PayslipSign from "@/components/PayslipSign";
 import {
   mapTimeRecordToPunchRecord,
@@ -512,6 +514,7 @@ export default function TimeClock() {
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
   const [showPayslipSign, setShowPayslipSign] = useState(false);
   const [pendingPayslipCount, setPendingPayslipCount] = useState(0);
+  const [showDocumentos, setShowDocumentos] = useState(false);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift === selectedShift)
@@ -1285,6 +1288,15 @@ export default function TimeClock() {
         onClose={() => setShowEpiAcceptance(false)}
         pendingCount={pendingEpiCount}
         onAccepted={() => fetchPendingEpiCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+
+  if (showDocumentos && selectedEmployee) {
+    return (
+      <MeusDocumentos
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowDocumentos(false)}
       />
     );
   }
@@ -2242,6 +2254,14 @@ export default function TimeClock() {
           >
             <FileText className="w-4 h-4" />
             Atestado
+          </button>
+          <button
+            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
+            onClick={() => setShowDocumentos(true)}
+          >
+            <FolderOpen className="w-4 h-4" />
+            Documentos
           </button>
         </div>
       </div>
