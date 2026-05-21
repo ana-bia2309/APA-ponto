@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Calculator, Lock, Unlock, RefreshCw, TrendingUp, Wallet, Receipt, Users, Trash2 } from "lucide-react";
+import { Calculator, Lock, Unlock, RefreshCw, TrendingUp, Wallet, Receipt, Users, Trash2, Download } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { calculatePayroll, summarizeWorkFromRecords } from "@/lib/payroll/calculator";
+import { generatePayrollReport } from "@/lib/generateReport";
 
 type Employee = Tables<"employees">;
 
@@ -240,6 +241,21 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
         <span className={`text-xs px-2 py-1 rounded ${periodStatus === "fechado" ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
           {periodStatus.toUpperCase()}
         </span>
+        {periodId && (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={async () => {
+              try {
+                await generatePayrollReport(year, month);
+              } catch (e: any) {
+                toast.error(e.message);
+              }
+            }}
+          >
+            <Download className="w-4 h-4" /> Exportar PDF
+          </Button>
+        )}
       </Card>
 
       {payslips.length > 0 && (

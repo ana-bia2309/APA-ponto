@@ -545,3 +545,91 @@ export async function generateMonthlyExcel(
   a.click();
   URL.revokeObjectURL(url);
 }
+export async function generatePayrollReport(
+  year: number,
+  month: number,
+): Promise<void> {
+  const { data: period } = await supabase
+    .from("payroll_periods" as any)
+    .select("id, status")
+    .eq("year", year)
+    .eq("month", month)
+    .maybeSingle();
+
+  if (!period) {
+    throw new Error("Nenhuma folha calculada para este período.");
+  }
+
+  const { data: payslips } = await supabase
+    .from("payslips" as any)
+    .select("*, employees(name, cargo, departamento)")
+    .eq("period_id", (period as any).id)
+    .order("employees(name)");
+
+  const ps = (payslips as any[]) || [];
+  if (ps.length === 0) throw new Error("Nenhum holerite encontrado.");
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const mesNome = MONTHS[month - 1];
+
+  // Cabeçalho
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("APA Refrigeração e Climatização", 14, 15);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Folha de Pagamento — ${mesNome}/${year}`, 14, 22);
+  doc.text(`Status: ${(period as any).status?.toUpperCase() ?? "ABERTO"}`, 14, 28);
+  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 34);
+
+  // Tabela principal
+  const rows = ps.map((p: any) => {
+    const emp = Array.isArray(p.employees) ? p.employees[0] : p.employees;
+    return [
+      emp?.name ?? "—",
+      emp?.cargo ?? "—",
+      emp?.departamento ?? "—",
+      `${Number(p.horas_trabalhadas || 0).toFixed(1)}h`,
+      `${Number(p.horas_extras_50 || 0).toFixed(1)}h`,
+      `${Number(p.faltas_dias || 0)} dia(s)`,
+      `R$ ${Number(p.total_proventos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      `R$ ${Number(p.total_descontos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      `R$ ${Number(p.liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      `R$ ${Number(p.fgts_mes || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    ];
+  });
+
+  // Totais
+  const totais = ps.reduce((acc: any, p: any) => ({
+    proventos: acc.proventos + Number(p.total_proventos || 0),
+    descontos: acc.descontos + Number(p.total_descontos || 0),
+    liquido: acc.liquido + Number(p.liquido || 0),
+    fgts: acc.fgts + Number(p.fgts_mes || 0),
+  }), { proventos: 0, descontos: 0, liquido: 0, fgts: 0 });
+
+  rows.push([
+    "TOTAL", "", "", "", "", "",
+    `R$ ${totais.proventos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    `R$ ${totais.descontos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    `R$ ${totais.liquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    `R$ ${totais.fgts.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+  ]);
+
+  autoTable(doc, {
+    startY: 40,
+    head: [["Funcionário", "Cargo", "Depto", "H. Trab.", "H. Extra", "Faltas", "Proventos", "Descontos", "Líquido", "FGTS"]],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: "bold" },
+    footStyles: { fillColor: [240, 240, 240], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
+    didParseCell: (data) => {
+      if (data.row.index === rows.length - 1) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [220, 220, 220];
+      }
+    },
+  });
+
+  doc.save(`folha_pagamento_${mesNome}_${year}.pdf`);
+}
