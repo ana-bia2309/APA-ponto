@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, FileText, Download, Printer, ShieldCheck, Clock, Globe, Smartphone, KeyRound, MessageSquare, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { SkeletonList } from "@/components/ui/skeleton-card";
 import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
 const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -46,8 +47,10 @@ export default function PayslipsTab() {
   const [list, setList] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchList = useCallback(async () => {
+    setLoading(true);
     const { data: period } = await supabase
       .from("payroll_periods" as any).select("*")
       .eq("year", year).eq("month", month).maybeSingle();
@@ -58,8 +61,8 @@ export default function PayslipsTab() {
       .eq("period_id", (period as any).id)
       .order("created_at");
     setList((data as any) || []);
-    // refresh selected payslip too if it exists in the new list
     setSelected((prev: any) => prev ? ((data as any) || []).find((p: any) => p.id === prev.id) || prev : prev);
+    setLoading(false);
   }, [year, month]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
@@ -213,6 +216,8 @@ export default function PayslipsTab() {
             )}
           </div>
         </Card>
+      ) : loading ? (
+        <SkeletonList rows={4} />
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
           Nenhum holerite gerado para esta competência.

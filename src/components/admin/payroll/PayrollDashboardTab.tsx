@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { SkeletonDashboard } from "@/components/ui/skeleton-card";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Users, TrendingUp, TrendingDown, Wallet, Clock, Calendar, RefreshCw } from "lucide-react";
@@ -103,6 +104,8 @@ export default function PayrollDashboardTab() {
     { label: "Total líquido", value: fmt(summary.totalLiquido), icon: TrendingUp, color: "text-emerald-500" },
     { label: "FGTS", value: fmt(summary.totalFgts), icon: Calendar, color: "text-cyan-500" },
   ];
+
+  if (loading) return <SkeletonDashboard />;
 
   return (
     <div className="space-y-6">
