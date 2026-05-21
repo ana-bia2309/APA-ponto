@@ -1,7 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +33,7 @@ export type AdminTab =
   | "payroll-settings"
   | "banco-horas"
   | "trabalhista-config"
+  | "documentos"
   | "payroll-closing"
   | "payslips"
   | "audit"
@@ -52,6 +53,7 @@ const mainItems = [
   { key: "employees" as const, label: "Funcionários", icon: Users },
   { key: "records" as const, label: "Registros", icon: Clock },
   { key: "justifications" as const, label: "Atestados", icon: FileText },
+  { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
 ];
 
 const epiItems = [

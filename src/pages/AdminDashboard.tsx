@@ -25,6 +25,7 @@ import PayrollClosingTab from "@/components/admin/payroll/PayrollClosingTab";
 import PayrollDashboardTab from "@/components/admin/payroll/PayrollDashboardTab";
 import BancoHorasTab from "@/components/admin/payroll/BancoHorasTab";
 import TrabalhistaConfigTab from "@/components/admin/payroll/TrabalhistaConfigTab";
+import DocumentosTab from "@/components/admin/DocumentosTab";
 import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -43,6 +44,7 @@ const tabTitles: Record<AdminTab, string> = {
   "payroll-dashboard": "Folha — Dashboard",
   "banco-horas": "Folha — Banco de Horas",
   "trabalhista-config": "Folha — Regras CLT",
+  "documentos": "Centro de Documentos",
   "payroll-settings": "Folha — Configurações Salariais",
   "payroll-closing": "Folha — Fechamento",
   payslips: "Folha — Holerites",
@@ -225,6 +227,7 @@ export default function AdminDashboard() {
               {tab === "payroll-dashboard" && <PayrollDashboardTab />}
               {tab === "banco-horas" && <BancoHorasTab employees={employees} />}
               {tab === "trabalhista-config" && <TrabalhistaConfigTab />}
+              {tab === "documentos" && <DocumentosTab employees={employees} />},
               {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}
