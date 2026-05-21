@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, FileText, Download, Printer, ShieldCheck, Clock, Globe, Smartphone, KeyRound, MessageSquare, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonList } from "@/components/ui/skeleton-card";
 import { downloadPayslipPdf, printPayslipPdf, type PayslipPdfData } from "@/lib/payroll/generatePayslipPdf";
 
@@ -231,15 +232,7 @@ export default function PayslipsTab() {
                 <div>
                   <p className="font-medium flex items-center gap-2">
                     {p.employees?.name}
-                    {p.signed_at ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                        <ShieldCheck className="w-3 h-3" /> Assinado
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                        <Clock className="w-3 h-3" /> Pendente
-                      </span>
-                    )}
+                    <StatusBadge status={p.signed_at ? "assinado" : "pendente"} />
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Líquido: <span className="text-foreground font-semibold">{fmt(p.liquido)}</span>
