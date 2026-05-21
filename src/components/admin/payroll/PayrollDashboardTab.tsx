@@ -22,6 +22,7 @@ export default function PayrollDashboardTab() {
   });
   const [evolucao, setEvolucao] = useState<any[]>([]);
   const [extrasData, setExtrasData] = useState<any[]>([]);
+  const [payslipDetails, setPayslipDetails] = useState<any[]>([]);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -43,7 +44,7 @@ export default function PayrollDashboardTab() {
           .select("*")
           .eq("period_id", (period as any).id);
 
-        const ps = (payslips as any[]) || [];
+       const ps = (payslips as any[]) || [];
         setSummary({
           totalFolha: ps.reduce((a, p) => a + Number(p.total_proventos || 0), 0),
           totalFuncionarios: ps.length,
@@ -53,6 +54,13 @@ export default function PayrollDashboardTab() {
           totalFgts: ps.reduce((a, p) => a + Number(p.fgts_mes || 0), 0),
           faltasDias: ps.reduce((a, p) => a + Number(p.faltas_dias || 0), 0),
         });
+
+        // Detalhe por funcionário para o gráfico
+        setPayslipDetails(ps.map((p: any) => ({
+          nome: (Array.isArray(p.employees) ? p.employees[0] : p.employees)?.name?.split(" ").slice(0, 2).join(" ") || "—",
+          liquido: Number(p.liquido || 0),
+          proventos: Number(p.total_proventos || 0),
+        })).sort((a: any, b: any) => b.liquido - a.liquido));
       }
 
       const months = [];
@@ -96,13 +104,16 @@ export default function PayrollDashboardTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  const cards = [
+ const cards = [
     { label: "Total da folha", value: fmt(summary.totalFolha), icon: Wallet, color: "text-blue-500" },
     { label: "Funcionários", value: summary.totalFuncionarios, icon: Users, color: "text-purple-500" },
     { label: "Horas extras (h)", value: summary.custoExtras.toFixed(1), icon: Clock, color: "text-amber-500" },
     { label: "Total descontos", value: fmt(summary.totalDescontos), icon: TrendingDown, color: "text-rose-500" },
     { label: "Total líquido", value: fmt(summary.totalLiquido), icon: TrendingUp, color: "text-emerald-500" },
     { label: "FGTS", value: fmt(summary.totalFgts), icon: Calendar, color: "text-cyan-500" },
+    { label: "Custo médio/func.", value: summary.totalFuncionarios > 0 ? fmt(summary.totalFolha / summary.totalFuncionarios) : "R$ 0,00", icon: Users, color: "text-indigo-500" },
+    { label: "Total faltas (dias)", value: String(summary.faltasDias), icon: TrendingDown, color: "text-orange-500" },
+    { label: "Absenteísmo", value: summary.totalFuncionarios > 0 ? `${((summary.faltasDias / (summary.totalFuncionarios * 22)) * 100).toFixed(1)}%` : "0%", icon: TrendingDown, color: "text-rose-400" },
   ];
 
   if (loading) return <SkeletonDashboard />;
@@ -158,7 +169,7 @@ export default function PayrollDashboardTab() {
         </ResponsiveContainer>
       </Card>
 
-      <Card className="p-4">
+<Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Comparativo mensal — proventos vs líquido</h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={evolucao}>
@@ -173,6 +184,23 @@ export default function PayrollDashboardTab() {
           </BarChart>
         </ResponsiveContainer>
       </Card>
+
+      {/* Custo por funcionário */}
+      {payslipDetails.length > 0 && (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-4">Custo por funcionário — mês atual</h3>
+          <ResponsiveContainer width="100%" height={Math.max(200, payslipDetails.length * 40)}>
+            <BarChart data={payslipDetails} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(1)}k`} />
+              <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} width={140} />
+              <Tooltip formatter={(v: any) => fmt(v)} />
+              <Bar dataKey="liquido" name="Líquido" fill="#10b981" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="proventos" name="Proventos" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
     </div>
   );
 }
