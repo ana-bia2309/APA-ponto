@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,10 +26,10 @@ const MODE_LABELS: Record<string, string> = {
   online: "Online", offline: "Offline", manual: "Manual",
 };
 
-const SYNC_LABELS: Record<string, { label: string; className: string }> = {
-  synced: { label: "Sincronizado", className: "bg-emerald-500/15 text-emerald-600" },
-  pending: { label: "Pendente", className: "bg-amber-500/15 text-amber-600" },
-  failed: { label: "Falha", className: "bg-destructive/15 text-destructive" },
+const SYNC_STATUS_MAP: Record<string, "sincronizado" | "pendente" | "erro"> = {
+  synced: "sincronizado",
+  pending: "pendente",
+  failed: "erro",
 };
 
 type QuickFilter = "today" | "yesterday" | "week" | "custom";
@@ -492,8 +493,8 @@ export default function RecordsTab({ employees }: Props) {
                         </span>
                       )}
                     </div>
-                    {journey.records.map((rec) => {
-                      const sync = SYNC_LABELS[(rec as any).sync_status || "synced"] || SYNC_LABELS.synced;
+                  {journey.records.map((rec) => {
+                      const syncStatus = SYNC_STATUS_MAP[(rec as any).sync_status || "synced"] || "sincronizado";
                       const address = getAddress(rec as PunchRecord);
                       return (
                         <div key={rec.id} className="flex items-start justify-between text-sm gap-2 pl-3 border-l-2 border-border">
@@ -505,9 +506,7 @@ export default function RecordsTab({ employees }: Props) {
                             <span className="text-[10px] text-muted-foreground">
                               {MODE_LABELS[(rec as any).mode || "online"] || (rec as any).mode}
                             </span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${sync.className}`}>
-                              {sync.label}
-                            </span>
+                            <StatusBadge status={syncStatus} />
                             {(rec as any).photo_url && (
                               <button onClick={() => openPhoto((rec as any).photo_url!)}
                                 className="text-primary hover:text-primary/80" title="Ver foto">
