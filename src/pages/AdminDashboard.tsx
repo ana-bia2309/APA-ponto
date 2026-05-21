@@ -215,9 +215,9 @@ export default function AdminDashboard() {
             </div>
           </header>
 
-          {/* Content */}
+         {/* Content */}
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
               {tab === "dashboard" && <DashboardTab />}
               {tab === "records" && <RecordsTab employees={employees} />}
               {tab === "justifications" && <JustificationsTab />}
@@ -231,7 +231,6 @@ export default function AdminDashboard() {
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
-
               {tab === "employees" && (
                 <div className="space-y-6">
                   {/* Add employee form */}
