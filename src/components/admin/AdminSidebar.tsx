@@ -31,6 +31,7 @@ export type AdminTab =
   | "epi-history"
   | "payroll-dashboard"
   | "payroll-settings"
+  | "banco-horas"
   | "payroll-closing"
   | "payslips"
   | "audit"
@@ -62,6 +63,7 @@ const payrollItems = [
   { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
   { key: "payslips" as const, label: "Holerites", icon: Receipt },
+  { key: "banco-horas" as const, label: "Banco de Horas", icon: Clock },
 ];
 
 const systemItems = [

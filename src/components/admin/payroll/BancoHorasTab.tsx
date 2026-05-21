@@ -1,0 +1,224 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Clock, Plus, Trash2, RefreshCw } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Employee = Tables<"employees">;
+
+interface BancoEntry {
+  id: string;
+  employee_id: string;
+  data: string;
+  tipo: "credito" | "debito";
+  horas: number;
+  descricao: string;
+  created_at: string;
+}
+
+export default function BancoHorasTab({ employees }: { employees: Employee[] }) {
+  const [selectedId, setSelectedId] = useState("");
+  const [entries, setEntries] = useState<BancoEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [novaData, setNovaData] = useState(new Date().toISOString().slice(0, 10));
+  const [novoTipo, setNovoTipo] = useState<"credito" | "debito">("credito");
+  const [novasHoras, setNovasHoras] = useState("");
+  const [novaDescricao, setNovaDescricao] = useState("");
+
+  const saldo = entries.reduce((acc, e) => {
+    return e.tipo === "credito" ? acc + e.horas : acc - e.horas;
+  }, 0);
+
+  const load = useCallback(async () => {
+    if (!selectedId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("banco_horas" as any)
+      .select("*")
+      .eq("employee_id", selectedId)
+      .order("data", { ascending: false });
+    if (!error && data) setEntries(data as any);
+    setLoading(false);
+  }, [selectedId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const adicionar = async () => {
+    if (!selectedId || !novasHoras || !novaDescricao) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+    const horas = parseFloat(novasHoras);
+    if (isNaN(horas) || horas <= 0) {
+      toast.error("Horas inválidas");
+      return;
+    }
+    const { error } = await supabase
+      .from("banco_horas" as any)
+      .insert({
+        employee_id: selectedId,
+        data: novaData,
+        tipo: novoTipo,
+        horas,
+        descricao: novaDescricao,
+      });
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success("Lançamento adicionado!");
+    setNovasHoras("");
+    setNovaDescricao("");
+    load();
+  };
+
+  const excluir = async (id: string) => {
+    if (!confirm("Excluir este lançamento?")) return;
+    await supabase.from("banco_horas" as any).delete().eq("id", id);
+    load();
+  };
+
+  const fmtHoras = (h: number) => {
+    const abs = Math.abs(h);
+    const hh = Math.floor(abs);
+    const mm = Math.round((abs - hh) * 60);
+    return `${h < 0 ? "-" : ""}${String(hh).padStart(2, "0")}h${String(mm).padStart(2, "0")}m`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Clock className="w-5 h-5 text-primary" />
+          Banco de Horas
+        </h2>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+
+      {/* Seleção de funcionário */}
+      <Card className="p-4">
+        <Label>Funcionário</Label>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Selecione um funcionário...</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.name}</option>
+          ))}
+        </select>
+      </Card>
+
+      {selectedId && (
+        <>
+          {/* Saldo */}
+          <Card className={`p-4 border-2 ${saldo >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
+            <p className="text-sm text-muted-foreground">Saldo atual</p>
+            <p className={`text-3xl font-bold mt-1 ${saldo >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              {fmtHoras(saldo)}
+            </p>
+          </Card>
+
+          {/* Novo lançamento */}
+          <Card className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Novo lançamento
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <Label>Data</Label>
+                <Input type="date" value={novaData} onChange={(e) => setNovaData(e.target.value)} />
+              </div>
+              <div>
+                <Label>Tipo</Label>
+                <select
+                  value={novoTipo}
+                  onChange={(e) => setNovoTipo(e.target.value as any)}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="credito">Crédito (horas a receber)</option>
+                  <option value="debito">Débito (compensação)</option>
+                </select>
+              </div>
+              <div>
+                <Label>Horas</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  placeholder="Ex: 2.5"
+                  value={novasHoras}
+                  onChange={(e) => setNovasHoras(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Descrição</Label>
+                <Input
+                  placeholder="Ex: Horas extras maio"
+                  value={novaDescricao}
+                  onChange={(e) => setNovaDescricao(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button onClick={adicionar} className="gap-2">
+              <Plus className="w-4 h-4" /> Adicionar lançamento
+            </Button>
+          </Card>
+
+          {/* Histórico */}
+          <Card className="p-0 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-left">
+                  <th className="p-3">Data</th>
+                  <th className="p-3">Tipo</th>
+                  <th className="p-3">Horas</th>
+                  <th className="p-3">Descrição</th>
+                  <th className="p-3 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                      Nenhum lançamento encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  entries.map((e) => (
+                    <tr key={e.id} className="border-t border-border/50">
+                      <td className="p-3">{new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR")}</td>
+                      <td className="p-3">
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                          e.tipo === "credito"
+                            ? "bg-emerald-500/10 text-emerald-600"
+                            : "bg-rose-500/10 text-rose-600"
+                        }`}>
+                          {e.tipo === "credito" ? "Crédito" : "Débito"}
+                        </span>
+                      </td>
+                      <td className={`p-3 font-medium ${e.tipo === "credito" ? "text-emerald-500" : "text-rose-500"}`}>
+                        {e.tipo === "debito" ? "-" : "+"}{fmtHoras(e.horas)}
+                      </td>
+                      <td className="p-3 text-muted-foreground">{e.descricao}</td>
+                      <td className="p-3 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => excluir(e.id)}
+                          className="text-destructive hover:text-destructive">
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
