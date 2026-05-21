@@ -115,13 +115,85 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
 
       {selectedId && (
         <>
-          {/* Saldo */}
-          <Card className={`p-4 border-2 ${saldo >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
-            <p className="text-sm text-muted-foreground">Saldo atual</p>
-            <p className={`text-3xl font-bold mt-1 ${saldo >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-              {fmtHoras(saldo)}
-            </p>
-          </Card>
+          {/* Cards de saldo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card className={`p-4 border-2 ${saldo >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
+              <p className="text-sm text-muted-foreground">Saldo atual</p>
+              <p className={`text-3xl font-bold mt-1 ${saldo >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                {fmtHoras(saldo)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {saldo >= 0 ? "Horas a receber" : "Horas a compensar"}
+              </p>
+            </Card>
+
+            <Card className="p-4 border-2 border-emerald-500/20">
+              <p className="text-sm text-muted-foreground">Horas positivas</p>
+              <p className="text-3xl font-bold mt-1 text-emerald-500">
+                {fmtHoras(entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0))}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Total de créditos</p>
+            </Card>
+
+            <Card className="p-4 border-2 border-rose-500/20">
+              <p className="text-sm text-muted-foreground">Horas negativas</p>
+              <p className="text-3xl font-bold mt-1 text-rose-500">
+                {fmtHoras(entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0))}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Total de débitos</p>
+            </Card>
+          </div>
+
+          {/* Alertas */}
+          {saldo > 40 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <span className="text-amber-500 text-lg">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-600">Excesso de horas no banco</p>
+                <p className="text-xs text-amber-600">
+                  O saldo de {fmtHoras(saldo)} ultrapassa o limite recomendado de 40h. Considere agendar compensação.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {saldo < -20 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
+              <span className="text-rose-500 text-lg">🔴</span>
+              <div>
+                <p className="text-sm font-semibold text-rose-600">Saldo negativo elevado</p>
+                <p className="text-xs text-rose-600">
+                  O funcionário possui {fmtHoras(Math.abs(saldo))} a compensar. Verifique a situação.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Previsão de compensação */}
+          {saldo > 0 && (
+            <Card className="p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Previsão de compensação
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                <div className="p-3 rounded-lg bg-muted/40">
+                  <p className="text-xs text-muted-foreground">Compensando 2h/dia</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 2)} dias</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/40">
+                  <p className="text-xs text-muted-foreground">Compensando 4h/dia</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 4)} dias</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/40">
+                  <p className="text-xs text-muted-foreground">Folga integral (8h)</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 8)} dia(s)</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                * Previsão baseada no saldo atual de {fmtHoras(saldo)}
+              </p>
+            </Card>
+          )}
 
           {/* Novo lançamento */}
           <Card className="p-4 space-y-3">
