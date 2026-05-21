@@ -23,20 +23,12 @@ export default function PayrollDashboardTab() {
   const [extrasData, setExtrasData] = useState<any[]>([]);
 
   const now = new Date();
-  const [year] = useState(now.getFullYear());
-  const [month] = useState(now.getMonth() + 1);
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      console.log("Buscando período:", year, month);
-      const { data: periodTest, error: periodError } = await supabase
-        .from("payroll_periods" as any)
-        .select("*")
-        .limit(5);
-      console.log("Períodos encontrados:", periodTest, "Erro:", periodError);
-
-      // Busca período atual
       const { data: period } = await supabase
         .from("payroll_periods" as any)
         .select("id")
@@ -62,7 +54,6 @@ export default function PayrollDashboardTab() {
         });
       }
 
-      // Busca evolução dos últimos 6 meses
       const months = [];
       for (let i = 5; i >= 0; i--) {
         const d = new Date(year, month - 1 - i, 1);
@@ -77,7 +68,7 @@ export default function PayrollDashboardTab() {
             .eq("year", y).eq("month", m)
             .maybeSingle();
 
-          if (!p) return { mes: MONTHS[m - 1], proventos: 0, liquido: 0, descontos: 0 };
+          if (!p) return { mes: MONTHS[m - 1], proventos: 0, liquido: 0, descontos: 0, extras: 0 };
 
           const { data: ps } = await supabase
             .from("payslips" as any)
@@ -123,7 +114,6 @@ export default function PayrollDashboardTab() {
         </Button>
       </div>
 
-      {/* Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {cards.map((card) => (
           <Card key={card.label} className="p-4">
@@ -136,7 +126,6 @@ export default function PayrollDashboardTab() {
         ))}
       </div>
 
-      {/* Gráfico evolução da folha */}
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Evolução da folha — últimos 6 meses</h3>
         <ResponsiveContainer width="100%" height={240}>
@@ -153,7 +142,6 @@ export default function PayrollDashboardTab() {
         </ResponsiveContainer>
       </Card>
 
-      {/* Gráfico horas extras */}
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Horas extras por mês</h3>
         <ResponsiveContainer width="100%" height={200}>
