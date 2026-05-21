@@ -43,6 +43,8 @@ interface Props {
   activeTab: AdminTab;
   onTabChange: (tab: AdminTab) => void;
   onLogout: () => void;
+  isAdmin?: boolean;
+  isRh?: boolean;
 }
 
 const mainItems = [
@@ -74,7 +76,7 @@ const systemItems = [
   { key: "debug" as const, label: "Logs", icon: Activity },
 ];
 
-export default function AdminSidebar({ activeTab, onTabChange, onLogout }: Props) {
+export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin = false, isRh = false }: Props) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const isEpiActive = activeTab.startsWith("epi-");
@@ -178,25 +180,27 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout }: Props
         </SidebarGroup>
 
         {/* System */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Sistema</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {systemItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    isActive={activeTab === item.key}
-                    onClick={() => onTabChange(item.key)}
-                    tooltip={item.label}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Sistema</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {systemItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      isActive={activeTab === item.key}
+                      onClick={() => onTabChange(item.key)}
+                      tooltip={item.label}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-3">

@@ -53,7 +53,7 @@ const tabTitles: Record<AdminTab, string> = {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin, isRh } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
@@ -186,7 +186,7 @@ export default function AdminDashboard() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar activeTab={tab} onTabChange={setTab} onLogout={logout} />
+        <AdminSidebar activeTab={tab} onTabChange={setTab} onLogout={logout} isAdmin={isAdmin} isRh={isRh} />
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}

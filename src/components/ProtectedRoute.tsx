@@ -4,10 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 interface Props {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  requireRh?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: Props) {
-  const { user, isAdmin, loading } = useAuth();
+export default function ProtectedRoute({ children, requireAdmin = false, requireRh = false }: Props) {
+  const { user, isAdmin, isRh, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,6 +27,10 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Props
   }
 
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  if (requireRh && !isRh) {
     return <Navigate to="/admin/login" replace />;
   }
 
