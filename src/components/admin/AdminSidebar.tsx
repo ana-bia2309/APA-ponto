@@ -1,7 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Percent,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Percent, Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +35,7 @@ export type AdminTab =
   | "trabalhista-config"
   | "documentos"
   | "simulador-folha"
+  | "assistente-ia"
   | "payroll-closing"
   | "payslips"
   | "audit"
@@ -55,6 +56,7 @@ const mainItems = [
   { key: "records" as const, label: "Registros", icon: Clock },
   { key: "justifications" as const, label: "Atestados", icon: FileText },
   { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
+  { key: "assistente-ia" as const, label: "Assistente IA", icon: Sparkles },
 ];
 
 const epiItems = [
