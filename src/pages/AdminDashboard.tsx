@@ -27,6 +27,7 @@ import BancoHorasTab from "@/components/admin/payroll/BancoHorasTab";
 import TrabalhistaConfigTab from "@/components/admin/payroll/TrabalhistaConfigTab";
 import DocumentosTab from "@/components/admin/DocumentosTab";
 import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
+import AssistenteIA from "@/components/admin/AssistenteIA";
 import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
@@ -51,6 +52,7 @@ const tabTitles: Record<AdminTab, string> = {
   audit: "Auditoria",
   debug: "Logs do Sistema",
   users: "Gerenciar Usuários",
+  assistente: "Assistente IA",
 };
 
 export default function AdminDashboard() {
@@ -231,6 +233,7 @@ export default function AdminDashboard() {
               {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}
+              {tab === "assistente" && <AssistenteIA />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
