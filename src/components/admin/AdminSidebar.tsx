@@ -32,6 +32,7 @@ export type AdminTab =
   | "payroll-dashboard"
   | "payroll-settings"
   | "banco-horas"
+  | "trabalhista-config"
   | "payroll-closing"
   | "payslips"
   | "audit"
@@ -64,6 +65,7 @@ const payrollItems = [
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
   { key: "payslips" as const, label: "Holerites", icon: Receipt },
   { key: "banco-horas" as const, label: "Banco de Horas", icon: Clock },
+  { key: "trabalhista-config" as const, label: "Regras CLT", icon: FileText },
 ];
 
 const systemItems = [

@@ -24,6 +24,7 @@ import PayrollSettingsTab from "@/components/admin/payroll/PayrollSettingsTab";
 import PayrollClosingTab from "@/components/admin/payroll/PayrollClosingTab";
 import PayrollDashboardTab from "@/components/admin/payroll/PayrollDashboardTab";
 import BancoHorasTab from "@/components/admin/payroll/BancoHorasTab";
+import TrabalhistaConfigTab from "@/components/admin/payroll/TrabalhistaConfigTab";
 import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -41,6 +42,7 @@ const tabTitles: Record<AdminTab, string> = {
   "epi-history": "EPIs — Histórico",
   "payroll-dashboard": "Folha — Dashboard",
   "banco-horas": "Folha — Banco de Horas",
+  "trabalhista-config": "Folha — Regras CLT",
   "payroll-settings": "Folha — Configurações Salariais",
   "payroll-closing": "Folha — Fechamento",
   payslips: "Folha — Holerites",
@@ -219,6 +221,7 @@ export default function AdminDashboard() {
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
               {tab === "payroll-dashboard" && <PayrollDashboardTab />}
               {tab === "banco-horas" && <BancoHorasTab employees={employees} />}
+              {tab === "trabalhista-config" && <TrabalhistaConfigTab />}
               {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}
