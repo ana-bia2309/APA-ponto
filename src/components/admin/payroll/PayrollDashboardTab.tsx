@@ -142,7 +142,7 @@ export default function PayrollDashboardTab() {
         </ResponsiveContainer>
       </Card>
 
-      <Card className="p-4">
+    <Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Horas extras por mês</h3>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={extrasData}>
@@ -151,6 +151,22 @@ export default function PayrollDashboardTab() {
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
             <Bar dataKey="extras" name="Horas extras" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Comparativo mensal — proventos vs líquido</h3>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={evolucao}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+            <Tooltip formatter={(v: any) => fmt(v)} />
+            <Legend />
+            <Bar dataKey="proventos" name="Proventos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="liquido" name="Líquido" fill="#10b981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="descontos" name="Descontos" fill="#f43f5e" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
