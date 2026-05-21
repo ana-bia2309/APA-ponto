@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -414,11 +415,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{d.epis?.name || "EPI"}</span>
-                    {d.status === "aceito" ? (
-                      <Badge className="bg-emerald-600 text-white text-[10px]">✓ Aceito</Badge>
-                    ) : (
-                      <Badge className="bg-amber-500 text-white text-[10px]">Pendente</Badge>
-                    )}
+                    <StatusBadge status={d.status === "aceito" ? "aprovado" : "pendente"} label={d.status === "aceito" ? "Aceito" : "Pendente"} />
                     {expiryBadge(d.expires_at)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
