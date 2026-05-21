@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { SkeletonDashboard } from "@/components/ui/skeleton-card";
 import { Button } from "@/components/ui/button";
 import { Users, Clock, WifiOff, AlertTriangle, Activity, UserCheck, UserX, FileText, RefreshCw } from "lucide-react";
 
@@ -122,26 +123,7 @@ export default function DashboardTab() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-4 animate-pulse">
-              <div className="h-10 bg-muted rounded" />
-            </Card>
-          ))}
-        </div>
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-3 animate-pulse">
-              <div className="h-8 bg-muted rounded" />
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <SkeletonDashboard />;
 
   return (
     <div className="space-y-5">
