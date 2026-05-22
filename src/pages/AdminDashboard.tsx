@@ -28,6 +28,8 @@ import TrabalhistaConfigTab from "@/components/admin/payroll/TrabalhistaConfigTa
 import DocumentosTab from "@/components/admin/DocumentosTab";
 import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import AssistenteIA from "@/components/admin/AssistenteIA";
+import UniformsTab from "@/components/admin/UniformsTab";
+import ToolsTab from "@/components/admin/ToolsTab";
 import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
@@ -53,6 +55,12 @@ const tabTitles: Record<AdminTab, string> = {
   debug: "Logs do Sistema",
   users: "Gerenciar Usuários",
   assistente: "Assistente IA",
+  "uniforms-catalog": "Uniformes — Catálogo",
+  "uniforms-deliveries": "Uniformes — Entregas",
+  "uniforms-history": "Uniformes — Histórico",
+  "tools-catalog": "Ferramentas — Catálogo",
+  "tools-loans": "Ferramentas — Empréstimos",
+  "tools-history": "Ferramentas — Histórico",
 };
 
 export default function AdminDashboard() {
@@ -229,7 +237,9 @@ export default function AdminDashboard() {
               {tab === "payroll-dashboard" && <PayrollDashboardTab />}
               {tab === "banco-horas" && <BancoHorasTab employees={employees} />}
               {tab === "trabalhista-config" && <TrabalhistaConfigTab />}
-              {tab === "documentos" && <DocumentosTab employees={employees} />},
+              {tab === "documentos" && <DocumentosTab employees={employees} />}
+{tab === "uniforms-catalog" || tab === "uniforms-deliveries" || tab === "uniforms-history" ? <UniformsTab employees={employees} /> : null}
+{tab === "tools-catalog" || tab === "tools-loans" || tab === "tools-history" ? <ToolsTab employees={employees} /> : null}
               {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}

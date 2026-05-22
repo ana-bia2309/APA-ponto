@@ -1,6 +1,6 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
-  Package, Truck, AlertTriangle, History, LogOut, ChevronDown,
+  Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
   DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles,
 } from "lucide-react";
 import {
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export type AdminTab =
   | "dashboard"
@@ -29,6 +28,12 @@ export type AdminTab =
   | "epi-deliveries"
   | "epi-alerts"
   | "epi-history"
+  | "uniforms-catalog"
+  | "uniforms-deliveries"
+  | "uniforms-history"
+  | "tools-catalog"
+  | "tools-loans"
+  | "tools-history"
   | "payroll-dashboard"
   | "payroll-settings"
   | "banco-horas"
@@ -65,6 +70,18 @@ const epiItems = [
   { key: "epi-history" as const, label: "Histórico", icon: History },
 ];
 
+const uniformItems = [
+  { key: "uniforms-catalog" as const, label: "Catálogo", icon: Package },
+  { key: "uniforms-deliveries" as const, label: "Entregas", icon: Shirt },
+  { key: "uniforms-history" as const, label: "Histórico", icon: History },
+];
+
+const toolItems = [
+  { key: "tools-catalog" as const, label: "Catálogo", icon: Package },
+  { key: "tools-loans" as const, label: "Empréstimos", icon: Wrench },
+  { key: "tools-history" as const, label: "Histórico", icon: History },
+];
+
 const payrollItems = [
   { key: "payroll-dashboard" as const, label: "Dashboard", icon: BarChart2 },
   { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
@@ -80,10 +97,36 @@ const systemItems = [
   { key: "debug" as const, label: "Logs", icon: Activity },
 ];
 
+function MenuGroup({ items, activeTab, onTabChange, collapsed }: {
+  items: { key: AdminTab; label: string; icon: any }[];
+  activeTab: AdminTab;
+  onTabChange: (tab: AdminTab) => void;
+  collapsed: boolean;
+}) {
+  return (
+    <SidebarMenu>
+      {items.map((item) => (
+        <SidebarMenuItem key={item.key}>
+          <SidebarMenuButton
+            isActive={activeTab === item.key}
+            onClick={() => onTabChange(item.key)}
+            tooltip={item.label}
+          >
+            <item.icon className="h-4 w-4" />
+            {!collapsed && <span>{item.label}</span>}
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
+}
+
 export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin = false, isRh = false }: Props) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const isEpiActive = activeTab.startsWith("epi-");
+  const isUniformActive = activeTab.startsWith("uniforms-");
+  const isToolActive = activeTab.startsWith("tools-");
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -96,24 +139,11 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main */}
+        {/* Principal */}
         <SidebarGroup>
           <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    isActive={activeTab === item.key}
-                    onClick={() => onTabChange(item.key)}
-                    tooltip={item.label}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <MenuGroup items={mainItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -131,20 +161,47 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {epiItems.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton
-                        isActive={activeTab === item.key}
-                        onClick={() => onTabChange(item.key)}
-                        tooltip={item.label}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.label}</span>}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
+                <MenuGroup items={epiItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        {/* Uniformes */}
+        <SidebarGroup>
+          <Collapsible defaultOpen={isUniformActive}>
+            <CollapsibleTrigger className="w-full">
+              <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
+                <span className="flex items-center gap-2">
+                  <Shirt className="h-4 w-4" />
+                  {!collapsed && "Uniformes"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3" />}
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <MenuGroup items={uniformItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        {/* Ferramentas */}
+        <SidebarGroup>
+          <Collapsible defaultOpen={isToolActive}>
+            <CollapsibleTrigger className="w-full">
+              <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
+                <span className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4" />
+                  {!collapsed && "Ferramentas"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3" />}
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <MenuGroup items={toolItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
               </SidebarGroupContent>
             </CollapsibleContent>
           </Collapsible>
@@ -152,7 +209,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
 
         {/* Folha de Pagamento */}
         <SidebarGroup>
-          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips"}>
+          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips" || activeTab === "banco-horas" || activeTab === "trabalhista-config"}>
             <CollapsibleTrigger className="w-full">
               <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
                 <span className="flex items-center gap-2">
@@ -164,44 +221,18 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {payrollItems.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton
-                        isActive={activeTab === item.key}
-                        onClick={() => onTabChange(item.key)}
-                        tooltip={item.label}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.label}</span>}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
+                <MenuGroup items={payrollItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
               </SidebarGroupContent>
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>
 
-        {/* System */}
+        {/* Sistema */}
         {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Sistema</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {systemItems.map((item) => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      isActive={activeTab === item.key}
-                      onClick={() => onTabChange(item.key)}
-                      tooltip={item.label}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.label}</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              <MenuGroup items={systemItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
             </SidebarGroupContent>
           </SidebarGroup>
         )}
