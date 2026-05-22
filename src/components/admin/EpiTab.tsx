@@ -120,7 +120,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
   const [expandedEpi, setExpandedEpi] = useState<string | null>(null);
 
   const fetchEpis = useCallback(async () => {
-    const { data } = await supabase.from("epis").select("*").order("name");
+    const { data } = await supabase.from("epi_catalog" as any).select("*").order("name");
     if (data) setEpis(data as any);
   }, []);
 
@@ -140,7 +140,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
   const addEpi = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    const { error } = await supabase.from("epis").insert({
+    const { error } = await supabase.from("epi_catalog" as any).insert({
       name: newName.trim(),
       category: newCategory,
       validity_days: parseInt(newValidity) || 365,
@@ -169,7 +169,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
 
   const saveEditEpi = async () => {
     if (!editingEpi || !editName.trim()) return;
-    const { error } = await supabase.from("epis").update({
+    const { error } = await supabase.from("epi_catalog" as any).update({
       name: editName.trim(),
       category: editCategory,
       validity_days: parseInt(editValidity) || 365,
@@ -186,7 +186,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
 
   const deleteEpi = async (id: string) => {
     if (!confirm("Excluir este EPI e todas as entregas vinculadas?")) return;
-    const { error } = await supabase.from("epis").delete().eq("id", id);
+    const { error } = await supabase.from("epi_catalog" as any).delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir"); return; }
     toast.success("EPI excluído!");
     fetchEpis();

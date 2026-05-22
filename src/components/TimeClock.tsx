@@ -35,6 +35,8 @@ import AbsenceJustification from "@/components/AbsenceJustification";
 import EpiAcceptance from "@/components/EpiAcceptance";
 import MeusDocumentos from "@/components/MeusDocumentos";
 import PayslipSign from "@/components/PayslipSign";
+import UniformAcceptance from "@/components/UniformAcceptance";
+import ToolAcceptance from "@/components/ToolAcceptance";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -514,7 +516,13 @@ export default function TimeClock() {
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
   const [showPayslipSign, setShowPayslipSign] = useState(false);
   const [pendingPayslipCount, setPendingPayslipCount] = useState(0);
+const [pendingUniformCount, setPendingUniformCount] = useState(0);
+const [pendingUniform, setPendingUniform] = useState<{ uniform_name: string; delivered_at: string }[]>([]);
+const [pendingToolCount, setPendingToolCount] = useState(0);
+const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at: string }[]>([]);
   const [showDocumentos, setShowDocumentos] = useState(false);
+  const [showUniformAcceptance, setShowUniformAcceptance] = useState(false);
+const [showToolAcceptance, setShowToolAcceptance] = useState(false);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -636,6 +644,34 @@ export default function TimeClock() {
     }
   }, []);
 
+  const fetchPendingUniformCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingUniformCount(0); return; }
+    try {
+      const { data, error } = await supabase.rpc("get_pending_uniforms_by_cpf" as any, { p_cpf: cpfDigits });
+      if (error) throw error;
+      const arr = Array.isArray(data) ? data : [];
+      setPendingUniformCount(arr.length);
+      setPendingUniform(arr.map((d: any) => ({ uniform_name: d.uniform_name, delivered_at: d.delivered_at })));
+    } catch (e) {
+      console.error("Erro ao buscar uniformes pendentes", e);
+    }
+  }, []);
+
+  const fetchPendingToolCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingToolCount(0); return; }
+    try {
+      const { data, error } = await supabase.rpc("get_pending_tools_by_cpf" as any, { p_cpf: cpfDigits });
+      if (error) throw error;
+      const arr = Array.isArray(data) ? data : [];
+      setPendingToolCount(arr.length);
+      setPendingTools(arr.map((d: any) => ({ tool_name: d.tool_name, loaned_at: d.loaned_at })));
+    } catch (e) {
+      console.error("Erro ao buscar ferramentas pendentes", e);
+    }
+  }, []);
+
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
     setSuccessMessage("");
@@ -661,6 +697,10 @@ export default function TimeClock() {
     setPendingEpis([]);
     setShowPayslipSign(false);
     setPendingPayslipCount(0);
+    setPendingUniformCount(0);
+    setPendingUniform([]);
+    setPendingToolCount(0);
+    setPendingTools([]);
     setLoading(false);
     setStatusNotice(null);
     setRecordsLoading(false);
@@ -685,6 +725,8 @@ export default function TimeClock() {
           fetchNextStep(validatedContext.cpf_normalized),
           fetchPendingEpiCount(validatedContext.cpf_normalized),
           fetchPendingPayslipCount(validatedContext.cpf_normalized),
+          fetchPendingUniformCount(validatedContext.cpf_normalized),
+          fetchPendingToolCount(validatedContext.cpf_normalized),
         ]);
       }
       setIsSyncing(false);
@@ -1301,6 +1343,27 @@ export default function TimeClock() {
     );
   }
 
+  if (showUniformAcceptance && selectedEmployee && validatedContext) {
+    return (
+      <UniformAcceptance
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowUniformAcceptance(false)}
+        onAccepted={() => fetchPendingUniformCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+
+  if (showToolAcceptance && selectedEmployee && validatedContext) {
+    return (
+      <ToolAcceptance
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowToolAcceptance(false)}
+        onAccepted={() => fetchPendingToolCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
   if (showPayslipSign && selectedEmployee && validatedContext) {
     return (
       <PayslipSign
@@ -2096,6 +2159,90 @@ export default function TimeClock() {
               }}
             >
               Ver e assinar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Uniforme pending card */}
+      {pendingUniformCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(270 60% 16%), hsl(275 55% 12%))",
+            borderColor: "hsl(270 70% 35%)",
+            boxShadow: "0 4px 24px hsl(270 80% 20% / 0.35), inset 0 1px 0 hsl(270 90% 60% / 0.1)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(270 80% 50%), hsl(280 85% 50%))" }}>
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(270 90% 80%)" }}>
+                  {pendingUniformCount === 1 ? "Uniforme pendente de confirmação" : `${pendingUniformCount} uniformes pendentes`}
+                </p>
+                {pendingUniform[0] && (
+                  <p className="text-xs mt-1" style={{ color: "hsl(270 50% 65%)" }}>
+                    👕 {pendingUniform[0].uniform_name} • Entregue em {new Date(pendingUniform[0].delivered_at + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowUniformAcceptance(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, hsl(270 80% 45%), hsl(280 85% 45%))",
+                color: "white",
+                boxShadow: "0 2px 10px hsl(270 80% 35% / 0.4)",
+              }}
+            >
+              Confirmar recebimento
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ferramenta pending card */}
+      {pendingToolCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(30 60% 16%), hsl(35 55% 12%))",
+            borderColor: "hsl(30 70% 35%)",
+            boxShadow: "0 4px 24px hsl(30 80% 20% / 0.35), inset 0 1px 0 hsl(30 90% 60% / 0.1)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(30 80% 50%), hsl(35 85% 50%))" }}>
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(30 90% 80%)" }}>
+                  {pendingToolCount === 1 ? "Ferramenta pendente de confirmação" : `${pendingToolCount} ferramentas pendentes`}
+                </p>
+                {pendingTools[0] && (
+                  <p className="text-xs mt-1" style={{ color: "hsl(30 50% 65%)" }}>
+                    🔧 {pendingTools[0].tool_name} • Emprestada em {new Date(pendingTools[0].loaned_at + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowToolAcceptance(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, hsl(30 80% 45%), hsl(35 85% 45%))",
+                color: "white",
+                boxShadow: "0 2px 10px hsl(30 80% 35% / 0.4)",
+              }}
+            >
+              Confirmar recebimento
             </button>
           </div>
         </div>
