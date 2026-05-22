@@ -517,7 +517,7 @@ export default function TimeClock() {
   const [showDocumentos, setShowDocumentos] = useState(false);
 
   const filteredEmployees = selectedShift
-    ? employees.filter((e) => (e as any).shift === selectedShift)
+    ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
     : employees;
 
   const punchMode = selectedEmployee?.punch_mode ?? validatedContext?.punch_mode ?? "full";
