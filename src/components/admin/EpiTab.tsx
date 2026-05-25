@@ -41,6 +41,7 @@ interface EpiDelivery {
   created_at: string;
   status: string;
   signature_url: string | null;
+  signature_method?: string | null;
   accepted_at: string | null;
   accepted_by: string | null;
   tamanho: string;
@@ -127,7 +128,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
   const fetchDeliveries = useCallback(async () => {
     const { data } = await supabase
       .from("epi_deliveries")
-      .select("*, epi_catalog(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula)")
+      .select("*, epi_catalog(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula), signature_method")
       .order("delivered_at", { ascending: false });
     if (data) setDeliveries(data as any);
   }, []);
@@ -439,35 +440,54 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
                 </div>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" title="Baixar Termo"
-                    onClick={() => {
-                      const emp = employees.find(e => e.id === d.employee_id);
-                      generateEpiTermo({
-                        empresa: d.empresa || "",
-                        setor: d.setor || "",
-                        localEntrega: d.local_entrega || "",
-                        employeeName: d.employees?.name || emp?.name || "—",
-                        employeeCpf: emp?.cpf || d.employees?.cpf || "",
-                        cargo: d.employees?.cargo || "",
-                        departamento: d.employees?.departamento || "",
-                        matricula: d.employees?.matricula || "",
-                        epiName: d.epis?.name || "EPI",
-                        epiCategory: d.epis?.category || "",
-                        codigo: d.epis?.codigo || "",
-                        ca: d.epis?.ca || "",
-                        marca: d.epis?.marca || "",
-                        tamanho: d.tamanho || "",
-                        quantidade: d.quantidade || 1,
-                        estado: d.estado || "Novo",
-                        finalidade: d.finalidade || "",
-                        deliveredAt: d.delivered_at,
-                        expiresAt: d.expires_at,
-                        deliveredBy: d.delivered_by,
-                        notes: d.notes,
-                        status: d.status,
-                        acceptedAt: d.accepted_at,
-                        signatureUrl: d.signature_url,
-                      });
-                    }}>
+                    onClick={async () => {
+  let signatureDataUrl: string | null = null;
+  if (d.signature_url && d.status === "aceito") {
+    try {
+      const { data: signed } = await supabase.storage
+        .from("epi-signatures")
+        .createSignedUrl(d.signature_url, 60);
+      if (signed?.signedUrl) {
+        const res = await fetch(signed.signedUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const u8 = new Uint8Array(await blob.arrayBuffer());
+          let bin = "";
+          u8.forEach(b => (bin += String.fromCharCode(b)));
+          signatureDataUrl = `data:image/png;base64,${btoa(bin)}`;
+        }
+      }
+    } catch {}
+  }
+  const emp = employees.find(e => e.id === d.employee_id);
+  generateEpiTermo({
+    empresa: d.empresa || "",
+    setor: d.setor || "",
+    localEntrega: d.local_entrega || "",
+    employeeName: d.employees?.name || emp?.name || "—",
+    employeeCpf: d.employees?.cpf || emp?.cpf || "",
+    cargo: d.employees?.cargo || "",
+    departamento: d.employees?.departamento || "",
+    matricula: d.employees?.matricula || "",
+    epiName: d.epis?.name || "EPI",
+    epiCategory: d.epis?.category || "",
+    codigo: d.epis?.codigo || "",
+    ca: d.epis?.ca || "",
+    marca: d.epis?.marca || "",
+    tamanho: d.tamanho || "",
+    quantidade: d.quantidade || 1,
+    estado: d.estado || "Novo",
+    finalidade: d.finalidade || "",
+    deliveredAt: d.delivered_at,
+    expiresAt: d.expires_at,
+    deliveredBy: d.delivered_by,
+    notes: d.notes,
+    status: d.status,
+    acceptedAt: d.accepted_at,
+    signatureDataUrl,
+    signatureMethod: d.signature_method || null,
+  });
+}}>
                     <FileDown className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">

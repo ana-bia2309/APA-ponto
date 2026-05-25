@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Shirt, Plus, Trash2, Package, Clock, User, Pencil, X, Check } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { FileDown } from "lucide-react";
+import { generateUniformTermo } from "@/lib/generateUniformTermo";
 
 type Employee = Tables<"employees">;
 
@@ -29,8 +31,11 @@ interface UniformDelivery {
   condition: string;
   notes: string | null;
   status: string;
+  accepted_at?: string | null;
+  signature_url?: string | null;
+  signature_method?: string | null;
   uniforms?: { name: string; category: string };
-  employees?: { name: string };
+  employees?: { name: string; cpf?: string };
 }
 
 type SubTab = "catalog" | "deliveries" | "history";
@@ -69,7 +74,7 @@ export default function UniformsTab({ employees }: { employees: Employee[] }) {
   const fetchDeliveries = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("uniform_deliveries")
-      .select("*, uniforms(name, category), employees(name)")
+      .select("*, uniforms(name, category), employees(name, cpf), signature_method")
       .order("delivered_at", { ascending: false });
     if (data) setDeliveries(data);
   }, []);
@@ -266,10 +271,52 @@ export default function UniformsTab({ employees }: { employees: Employee[] }) {
                     Resp: {d.delivered_by}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+             <Button variant="ghost" size="sm" title="Baixar Termo" onClick={async () => {
+  let signatureDataUrl: string | null = null;
+  if (d.signature_url && d.status === "aceito") {
+    try {
+      const { data: signed } = await supabase.storage
+        .from("epi-signatures")
+        .createSignedUrl(d.signature_url, 60);
+      if (signed?.signedUrl) {
+        const res = await fetch(signed.signedUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const ab = await blob.arrayBuffer();
+          const u8 = new Uint8Array(ab);
+          let bin = "";
+          u8.forEach(b => (bin += String.fromCharCode(b)));
+          signatureDataUrl = `data:image/png;base64,${btoa(bin)}`;
+        }
+      }
+    } catch {}
+  }
+  generateUniformTermo({
+    employeeName: d.employees?.name || "—",
+    employeeCpf: d.employees?.cpf || "",
+    cargo: "",
+    departamento: "",
+    matricula: "",
+    uniformName: d.uniforms?.name || "Uniforme",
+    category: d.uniforms?.category || "",
+    size: d.size || "",
+    quantity: d.quantity || 1,
+    condition: d.condition || "Novo",
+    deliveredAt: d.delivered_at,
+    deliveredBy: d.delivered_by || "",
+    notes: d.notes || null,
+    status: d.status || "pendente",
+    acceptedAt: d.accepted_at || null,
+    signatureDataUrl,
+    signatureMethod: d.signature_method || null,
+  });
+}}>
+  <FileDown className="w-3.5 h-3.5" />
+</Button>
+<Button variant="ghost" size="sm" onClick={() => deleteDelivery(d.id)} className="text-destructive">
+  <Trash2 className="w-3.5 h-3.5" />
+</Button>
+</div>
             </Card>
           ))}
           {deliveries.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nenhuma entrega registrada</p>}

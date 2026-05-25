@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Wrench, Check, ArrowLeft, Package, Calendar, Shield, KeyRound, MessageSquare, Pencil, Loader2 } from "lucide-react";
+import { Wrench, Check, ArrowLeft, Package, Calendar, Shield, Pencil, Loader2 } from "lucide-react";
 import SignaturePad from "./SignaturePad";
 
 interface PendingTool {
@@ -32,11 +32,7 @@ export default function ToolAcceptance({ cpf, employeeName, onClose, onAccepted 
   const [pending, setPending] = useState<PendingTool[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<PendingTool | null>(null);
-  const [method, setMethod] = useState<"senha" | "otp" | "desenho" | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState<string | null>(null);
   const [termoRead, setTermoRead] = useState(false);
 
   const fetchPending = useCallback(async () => {
@@ -55,24 +51,7 @@ export default function ToolAcceptance({ cpf, employeeName, onClose, onAccepted 
   useEffect(() => { fetchPending(); }, [fetchPending]);
 
   const resetSelection = () => {
-    setSelected(null); setMethod(null); setPassword(""); setOtp(""); setOtpSent(null); setTermoRead(false);
-  };
-
-  const persistSign = async (payload: { method: "senha" | "otp" | "desenho"; signature_url?: string }) => {
-    if (!selected) return;
-    setSubmitting(true);
-    try {
-      await (supabase as any).from("tool_loans").update({
-        status: "confirmada",
-        notes: `Confirmado via ${payload.method} em ${new Date().toLocaleString("pt-BR")}`,
-      }).eq("id", selected.id);
-      toast.success("Ferramenta confirmada!");
-      resetSelection();
-      onAccepted();
-      fetchPending();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao confirmar");
-    } finally { setSubmitting(false); }
+    setSelected(null); setTermoRead(false);
   };
 
   const handleDrawn = async (blob: Blob) => {
@@ -81,25 +60,21 @@ export default function ToolAcceptance({ cpf, employeeName, onClose, onAccepted 
     try {
       const fileName = `tool_${selected.id}_${Date.now()}.png`;
       await supabase.storage.from("epi-signatures").upload(fileName, blob, { contentType: "image/png" });
-      await persistSign({ method: "desenho", signature_url: fileName });
+      await (supabase as any).from("tool_loans").update({
+        status: "confirmada",
+        signature_url: fileName,
+        signature_method: "desenho",
+        accepted_at: new Date().toISOString(),
+        accepted_device: navigator.userAgent,
+      }).eq("id", selected.id);
+      toast.success("Ferramenta confirmada!");
+      resetSelection();
+      onAccepted();
+      fetchPending();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar assinatura");
+      toast.error(err.message || "Erro ao confirmar");
       setSubmitting(false);
     }
-  };
-
-  const handleCpf = async () => {
-    const digits = password.replace(/\D/g, "");
-    if (digits !== cpf.replace(/\D/g, "")) {
-      toast.error("CPF incorreto"); return;
-    }
-    await persistSign({ method: "senha" });
-  };
-
-  const gerarOtp = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setOtpSent(code);
-    toast.success(`Código OTP: ${code}`, { duration: 8000 });
   };
 
   if (selected) {
@@ -143,80 +118,19 @@ export default function ToolAcceptance({ cpf, employeeName, onClose, onAccepted 
               <input type="checkbox" checked={termoRead} onChange={e => setTermoRead(e.target.checked)} className="mt-0.5 accent-emerald-500" />
               <span className="text-xs" style={{ color: textMuted }}>Li e compreendi o Termo de Responsabilidade e confirmo o recebimento desta ferramenta.</span>
             </label>
-          ) : !method ? (
-            <div className="space-y-3">
-              <p className="text-xs text-center mb-2" style={{ color: textMuted }}>Escolha o método de assinatura</p>
-              <button onClick={() => setMethod("senha")} className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/10 transition-all hover:-translate-y-0.5" style={{ background: cardBg }}>
-                <KeyRound className="w-5 h-5" style={{ color: "hsl(210 70% 60%)" }} />
-                <div className="text-left"><p className="text-sm font-semibold" style={{ color: textLight }}>CPF</p><p className="text-[11px]" style={{ color: textMuted }}>Confirme com seu CPF</p></div>
-              </button>
-              <button onClick={() => setMethod("otp")} className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/10 transition-all hover:-translate-y-0.5" style={{ background: cardBg }}>
-                <MessageSquare className="w-5 h-5" style={{ color: "hsl(40 90% 60%)" }} />
-                <div className="text-left"><p className="text-sm font-semibold" style={{ color: textLight }}>Código OTP</p><p className="text-[11px]" style={{ color: textMuted }}>Código de 6 dígitos (5 min)</p></div>
-              </button>
-              <button onClick={() => setMethod("desenho")} className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/10 transition-all hover:-translate-y-0.5" style={{ background: cardBg }}>
-                <Pencil className="w-5 h-5" style={{ color: "hsl(152 60% 55%)" }} />
-                <div className="text-left"><p className="text-sm font-semibold" style={{ color: textLight }}>Assinatura desenhada</p><p className="text-[11px]" style={{ color: textMuted }}>Desenhe sua assinatura na tela</p></div>
-              </button>
-            </div>
           ) : (
             <div className="rounded-2xl p-4 border border-white/10 space-y-3" style={{ background: cardBg }}>
-              <button onClick={() => setMethod(null)} className="text-xs flex items-center gap-1" style={{ color: textMuted }}>
-                <ArrowLeft className="w-3 h-3" /> Trocar método
-              </button>
-
-              {method === "senha" && (
-                <>
-                  <p className="text-xs" style={{ color: textMuted }}>Digite seu CPF (somente números) para confirmar.</p>
-                  <input type="password" inputMode="numeric" placeholder="00000000000" value={password}
-                    onChange={e => setPassword(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                    className="w-full h-12 rounded-xl px-3 text-base bg-black/30 border border-white/10" style={{ color: textLight }} />
-                  <button disabled={submitting || password.length !== 11} onClick={handleCpf}
-                    className="w-full h-12 rounded-xl font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40"
-                    style={{ background: "linear-gradient(135deg, hsl(210 70% 45%), hsl(200 80% 50%))" }}>
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Confirmar</>}
-                  </button>
-                </>
-              )}
-
-              {method === "otp" && (
-                <>
-                  {!otpSent ? (
-                    <>
-                      <p className="text-xs" style={{ color: textMuted }}>Gere um código OTP de 6 dígitos válido por 5 minutos.</p>
-                      <button onClick={gerarOtp} className="w-full h-12 rounded-xl font-semibold text-white"
-                        style={{ background: "linear-gradient(135deg, hsl(40 85% 45%), hsl(35 80% 40%))" }}>
-                        Gerar código OTP
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs" style={{ color: textMuted }}>Código gerado. Digite-o abaixo para confirmar.</p>
-                      <input inputMode="numeric" placeholder="000000" value={otp}
-                        onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="w-full h-12 rounded-xl px-3 text-center text-2xl tracking-[0.4em] bg-black/30 border border-white/10"
-                        style={{ color: textLight }} />
-                      <button disabled={submitting || otp !== otpSent} onClick={() => persistSign({ method: "otp" })}
-                        className="w-full h-12 rounded-xl font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40"
-                        style={{ background: "linear-gradient(135deg, hsl(40 85% 45%), hsl(35 80% 40%))" }}>
-                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Confirmar OTP</>}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-
-              {method === "desenho" && (
-                <>
-                  <p className="text-xs" style={{ color: textMuted }}>Assine no quadro abaixo:</p>
-                  {submitting ? (
-                    <div className="flex items-center justify-center gap-2 py-8" style={{ color: textMuted }}>
-                      <Loader2 className="w-5 h-5 animate-spin" /> Enviando...
-                    </div>
-                  ) : (
-                    <SignaturePad onSign={handleDrawn} width={Math.min(320, window.innerWidth - 80)} height={180} />
-                  )}
-                </>
+              <div className="flex items-center gap-2">
+                <Pencil className="w-4 h-4" style={{ color: "hsl(152 60% 55%)" }} />
+                <p className="text-sm font-semibold" style={{ color: textLight }}>Assine abaixo para confirmar</p>
+              </div>
+              <p className="text-xs" style={{ color: textMuted }}>Desenhe sua assinatura no quadro:</p>
+              {submitting ? (
+                <div className="flex items-center justify-center gap-2 py-8" style={{ color: textMuted }}>
+                  <Loader2 className="w-5 h-5 animate-spin" /> Enviando...
+                </div>
+              ) : (
+                <SignaturePad onSign={handleDrawn} width={Math.min(320, window.innerWidth - 80)} height={180} />
               )}
             </div>
           )}

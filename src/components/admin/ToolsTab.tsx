@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { generateToolTermo } from "@/lib/generateToolTermo";
+import { FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,7 +66,7 @@ export default function ToolsTab({ employees }: { employees: Employee[] }) {
   const fetchLoans = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("tool_loans")
-      .select("*, tools(name, category), employees(name)")
+      .select("*, tools(name, category, serial_number), employees(name, cpf, cargo, departamento, matricula)")
       .order("loaned_at", { ascending: false });
     if (data) setLoans(data);
   }, []);
@@ -276,7 +278,7 @@ export default function ToolsTab({ employees }: { employees: Employee[] }) {
         </div>
       )}
 
-      {subTab === "history" && (
+   {subTab === "history" && (
         <div className="space-y-3">
           {loans.map(l => (
             <Card key={l.id} className="p-3">
@@ -294,9 +296,31 @@ export default function ToolsTab({ employees }: { employees: Employee[] }) {
                     {l.returned_at && ` • Retorno: ${new Date(l.returned_at + "T00:00:00").toLocaleDateString("pt-BR")}`}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => deleteLoan(l.id)} className="text-destructive">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" title="Baixar Termo"
+                    onClick={() => generateToolTermo({
+                      employeeName: l.employees?.name || "—",
+                      employeeCpf: (l.employees as any)?.cpf || "",
+                      cargo: (l.employees as any)?.cargo || "",
+                      departamento: (l.employees as any)?.departamento || "",
+                      matricula: (l.employees as any)?.matricula || "",
+                      toolName: l.tools?.name || "Ferramenta",
+                      category: l.tools?.category || "",
+                      serialNumber: (l.tools as any)?.serial_number || null,
+                      loanedAt: l.loaned_at,
+                      loanedBy: l.loaned_by,
+                      returnedAt: l.returned_at,
+                      notes: l.notes,
+                      status: l.status,
+                      acceptedAt: null,
+                      signatureDataUrl: null,
+                    })}>
+                    <FileDown className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteLoan(l.id)} className="text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
