@@ -127,7 +127,7 @@ export default function EpiTab({ employees, activeSubTab }: { employees: Employe
   const fetchDeliveries = useCallback(async () => {
     const { data } = await supabase
       .from("epi_deliveries")
-      .select("*, epis(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula)")
+      .select("*, epi_catalog(name, category, ca, marca, codigo), employees(name, cpf, cargo, departamento, matricula)")
       .order("delivered_at", { ascending: false });
     if (data) setDeliveries(data as any);
   }, []);
