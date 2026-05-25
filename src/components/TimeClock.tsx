@@ -1793,7 +1793,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            AMR Ponto
+            APA Ponto
           </div>
           <p className="text-xl font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>{pendingEmployee.name}</p>
           <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>Informe seu CPF para continuar</p>
@@ -1852,7 +1852,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
 
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            AMR Ponto
+            APA Ponto
           </div>
 
           <p className="text-sm tracking-wider mb-6" style={{ color: "hsl(210 20% 60%)" }}>Refrigeração e Climatização</p>
@@ -1916,7 +1916,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
-            AMR Ponto
+            APA Ponto
           </div>
           <p className="text-sm tracking-wider mb-4" style={{ color: "hsl(210 20% 55%)" }}>Refrigeração e Climatização</p>
           <p className="text-lg font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>
@@ -1993,7 +1993,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
           <Clock className="w-3 h-3" />
-          AMR Ponto
+          APA Ponto
         </div>
         <p className="text-xs tracking-wider mb-3" style={{ color: "hsl(210 20% 50%)" }}>Refrigeração e Climatização</p>
         <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>

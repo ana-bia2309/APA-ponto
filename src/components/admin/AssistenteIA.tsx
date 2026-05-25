@@ -45,7 +45,7 @@ export default function AssistenteIA() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([
     {
       role: "assistant",
-      content: "Olá! Sou o assistente de RH da AMR Ponto. Posso te ajudar com qualquer dúvida — sobre os funcionários, legislação trabalhista, cálculos de folha, ou qualquer outro assunto. O que você gostaria de saber?",
+      content: "Olá! Sou o assistente de RH da APA Ponto. Posso te ajudar com qualquer dúvida — sobre os funcionários, legislação trabalhista, cálculos de folha, ou qualquer outro assunto. O que você gostaria de saber?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -69,7 +69,7 @@ export default function AssistenteIA() {
     try {
       const ctx = await buscarContexto();
 
-      const sistemaPrompt = `Você é um assistente de RH inteligente da empresa AMR Refrigeração e Climatização, integrado ao sistema AMR Ponto.
+      const sistemaPrompt = `Você é um assistente de RH inteligente da empresa APA Refrigeração e Climatização, integrado ao sistema APA Ponto.
 
 Dados atuais do sistema (${ctx.month}/${ctx.year}):
 - Funcionários ativos: ${ctx.employees.length}

@@ -253,7 +253,7 @@ export async function generateMonthlyReport(
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...C.white);
-  doc.text("AMR Ponto", margin, 14);
+  doc.text("APA Ponto", margin, 14);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -439,7 +439,7 @@ export async function generateMonthlyReport(
   doc.setTextColor(...C.subtleText);
   doc.setFont("helvetica", "normal");
   doc.text(
-    `Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — AMR Ponto`,
+    `Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — APA Ponto`,
     pageWidth / 2,
     footerY,
     { align: "center" }
@@ -496,7 +496,7 @@ export async function generateMonthlyExcel(
 
   const monthLabel = `${MONTHS[month - 1]} ${year}`;
   const rows: string[][] = [];
-  rows.push(["AMR Ponto - Folha de Ponto"]);
+  rows.push(["APA Ponto - Folha de Ponto"]);
   rows.push([`Colaborador: ${employee.name}`]);
   rows.push([`Período: ${monthLabel}`]);
   rows.push([`Turno: ${shiftLabel} | Escala: ${escalaLabel}`]);

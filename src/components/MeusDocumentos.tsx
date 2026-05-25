@@ -257,7 +257,7 @@ const empId = empData?.id;
       pdf.setDrawColor(15,23,42); pdf.setLineWidth(0.5);
       pdf.line(M, pdf.internal.pageSize.getHeight()-12, W-M, pdf.internal.pageSize.getHeight()-12);
       pdf.setFontSize(6.5); pdf.setTextColor(120,120,130);
-      pdf.text("AMR Ponto — Espelho de Ponto", W/2, pdf.internal.pageSize.getHeight()-8, { align: "center" });
+      pdf.text("APA Ponto — Espelho de Ponto", W/2, pdf.internal.pageSize.getHeight()-8, { align: "center" });
 
       const safeName = (emp?.name || employeeName).replace(/[^a-zA-Z0-9]/g,"_").substring(0,30);
       pdf.save(`Espelho_${safeName}_${String(month).padStart(2,"0")}-${year}.pdf`);

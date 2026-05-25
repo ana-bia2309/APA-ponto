@@ -19,7 +19,7 @@ const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
       }`}
       style={{ background: "linear-gradient(180deg, hsl(220 25% 8%) 0%, hsl(220 30% 14%) 100%)" }}
     >
-      <p className="text-6xl font-bold text-white animate-scale-in">AMR</p>
+      <p className="text-6xl font-bold text-white animate-scale-in">APA</p>
       <p className="mt-4 text-lg font-semibold tracking-widest text-white/90 animate-fade-in">
         Refrigeração e Climatização
       </p>

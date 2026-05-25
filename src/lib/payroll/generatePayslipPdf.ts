@@ -235,7 +235,7 @@ export function generatePayslipPdf(data: PayslipPdfData): jsPDF {
   doc.setFontSize(7);
   doc.setTextColor(140);
   doc.text(
-    `Gerado em ${new Date().toLocaleString("pt-BR")} · AMR Ponto`,
+    `Gerado em ${new Date().toLocaleString("pt-BR")} · APA Ponto`,
     W / 2, 290, { align: "center" },
   );
 

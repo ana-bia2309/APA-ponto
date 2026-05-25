@@ -87,7 +87,7 @@ export async function generateEpiReport(data: EpiReportData) {
     doc.line(M, H - 14, W - M, H - 14);
     doc.setFontSize(6.5);
     doc.setTextColor(...MUTED);
-    doc.text("AMR Ponto — Relatório de EPIs do Colaborador", M, H - 9);
+    doc.text("APA Ponto — Relatório de EPIs do Colaborador", M, H - 9);
     doc.text(`Página ${pageNum} de ${totalPages}`, W - M, H - 9, { align: "right" });
     doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, W / 2, H - 9, { align: "center" });
   };

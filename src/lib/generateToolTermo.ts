@@ -197,7 +197,7 @@ export function generateToolTermo(data: ToolTermoData) {
   doc.setDrawColor(30, 60, 120); doc.setLineWidth(0.5);
   doc.line(M, H - 12, W - M, H - 12);
   doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-  doc.text("AMR Ponto — Termo de Empréstimo de Ferramenta", W / 2, H - 8, { align: "center" });
+  doc.text("APA Ponto — Termo de Empréstimo de Ferramenta", W / 2, H - 8, { align: "center" });
 
   const safeName = data.employeeName.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
   doc.save(`Termo_Ferramenta_${safeName}_${data.loanedAt}.pdf`);

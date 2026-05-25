@@ -267,7 +267,7 @@ function generateEspelhoPDF(
   doc.setDrawColor(15, 23, 42); doc.setLineWidth(0.5);
   doc.line(M, H - 12, W - M, H - 12);
   doc.setFontSize(6.5); doc.setTextColor(120, 120, 130);
-  doc.text(`AMR Ponto — Espelho de Ponto — Gerado em ${new Date().toLocaleString("pt-BR")}`, W / 2, H - 8, { align: "center" });
+  doc.text(`APA Ponto — Espelho de Ponto — Gerado em ${new Date().toLocaleString("pt-BR")}`, W / 2, H - 8, { align: "center" });
 
   const safeName = employee.name.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
   doc.save(`Espelho_${safeName}_${month.toString().padStart(2, "0")}-${year}.pdf`);
