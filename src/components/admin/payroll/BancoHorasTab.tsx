@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Clock, Plus, Trash2, RefreshCw, Calculator, List } from "lucide-react";
+import { Clock, Plus, Trash2, RefreshCw, Calculator, List, FileDown, FileSpreadsheet } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
@@ -145,18 +145,109 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
   const totalTrabalhado = diasCalculo.reduce((a, d) => a + Number(d.horas_trabalhadas), 0);
   const totalEsperado = diasCalculo.reduce((a, d) => a + Number(d.horas_esperadas), 0);
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
+const exportarPDF = () => {
+  import("jspdf").then(({ default: jsPDF }) => {
+    const emp = employees.find(e => e.id === selectedId);
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = doc.internal.pageSize.getWidth();
+    const M = 15;
 
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, W, 28, "F");
+    doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text("RELATÓRIO DE BANCO DE HORAS", W / 2, 11, { align: "center" });
+    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 200, 230);
+    doc.text("APA Refrigeração e Climatização", W / 2, 17, { align: "center" });
+    doc.text(`Funcionário: ${emp?.name || "—"}`, W / 2, 22, { align: "center" });
+
+    let y = 34;
+    doc.setFillColor(245, 247, 250);
+    doc.rect(M, y, W - M * 2, 12, "FD");
+    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
+    doc.text(`Saldo atual: ${fmtHoras(saldo)}`, M + 2, y + 5);
+    doc.text(`Créditos: ${fmtHoras(entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0))}`, M + 60, y + 5);
+    doc.text(`Débitos: ${fmtHoras(entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0))}`, M + 120, y + 5);
+    y += 16;
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(M, y, W - M * 2, 7, "F");
+    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text("DATA", M + 2, y + 5);
+    doc.text("TIPO", M + 35, y + 5);
+    doc.text("HORAS", M + 80, y + 5);
+    doc.text("DESCRIÇÃO", M + 110, y + 5);
+    y += 7;
+
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    entries.forEach((e, idx) => {
+      if (idx % 2 === 0) { doc.setFillColor(250, 251, 253); doc.rect(M, y, W - M * 2, 6, "F"); }
+      doc.setTextColor(40, 40, 50);
+      doc.text(new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR"), M + 2, y + 4.5);
+      e.tipo === "credito" ? doc.setTextColor(20, 110, 60) : doc.setTextColor(160, 30, 40);
+      doc.text(e.tipo === "credito" ? "Crédito" : "Débito", M + 35, y + 4.5);
+      doc.text((e.tipo === "debito" ? "-" : "+") + fmtHoras(e.horas), M + 80, y + 4.5);
+      doc.setTextColor(40, 40, 50);
+      doc.text((e.descricao || "").slice(0, 50), M + 110, y + 4.5);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 15; }
+    });
+
+    doc.setDrawColor(15, 23, 42); doc.setLineWidth(0.5);
+    doc.line(M, doc.internal.pageSize.getHeight() - 12, W - M, doc.internal.pageSize.getHeight() - 12);
+    doc.setFontSize(6.5); doc.setTextColor(120, 120, 130);
+    doc.text(`APA Ponto — Gerado em ${new Date().toLocaleString("pt-BR")}`, W / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
+
+    const safeName = (emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+    doc.save(`BancoHoras_${safeName}.pdf`);
+  });
+};
+
+const exportarExcel = () => {
+  const emp = employees.find(e => e.id === selectedId);
+  const rows = [
+    ["Data", "Tipo", "Horas", "Descrição"],
+    ...entries.map(e => [
+      new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR"),
+      e.tipo === "credito" ? "Crédito" : "Débito",
+      (e.tipo === "debito" ? "-" : "+") + fmtHoras(e.horas),
+      e.descricao,
+    ]),
+    [],
+    ["Saldo atual", fmtHoras(saldo)],
+  ];
+  const csv = rows.map(r => r.join(";")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `BancoHoras_${(emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Excel baixado!");
+};
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Clock className="w-5 h-5 text-primary" />
-          Banco de Horas
-        </h2>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
+  <div className="flex items-center justify-between">
+    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+      <Clock className="w-5 h-5 text-primary" />
+      Banco de Horas
+    </h2>
+    <div className="flex gap-2">
+      {selectedId && entries.length > 0 && (
+        <>
+          <Button variant="outline" size="sm" onClick={exportarPDF} className="gap-1">
+            <FileDown className="w-4 h-4" /> PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportarExcel} className="gap-1">
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+        </>
+      )}
+      <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+      </Button>
+    </div>
+  </div>
 
       {/* Seleção de funcionário */}
       <Card className="p-4">
