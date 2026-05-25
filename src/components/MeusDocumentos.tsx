@@ -1,16 +1,19 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FileText, Download, ArrowLeft, FolderOpen } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { FileText, Download, ArrowLeft, FolderOpen, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
 
-type TipoDocumento = "holerite" | "informe_rendimento" | "contrato" | "advertencia" | "recibo" | "outro";
+type TipoDocumento = "holerite" | "informe_rendimento" | "contrato" | "advertencia" | "recibo" | "espelho_ponto" | "outro";
 
 interface Documento {
   id: string;
   nome: string;
   tipo: TipoDocumento;
-  tamanho: string;
+  tamanho?: string;
   criado_em: string;
+  url?: string;
+  meta?: any;
 }
 
 const TIPO_LABELS: Record<TipoDocumento, { label: string; color: string }> = {
@@ -19,92 +22,317 @@ const TIPO_LABELS: Record<TipoDocumento, { label: string; color: string }> = {
   contrato:           { label: "Contrato",              color: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30" },
   advertencia:        { label: "Advertência",           color: "bg-rose-500/15 text-rose-500 border-rose-500/30" },
   recibo:             { label: "Recibo",                color: "bg-amber-500/15 text-amber-500 border-amber-500/30" },
+  espelho_ponto:      { label: "Espelho de Ponto",      color: "bg-cyan-500/15 text-cyan-500 border-cyan-500/30" },
   outro:              { label: "Outro",                 color: "bg-gray-500/15 text-gray-500 border-gray-500/30" },
 };
 
-// Mock — será substituído por dados reais do Supabase no dia 01
-const MOCK_DOCS: Documento[] = [
-  { id: "1", nome: "Holerite Maio 2026", tipo: "holerite", tamanho: "245 KB", criado_em: "2026-05-01" },
-  { id: "2", nome: "Informe de Rendimentos 2025", tipo: "informe_rendimento", tamanho: "180 KB", criado_em: "2026-02-15" },
-  { id: "3", nome: "Contrato de Trabalho", tipo: "contrato", tamanho: "512 KB", criado_em: "2026-03-27" },
-];
+const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 interface Props {
   employeeName: string;
+  cpf?: string;
   onClose: () => void;
 }
 
-export default function MeusDocumentos({ employeeName, onClose }: Props) {
-  const [docs] = useState<Documento[]>(MOCK_DOCS);
+export default function MeusDocumentos({ employeeName, cpf, onClose }: Props) {
+  const [docs, setDocs] = useState<Documento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const allDocs: Documento[] = [];
+
+    try {
+      // Busca documentos administrativos
+      if (cpf) {
+        const cpfDigits = cpf.replace(/\D/g, "");
+        
+        // Busca employee_id pelo CPF
+const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+const { data: empData } = await (supabase as any)
+  .from("employees")
+  .select("id")
+  .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
+  .single();
+
+const empId = empData?.id;
+
+        if (empId) {
+          // Espelhos de ponto assinados
+          const { data: espelhos } = await (supabase as any)
+            .from("timesheet_closings")
+            .select("id, month, year, accepted_at, status, signature_url")
+            .eq("employee_id", empId)
+            .in("status", ["assinado", "fechado"])
+            .order("year", { ascending: false })
+            .order("month", { ascending: false });
+
+          if (espelhos) {
+            espelhos.forEach((e: any) => {
+              allDocs.push({
+                id: `espelho_${e.id}`,
+                nome: `Espelho de Ponto — ${MONTH_NAMES[e.month - 1]}/${e.year}`,
+                tipo: "espelho_ponto",
+                criado_em: e.accepted_at || `${e.year}-${String(e.month).padStart(2, "0")}-01`,
+                meta: { ...e, empId },
+              });
+            });
+          }
+
+          // Documentos administrativos
+          const { data: docData } = await (supabase as any)
+            .from("employee_documents")
+            .select("*")
+            .eq("employee_id", empId)
+            .order("created_at", { ascending: false });
+
+          if (docData) {
+            docData.forEach((d: any) => {
+              allDocs.push({
+                id: d.id,
+                nome: d.name || d.title || "Documento",
+                tipo: d.type || "outro",
+                criado_em: d.created_at,
+                url: d.file_url || d.url,
+                tamanho: d.file_size ? `${Math.round(d.file_size / 1024)} KB` : undefined,
+              });
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao carregar documentos:", err);
+    }
+
+    setDocs(allDocs);
+    setLoading(false);
+  }, [cpf]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const downloadEspelho = async (doc: Documento) => {
+    setDownloading(doc.id);
+    try {
+      const meta = doc.meta;
+      const empId = meta.empId;
+      const month = meta.month;
+      const year = meta.year;
+
+      // Busca registros do mês
+      const start = new Date(year, month - 1, 1).toISOString();
+      const end = new Date(year, month, 1).toISOString();
+
+      const [recRes, empRes] = await Promise.all([
+        (supabase as any).from("time_records")
+          .select("id, record_type, recorded_at")
+          .eq("employee_id", empId)
+          .gte("recorded_at", start)
+          .lt("recorded_at", end)
+          .order("recorded_at", { ascending: true }),
+        (supabase as any).from("employees").select("name, cpf, cargo, matricula").eq("id", empId).single(),
+      ]);
+
+      const records = recRes.data || [];
+      const emp = empRes.data;
+
+      // Busca assinatura
+      let signatureDataUrl: string | null = null;
+      if (meta.signature_url) {
+        try {
+          const { data: signed } = await supabase.storage.from("epi-signatures").createSignedUrl(meta.signature_url, 60);
+          if (signed?.signedUrl) {
+            const res = await fetch(signed.signedUrl);
+            if (res.ok) {
+              const blob = await res.blob();
+              const u8 = new Uint8Array(await blob.arrayBuffer());
+              let bin = ""; u8.forEach(b => (bin += String.fromCharCode(b)));
+              signatureDataUrl = `data:image/png;base64,${btoa(bin)}`;
+            }
+          }
+        } catch {}
+      }
+
+      // Gera PDF simples
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = pdf.internal.pageSize.getWidth();
+      const M = 15;
+
+      pdf.setFillColor(15, 23, 42);
+      pdf.rect(0, 0, W, 28, "F");
+      pdf.setFontSize(13); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
+      pdf.text("ESPELHO DE PONTO", W / 2, 11, { align: "center" });
+      pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(180, 200, 230);
+      pdf.text("AMR Refrigeração e Climatização", W / 2, 17, { align: "center" });
+      pdf.text(`Competência: ${MONTH_NAMES[month - 1]} / ${year}`, W / 2, 22, { align: "center" });
+
+      let y = 34;
+      pdf.setFillColor(245, 247, 250);
+      pdf.rect(M, y, W - M * 2, 14, "FD");
+      pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(40, 40, 50);
+      pdf.text(`Nome: ${emp?.name || employeeName}`, M + 2, y + 5);
+      pdf.text(`CPF: ${emp?.cpf || "—"}`, M + 2, y + 10);
+      y += 18;
+
+      // Tabela
+      const DAY_NAMES = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+      pdf.setFillColor(15, 23, 42);
+      pdf.rect(M, y, W - M * 2, 7, "F");
+      pdf.setFontSize(7.5); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255,255,255);
+      const cols = [M+2, M+22, M+52, M+82, M+112, M+142, M+158];
+      ["DATA","DIA","ENTRADA","INTERVALO","RETORNO","SAÍDA","TOTAL"].forEach((h,i) => pdf.text(h, cols[i], y+5));
+      y += 7;
+
+      // Dias do mês
+      const daysInMonth = new Date(year, month, 0).getDate();
+      let totalMin = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        const dow = new Date(dateStr + "T12:00:00").getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const dayRecs = records.filter((r: any) => {
+          const sp = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(r.recorded_at));
+          return sp === dateStr;
+        });
+        const fmtT = (type: string) => {
+          const r = dayRecs.find((r: any) => r.record_type === type);
+          return r ? new Date(r.recorded_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—";
+        };
+
+        if (isWeekend) { pdf.setFillColor(240,240,245); pdf.rect(M, y, W-M*2, 6, "F"); }
+        else if (d % 2 === 0) { pdf.setFillColor(250,251,253); pdf.rect(M, y, W-M*2, 6, "F"); }
+
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5);
+        pdf.setTextColor(isWeekend ? 120 : 40, isWeekend ? 120 : 40, isWeekend ? 130 : 50);
+        pdf.text(`${String(d).padStart(2,"0")}/${String(month).padStart(2,"0")}`, cols[0], y+4.5);
+        pdf.text(DAY_NAMES[dow], cols[1], y+4.5);
+        pdf.text(fmtT("entrada"), cols[2], y+4.5);
+        pdf.text(fmtT("intervalo"), cols[3], y+4.5);
+        pdf.text(fmtT("retorno"), cols[4], y+4.5);
+        pdf.text(fmtT("saida"), cols[5], y+4.5);
+
+        const entrada = dayRecs.find((r: any) => r.record_type === "entrada");
+        const saida = dayRecs.find((r: any) => r.record_type === "saida");
+        let mins = 0;
+        if (entrada && saida) {
+          const intervalo = dayRecs.find((r: any) => r.record_type === "intervalo");
+          const retorno = dayRecs.find((r: any) => r.record_type === "retorno");
+          if (intervalo && retorno) {
+            mins = Math.round(((new Date(intervalo.recorded_at).getTime() - new Date(entrada.recorded_at).getTime()) + (new Date(saida.recorded_at).getTime() - new Date(retorno.recorded_at).getTime())) / 60000);
+          } else {
+            mins = Math.round((new Date(saida.recorded_at).getTime() - new Date(entrada.recorded_at).getTime()) / 60000);
+          }
+          totalMin += mins;
+          pdf.setTextColor(20, 110, 60);
+        }
+        pdf.text(isWeekend ? "—" : mins > 0 ? `${Math.floor(mins/60)}h${String(mins%60).padStart(2,"0")}` : "0h00", cols[6], y+4.5);
+        pdf.setTextColor(40,40,50);
+        y += 6;
+        if (y > 260) { pdf.addPage(); y = 15; }
+      }
+
+      // Totais
+      y += 2;
+      pdf.setFillColor(15,23,42); pdf.rect(M, y, W-M*2, 10, "F");
+      pdf.setFontSize(8); pdf.setFont("helvetica","bold"); pdf.setTextColor(255,255,255);
+      pdf.text(`Total: ${Math.floor(totalMin/60)}h${String(totalMin%60).padStart(2,"0")}`, M+4, y+6.5);
+      y += 14;
+
+      // Assinatura
+      const halfW = (W - M * 2) / 2 - 4;
+      pdf.setFontSize(8); pdf.setFont("helvetica","bold"); pdf.setTextColor(30,60,120);
+      pdf.text("FUNCIONÁRIO", M, y);
+      pdf.setFont("helvetica","normal"); pdf.setTextColor(40,40,50); pdf.setFontSize(7.5);
+      pdf.text(`Nome: ${emp?.name || employeeName}`, M, y+5);
+      const boxY = y + 10;
+      if (signatureDataUrl) {
+        try { pdf.addImage(signatureDataUrl, "PNG", M, boxY, halfW, 18); } catch {}
+      }
+      pdf.setDrawColor(180); pdf.setLineWidth(0.3);
+      pdf.line(M, boxY+18, M+halfW, boxY+18);
+      pdf.setFontSize(7); pdf.setTextColor(120,120,130);
+      pdf.text("Assinatura do colaborador", M, boxY+22);
+      if (meta.accepted_at) pdf.text(`Assinado em: ${new Date(meta.accepted_at).toLocaleString("pt-BR")}`, M, boxY+27);
+
+      pdf.setDrawColor(15,23,42); pdf.setLineWidth(0.5);
+      pdf.line(M, pdf.internal.pageSize.getHeight()-12, W-M, pdf.internal.pageSize.getHeight()-12);
+      pdf.setFontSize(6.5); pdf.setTextColor(120,120,130);
+      pdf.text("AMR Ponto — Espelho de Ponto", W/2, pdf.internal.pageSize.getHeight()-8, { align: "center" });
+
+      const safeName = (emp?.name || employeeName).replace(/[^a-zA-Z0-9]/g,"_").substring(0,30);
+      pdf.save(`Espelho_${safeName}_${String(month).padStart(2,"0")}-${year}.pdf`);
+    } catch (err: any) {
+      toast.error("Erro ao gerar PDF: " + err.message);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownload = async (doc: Documento) => {
+    if (doc.tipo === "espelho_ponto") {
+      await downloadEspelho(doc);
+      return;
+    }
+    if (doc.url) {
+      window.open(doc.url, "_blank");
+    } else {
+      toast.info("Download disponível em breve.");
+    }
+  };
 
   return (
-    <div
-      className="min-h-screen flex flex-col px-4 py-8 relative"
-      style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}
-    >
-      {/* Header */}
+    <div className="min-h-screen flex flex-col px-4 py-8 relative"
+      style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: "hsl(210 20% 60%)" }}
-        >
+        <button onClick={onClose} className="flex items-center gap-2 text-sm font-medium transition-colors"
+          style={{ color: "hsl(210 20% 60%)" }}>
           <ArrowLeft className="w-4 h-4" /> Voltar
         </button>
-        <h2 className="text-lg font-bold" style={{ color: "hsl(0 0% 95%)" }}>
-          Meus Documentos
-        </h2>
+        <h2 className="text-lg font-bold" style={{ color: "hsl(0 0% 95%)" }}>Meus Documentos</h2>
         <div className="w-16" />
       </div>
 
-      <p className="text-sm mb-6" style={{ color: "hsl(210 20% 55%)" }}>
-        {employeeName}
-      </p>
+      <p className="text-sm mb-6" style={{ color: "hsl(210 20% 55%)" }}>{employeeName}</p>
 
-      {docs.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-12" style={{ color: "hsl(210 15% 55%)" }}>
+          <Loader2 className="w-5 h-5 animate-spin" /> Carregando documentos...
+        </div>
+      ) : docs.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-3">
           <FolderOpen className="w-12 h-12" style={{ color: "hsl(210 15% 40%)" }} />
-          <p className="text-sm" style={{ color: "hsl(210 15% 50%)" }}>
-            Nenhum documento disponível.
-          </p>
+          <p className="text-sm" style={{ color: "hsl(210 15% 50%)" }}>Nenhum documento disponível.</p>
         </div>
       ) : (
         <div className="space-y-3 max-w-md mx-auto w-full">
           {docs.map((doc) => {
-            const tipo = TIPO_LABELS[doc.tipo];
+            const tipo = TIPO_LABELS[doc.tipo] || TIPO_LABELS.outro;
+            const isDownloading = downloading === doc.id;
             return (
-              <div
-                key={doc.id}
-                className="p-4 rounded-2xl border border-white/10 flex items-center justify-between"
-                style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)" }}
-              >
+              <div key={doc.id} className="p-4 rounded-2xl border border-white/10 flex items-center justify-between"
+                style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)" }}>
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "hsl(210 30% 20%)" }}
-                  >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "hsl(210 30% 20%)" }}>
                     <FileText className="w-5 h-5" style={{ color: "hsl(200 70% 65%)" }} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium" style={{ color: "hsl(0 0% 90%)" }}>
-                      {doc.nome}
-                    </p>
+                    <p className="text-sm font-medium" style={{ color: "hsl(0 0% 90%)" }}>{doc.nome}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${tipo.color}`}>
                         {tipo.label}
                       </span>
                       <span className="text-[11px]" style={{ color: "hsl(210 15% 50%)" }}>
-                        {new Date(doc.criado_em + "T00:00:00").toLocaleDateString("pt-BR")} · {doc.tamanho}
+                        {new Date(doc.criado_em).toLocaleDateString("pt-BR")}
+                        {doc.tamanho && ` · ${doc.tamanho}`}
                       </span>
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => alert("Download disponível em breve.")}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10"
-                  style={{ color: "hsl(200 70% 65%)" }}
-                >
-                  <Download className="w-4 h-4" />
+                <button onClick={() => handleDownload(doc)} disabled={isDownloading}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 disabled:opacity-50"
+                  style={{ color: "hsl(200 70% 65%)" }}>
+                  {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 </button>
               </div>
             );

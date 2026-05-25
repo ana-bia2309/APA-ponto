@@ -675,6 +675,16 @@ const fetchPendingToolCount = useCallback(async (cpf: string) => {
   }
 }, []);
 
+const [timesheetSummary, setTimesheetSummary] = useState<{ horas_trabalhadas: number; horas_esperadas: number; diferenca: number; month: number; year: number; } | null>(null);
+
+const fetchTimesheetSummary = useCallback(async (cpf: string) => {
+  const cpfDigits = normalizeCpf(cpf);
+  if (!cpfDigits || !navigator.onLine) return;
+  try {
+    const { data } = await (supabase as any).rpc("get_timesheet_summary_by_cpf", { p_cpf: cpfDigits });
+    if (data && data.length > 0) setTimesheetSummary(data[0]);
+  } catch {}
+}, []);
 const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
   if (!cpfDigits || !navigator.onLine) { setPendingTimesheetCount(0); return; }
@@ -814,7 +824,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     void fetchPendingPayslipCount(validatedContext.cpf_normalized);
     void fetchPendingUniformCount(validatedContext.cpf_normalized);
     void fetchPendingToolCount(validatedContext.cpf_normalized);
-    void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
+  void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
+    void fetchTimesheetSummary(validatedContext.cpf_normalized);
   }
 };
 
@@ -1357,13 +1368,14 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   }
 
   if (showDocumentos && selectedEmployee) {
-    return (
-      <MeusDocumentos
-        employeeName={selectedEmployee.name}
-        onClose={() => setShowDocumentos(false)}
-      />
-    );
-  }
+  return (
+    <MeusDocumentos
+      employeeName={selectedEmployee.name}
+      cpf={validatedContext?.cpf_normalized}
+      onClose={() => setShowDocumentos(false)}
+    />
+  );
+}
 
   if (showUniformAcceptance && selectedEmployee && validatedContext) {
     return (
@@ -1475,9 +1487,9 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       fetchPendingEpiCount(ctx.cpf_normalized);
       fetchPendingPayslipCount(ctx.cpf_normalized);
       fetchPendingTimesheetCount(ctx.cpf_normalized);
+      fetchTimesheetSummary(ctx.cpf_normalized);
       return;
     }
-
     // ONLINE: validate CPF via database
     try {
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
@@ -1514,6 +1526,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       await fetchNextStep(ctx.cpf_normalized);
       fetchPendingEpiCount(ctx.cpf_normalized);
       fetchPendingPayslipCount(ctx.cpf_normalized);
+      fetchTimesheetSummary(ctx.cpf_normalized);
     } catch (error: any) {
       setValidatedCpf("");
       setValidatedEmployee(null);
@@ -2291,6 +2304,33 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         </div>
       )}
 
+{/* Resumo folha de ponto */}
+{timesheetSummary && (
+  <div className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden"
+    style={{ background: "linear-gradient(135deg, hsl(220 30% 14%), hsl(215 25% 11%))", borderColor: "hsl(210 30% 25%)" }}>
+    <div className="p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "hsl(210 50% 60%)" }}>
+        📊 Folha de Ponto — {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
+      </p>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-lg font-bold text-blue-400">{Math.floor(timesheetSummary.horas_trabalhadas)}h{String(Math.round((timesheetSummary.horas_trabalhadas % 1) * 60)).padStart(2,"0")}</p>
+          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Trabalhado</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold" style={{ color: "hsl(0 0% 75%)" }}>{Math.floor(timesheetSummary.horas_esperadas)}h{String(Math.round((timesheetSummary.horas_esperadas % 1) * 60)).padStart(2,"0")}</p>
+          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Esperado</p>
+        </div>
+        <div>
+          <p className={`text-lg font-bold ${timesheetSummary.diferenca >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            {timesheetSummary.diferenca >= 0 ? "+" : ""}{Math.floor(Math.abs(timesheetSummary.diferenca))}h{String(Math.round((Math.abs(timesheetSummary.diferenca) % 1) * 60)).padStart(2,"0")}
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Diferença</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* Espelho de ponto pending card */}
       {pendingTimesheetCount > 0 && (
         <div
