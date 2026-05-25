@@ -30,6 +30,9 @@ import PayslipsTab from "@/components/admin/payroll/PayslipsTab";
 import AssistenteIA from "@/components/admin/AssistenteIA";
 import UniformsTab from "@/components/admin/UniformsTab";
 import ToolsTab from "@/components/admin/ToolsTab";
+import MapaLocalizacaoTab from "@/components/admin/MapaLocalizacaoTab";
+import EspelhoPontoTab from "@/components/admin/payroll/EspelhoPontoTab";
+import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import { useAuth } from "@/hooks/useAuth";
 
 type Employee = Tables<"employees">;
@@ -61,6 +64,9 @@ const tabTitles: Record<AdminTab, string> = {
   "tools-catalog": "Ferramentas — Catálogo",
   "tools-loans": "Ferramentas — Empréstimos",
   "tools-history": "Ferramentas — Histórico",
+  "mapa-localizacao": "Mapa de Localização",
+  "espelho-ponto": "Folha — Espelho de Ponto",
+  "simulador": "Folha — Simulador",
 };
 
 export default function AdminDashboard() {
@@ -244,6 +250,9 @@ export default function AdminDashboard() {
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}
               {tab === "assistente" && <AssistenteIA />}
+              {tab === "espelho-ponto" && <EspelhoPontoTab employees={employees} />}
+              {tab === "mapa-localizacao" && <MapaLocalizacaoTab employees={employees} />}
+              {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}

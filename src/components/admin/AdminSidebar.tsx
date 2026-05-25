@@ -1,7 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles, MapPin,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,6 +44,9 @@ export type AdminTab =
   | "assistente"
   | "audit"
   | "debug"
+  | "simulador"
+  | "espelho-ponto"
+  | "mapa-localizacao"
   | "users";
 
 interface Props {
@@ -60,6 +63,7 @@ const mainItems = [
   { key: "records" as const, label: "Registros", icon: Clock },
   { key: "justifications" as const, label: "Atestados", icon: FileText },
   { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
+  { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
   { key: "assistente" as const, label: "Assistente IA", icon: Sparkles },
 ];
 
@@ -82,6 +86,7 @@ const toolItems = [
   { key: "tools-history" as const, label: "Histórico", icon: History },
 ];
 
+
 const payrollItems = [
   { key: "payroll-dashboard" as const, label: "Dashboard", icon: BarChart2 },
   { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
@@ -89,6 +94,8 @@ const payrollItems = [
   { key: "payslips" as const, label: "Holerites", icon: Receipt },
   { key: "banco-horas" as const, label: "Banco de Horas", icon: Clock },
   { key: "trabalhista-config" as const, label: "Regras CLT", icon: FileText },
+  { key: "simulador" as const, label: "Simulador", icon: Calculator },
+  { key: "espelho-ponto" as const, label: "Espelho de Ponto", icon: Clock },
 ];
 
 const systemItems = [
@@ -209,7 +216,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
 
         {/* Folha de Pagamento */}
         <SidebarGroup>
-          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips" || activeTab === "banco-horas" || activeTab === "trabalhista-config"}>
+          <Collapsible defaultOpen={activeTab.startsWith("payroll") || activeTab === "payslips" || activeTab === "banco-horas" || activeTab === "trabalhista-config" || activeTab === "simulador" || activeTab === "espelho-ponto"}>
             <CollapsibleTrigger className="w-full">
               <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
                 <span className="flex items-center gap-2">

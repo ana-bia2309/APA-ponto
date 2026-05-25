@@ -37,6 +37,7 @@ import MeusDocumentos from "@/components/MeusDocumentos";
 import PayslipSign from "@/components/PayslipSign";
 import UniformAcceptance from "@/components/UniformAcceptance";
 import ToolAcceptance from "@/components/ToolAcceptance";
+import TimesheetSign from "@/components/TimesheetSign";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -523,6 +524,8 @@ const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at:
   const [showDocumentos, setShowDocumentos] = useState(false);
   const [showUniformAcceptance, setShowUniformAcceptance] = useState(false);
 const [showToolAcceptance, setShowToolAcceptance] = useState(false);
+const [showTimesheetSign, setShowTimesheetSign] = useState(false);
+const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -658,19 +661,28 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
     }
   }, []);
 
-  const fetchPendingToolCount = useCallback(async (cpf: string) => {
-    const cpfDigits = normalizeCpf(cpf);
-    if (!cpfDigits || !navigator.onLine) { setPendingToolCount(0); return; }
-    try {
-      const { data, error } = await supabase.rpc("get_pending_tools_by_cpf" as any, { p_cpf: cpfDigits });
-      if (error) throw error;
-      const arr = Array.isArray(data) ? data : [];
-      setPendingToolCount(arr.length);
-      setPendingTools(arr.map((d: any) => ({ tool_name: d.tool_name, loaned_at: d.loaned_at })));
-    } catch (e) {
-      console.error("Erro ao buscar ferramentas pendentes", e);
-    }
-  }, []);
+const fetchPendingToolCount = useCallback(async (cpf: string) => {
+  const cpfDigits = normalizeCpf(cpf);
+  if (!cpfDigits || !navigator.onLine) { setPendingToolCount(0); return; }
+  try {
+    const { data, error } = await supabase.rpc("get_pending_tools_by_cpf" as any, { p_cpf: cpfDigits });
+    if (error) throw error;
+    const arr = Array.isArray(data) ? data : [];
+    setPendingToolCount(arr.length);
+    setPendingTools(arr.map((d: any) => ({ tool_name: d.tool_name, loaned_at: d.loaned_at })));
+  } catch (e) {
+    console.error("Erro ao buscar ferramentas pendentes", e);
+  }
+}, []);
+
+const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
+  const cpfDigits = normalizeCpf(cpf);
+  if (!cpfDigits || !navigator.onLine) { setPendingTimesheetCount(0); return; }
+  try {
+    const { data } = await (supabase as any).rpc("get_pending_timesheets_by_cpf", { p_cpf: cpfDigits });
+    setPendingTimesheetCount(Array.isArray(data) ? data.length : 0);
+  } catch {}
+}, []);
 
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
@@ -788,20 +800,23 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
     let refreshTimer: number | null = null;
 
     const revalidateHomeData = () => {
-      if (!navigator.onLine) return;
-      void fetchEmployees();
+  if (!navigator.onLine) return;
+  void fetchEmployees();
 
-      const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
-      if (activeEmployeeId) {
-        void fetchTodayRecords(activeEmployeeId);
-      }
+  const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
+  if (activeEmployeeId) {
+    void fetchTodayRecords(activeEmployeeId);
+  }
 
-      if (validatedContext?.cpf_normalized) {
-        void fetchNextStep(validatedContext.cpf_normalized);
-        void fetchPendingEpiCount(validatedContext.cpf_normalized);
-        void fetchPendingPayslipCount(validatedContext.cpf_normalized);
-      }
-    };
+  if (validatedContext?.cpf_normalized) {
+    void fetchNextStep(validatedContext.cpf_normalized);
+    void fetchPendingEpiCount(validatedContext.cpf_normalized);
+    void fetchPendingPayslipCount(validatedContext.cpf_normalized);
+    void fetchPendingUniformCount(validatedContext.cpf_normalized);
+    void fetchPendingToolCount(validatedContext.cpf_normalized);
+    void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
+  }
+};
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -829,6 +844,12 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
       handleAppResume();
     }
 
+ const interval = setInterval(() => {
+      if (validatedContext?.cpf_normalized) {
+        void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
+      }
+    }, 30000);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pageshow", handleAppResume);
@@ -836,6 +857,7 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
       if (refreshTimer) {
         window.clearTimeout(refreshTimer);
       }
+      clearInterval(interval);
     };
   }, [selectedEmployee, validatedContext, fetchPendingEpiCount, fetchNextStep]);
 
@@ -1355,12 +1377,32 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
   }
 
   if (showToolAcceptance && selectedEmployee && validatedContext) {
-    return (
+    if (showTimesheetSign && selectedEmployee && validatedContext) {
+  return (
+    <TimesheetSign
+      cpf={validatedContext.cpf_normalized}
+      employeeName={selectedEmployee.name}
+      onClose={() => setShowTimesheetSign(false)}
+      onSigned={() => fetchPendingTimesheetCount(validatedContext.cpf_normalized)}
+    />
+  );
+}
+   return (
       <ToolAcceptance
         cpf={validatedContext.cpf_normalized}
         employeeName={selectedEmployee.name}
         onClose={() => setShowToolAcceptance(false)}
         onAccepted={() => fetchPendingToolCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+  if (showTimesheetSign && selectedEmployee && validatedContext) {
+    return (
+      <TimesheetSign
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowTimesheetSign(false)}
+        onSigned={() => fetchPendingTimesheetCount(validatedContext.cpf_normalized)}
       />
     );
   }
@@ -1429,9 +1471,10 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
       setCpfError("");
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       setStatusNotice("CPF validado offline.");
-      toast.info("CPF validado offline ✓");
+     toast.info("CPF validado offline ✓");
       fetchPendingEpiCount(ctx.cpf_normalized);
       fetchPendingPayslipCount(ctx.cpf_normalized);
+      fetchPendingTimesheetCount(ctx.cpf_normalized);
       return;
     }
 
@@ -2206,7 +2249,7 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
         </div>
       )}
 
-      {/* Ferramenta pending card */}
+     {/* Ferramenta pending card */}
       {pendingToolCount > 0 && (
         <div
           className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
@@ -2243,6 +2286,40 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
               }}
             >
               Confirmar recebimento
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Espelho de ponto pending card */}
+      {pendingTimesheetCount > 0 && (
+        <div
+          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
+          style={{
+            background: "linear-gradient(135deg, hsl(210 60% 16%), hsl(215 55% 12%))",
+            borderColor: "hsl(210 70% 35%)",
+            boxShadow: "0 4px 24px hsl(210 80% 20% / 0.35)",
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, hsl(210 80% 50%), hsl(200 85% 50%))" }}>
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: "hsl(210 90% 80%)" }}>
+                  {pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos para assinar`}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "hsl(210 50% 65%)" }}>
+                  Seu espelho de ponto foi fechado e aguarda sua assinatura.
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setShowTimesheetSign(true)}
+              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg, hsl(210 80% 45%), hsl(200 85% 45%))", color: "white" }}>
+              Ver e assinar
             </button>
           </div>
         </div>
