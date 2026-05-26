@@ -37,6 +37,7 @@ import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
+import AnalisesTab from "@/components/admin/AnalisesTab";
 import BuscaGlobal from "@/components/admin/BuscaGlobal";
 import { Search } from "lucide-react";
 
@@ -74,6 +75,7 @@ const tabTitles: Record<AdminTab, string> = {
   "simulador": "Folha — Simulador",
   "exportacoes": "Exportações",
   "aprovacoes-lote": "Aprovações em Lote",
+  "analises": "Análises",
 };
 
 export default function AdminDashboard() {
@@ -287,6 +289,7 @@ export default function AdminDashboard() {
               {tab === "mapa-localizacao" && <MapaLocalizacaoTab employees={employees} />}
               {tab === "exportacoes" && <ExportacoesTab employees={employees} />}
               {tab === "aprovacoes-lote" && <AprovacoesLoteTab employees={employees} />}
+              {tab === "analises" && <AnalisesTab employees={employees} />}
               {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
