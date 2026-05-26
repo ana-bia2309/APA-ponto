@@ -196,6 +196,7 @@ export default function UsersTab() {
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="usuario">Usuário comum</option>
+                <option value="rh">RH</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>
@@ -221,6 +222,7 @@ export default function UsersTab() {
                     className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="usuario">Usuário</option>
+                    <option value="rh">RH</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -250,7 +252,7 @@ export default function UsersTab() {
                           ? "bg-primary/15 text-primary"
                           : "bg-muted text-muted-foreground"
                       }`}>
-                        {u.role === "admin" ? <><Shield className="w-3 h-3" /> Admin</> : <><UserIcon className="w-3 h-3" /> Usuário</>}
+                        {u.role === "admin" ? <><Shield className="w-3 h-3" /> Admin</> : u.role === "rh" ? <><Shield className="w-3 h-3" /> RH</> : <><UserIcon className="w-3 h-3" /> Usuário</>}
                       </span>
                     </div>
                   </div>

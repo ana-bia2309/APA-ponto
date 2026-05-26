@@ -103,7 +103,7 @@ function detectarInconsistencias(
   return inconsistencias;
 }
 
-export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: string) => void; role?: "admin" | "rh" | "usuario" | null }) {
   const [statuses, setStatuses] = useState<EmployeeStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -336,7 +336,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
     </div>
   );
 
-  return (
+ return (
     <div className="space-y-4 text-sm">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
@@ -352,6 +352,20 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
           <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
         </Button>
       </div>
+
+      {/* Banner de vista */}
+      {role === "rh" && (
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex items-center gap-2">
+          <span className="text-xs font-semibold text-blue-600">👔 Vista RH</span>
+          <span className="text-xs text-muted-foreground">Foco em pessoas e documentos pendentes</span>
+        </div>
+      )}
+      {role === "usuario" && (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex items-center gap-2">
+          <span className="text-xs font-semibold text-emerald-600">👁️ Vista Supervisor</span>
+          <span className="text-xs text-muted-foreground">KPIs do dia em tempo real</span>
+        </div>
+      )}
 
       {/* Números principais */}
       <div className="grid grid-cols-4 gap-2">
@@ -373,48 +387,53 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
         </div>
       </div>
 
-{/* COMPORTAMENTO SUSPEITO */}
-{comportamentos.length > 0 && (
-  <div className="rounded-xl border-2 border-purple-500/50 bg-purple-500/5 p-3 space-y-2">
-    <p className="font-bold text-purple-600 flex items-center gap-2">
-      🔍 Comportamento atípico detectado ({comportamentos.length} funcionário{comportamentos.length > 1 ? "s" : ""})
-    </p>
-    {comportamentos.map(e => (
-      <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1">
-        <p className="text-xs font-semibold text-foreground">{e.name}</p>
-        {e.alertas.map((alerta, i) => (
-          <p key={i} className="text-xs text-purple-700">{alerta}</p>
+{(role === "admin" || !role) && (
+  <>
+    {/* COMPORTAMENTO SUSPEITO */}
+    {comportamentos.length > 0 && (
+      <div className="rounded-xl border-2 border-purple-500/50 bg-purple-500/5 p-3 space-y-2">
+        <p className="font-bold text-purple-600 flex items-center gap-2">
+          🔍 Comportamento atípico detectado ({comportamentos.length} funcionário{comportamentos.length > 1 ? "s" : ""})
+        </p>
+        {comportamentos.map(e => (
+          <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1">
+            <p className="text-xs font-semibold text-foreground">{e.name}</p>
+            {e.alertas.map((alerta, i) => (
+              <p key={i} className="text-xs text-purple-700">{alerta}</p>
+            ))}
+          </div>
         ))}
       </div>
-    ))}
-  </div>
+    )}
+
+    {/* INCONSISTÊNCIAS — destaque máximo */}
+    {comInconsistencias.length > 0 && (
+      <div className="rounded-xl border-2 border-orange-500/50 bg-orange-500/5 p-3 space-y-2">
+        <p className="font-bold text-orange-600 flex items-center gap-2">
+          ⚠️ Inconsistências detectadas ({comInconsistencias.length} funcionário{comInconsistencias.length > 1 ? "s" : ""})
+        </p>
+        {comInconsistencias.map(e => (
+          <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">{e.name}</p>
+            {e.inconsistencias.map((inc, ii) => (
+              <div key={ii} className="flex items-center justify-between gap-2">
+                <span className="text-xs text-orange-700 flex items-center gap-1.5">
+                  {inconsistenciaIcon[inc.tipo]} {inc.mensagem}
+                </span>
+                <button
+                  onClick={() => onNavigate?.("records")}
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors whitespace-nowrap"
+                >
+                  Corrigir →
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+  </>
 )}
-      {/* INCONSISTÊNCIAS — destaque máximo */}
-      {comInconsistencias.length > 0 && (
-        <div className="rounded-xl border-2 border-orange-500/50 bg-orange-500/5 p-3 space-y-2">
-          <p className="font-bold text-orange-600 flex items-center gap-2">
-            ⚠️ Inconsistências detectadas ({comInconsistencias.length} funcionário{comInconsistencias.length > 1 ? "s" : ""})
-          </p>
-          {comInconsistencias.map(e => (
-            <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1.5">
-              <p className="text-xs font-semibold text-foreground">{e.name}</p>
-              {e.inconsistencias.map((inc, ii) => (
-                <div key={ii} className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-orange-700 flex items-center gap-1.5">
-                    {inconsistenciaIcon[inc.tipo]} {inc.mensagem}
-                  </span>
-                  <button
-                    onClick={() => onNavigate?.("records")}
-                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors whitespace-nowrap"
-                  >
-                    Corrigir →
-                  </button>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Alertas */}
       <div className="space-y-2">
@@ -457,7 +476,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
           </div>
         )}
 
-        {bancoCriticos.length > 0 && (
+        {(role === "admin" || role === "rh" || !role) && bancoCriticos.length > 0 && (
           <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
             <p className="font-semibold text-orange-600 mb-1.5">🏦 Banco de horas crítico ({bancoCriticos.length})</p>
             <div className="space-y-1">
@@ -471,10 +490,16 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
           </div>
         )}
 
-        {atestadosPendentes > 0 && (
+        {(role === "admin" || role === "rh" || !role) && atestadosPendentes > 0 && (
           <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 flex items-center justify-between">
             <p className="font-semibold text-purple-600">📋 Atestados pendentes</p>
-            <span className="text-lg font-bold text-purple-600">{atestadosPendentes}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-purple-600">{atestadosPendentes}</span>
+              <button onClick={() => onNavigate?.("justifications")}
+                className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-500 text-white hover:bg-purple-600">
+                Ver →
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -495,7 +520,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
               <tr>
                 <th className="p-2 text-left font-medium text-muted-foreground">Funcionário</th>
                 <th className="p-2 text-left font-medium text-muted-foreground">Último registro</th>
-                <th className="p-2 text-center font-medium text-muted-foreground">Horas</th>
+                {role !== "usuario" && <th className="p-2 text-center font-medium text-muted-foreground">Horas</th>}
                 <th className="p-2 text-center font-medium text-muted-foreground">Status</th>
               </tr>
             </thead>
@@ -516,9 +541,11 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
                     <td className="p-2 text-muted-foreground">
                       {e.lastType ? `${STEP_LABELS[e.lastType]} ${e.lastTime ? fmtTime(e.lastTime) : ""}` : "—"}
                     </td>
-                    <td className="p-2 text-center tabular-nums">
-                      {e.horasHoje > 0 ? fmtHoras(e.horasHoje) : "—"}
-                    </td>
+                    {role !== "usuario" && (
+                      <td className="p-2 text-center tabular-nums">
+                        {e.horasHoje > 0 ? fmtHoras(e.horasHoje) : "—"}
+                      </td>
+                    )}
                     <td className="p-2 text-center">
                       {e.status === "presente" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[11px] font-bold">✓ OK</span>}
                       {e.status === "falta" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-bold">✕ Falta</span>}

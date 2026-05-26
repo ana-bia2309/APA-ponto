@@ -80,7 +80,7 @@ const tabTitles: Record<AdminTab, string> = {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, profile, signOut, isAdmin, isRh } = useAuth();
+  const { user, profile, signOut, isAdmin, isRh, role } = useAuth();
   const { isDark, toggle } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newName, setNewName] = useState("");
@@ -271,7 +271,7 @@ export default function AdminDashboard() {
          {/* Content */}
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
             <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {tab === "dashboard" && <DashboardTab onNavigate={(t) => setTab(t as any)} />}
+              {tab === "dashboard" && <DashboardTab onNavigate={(t) => setTab(t as any)} role={role} />}
               {tab === "records" && <RecordsTab employees={employees} />}
               {tab === "justifications" && <JustificationsTab />}
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
