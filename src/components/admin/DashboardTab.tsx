@@ -113,6 +113,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
   const [atestadosPendentes, setAtestadosPendentes] = useState(0);
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
 
   const fetch = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -206,9 +207,87 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
           records: timelineRecords,
           inconsistencias,
         };
-      }).filter(e => isWorkDay || e.status !== "falta");
+   }).filter(e => isWorkDay || e.status !== "falta");
 
       setHoraExtraTotal(Math.round(totalHorasExtras * 10) / 10);
+
+      // Detecção de comportamento suspeito
+      const now30 = new Date();
+      now30.setDate(now30.getDate() - 30);
+      const { data: monthRecords } = await (supabase as any)
+        .from("time_records")
+        .select("employee_id, record_type, recorded_at, mode")
+        .gte("recorded_at", now30.toISOString())
+        .order("recorded_at", { ascending: true });
+
+      const { data: manualCount } = await (supabase as any)
+        .from("manual_punches")
+        .select("employee_id")
+        .gte("created_at", now30.toISOString());
+
+      const comportSuspeitos: {id: string; name: string; alertas: string[]}[] = [];
+
+      employees.forEach(emp => {
+        const alertas: string[] = [];
+        const empMonth = (monthRecords || []).filter((r: any) => r.employee_id === emp.id);
+
+        // 1. Ponto no mesmo segundo por 3+ dias
+        const entradaSeconds = empMonth
+          .filter((r: any) => r.record_type === "entrada")
+          .map((r: any) => new Date(r.recorded_at).getSeconds());
+        if (entradaSeconds.length >= 3) {
+          const freq: Record<number, number> = {};
+          entradaSeconds.forEach((s: number) => { freq[s] = (freq[s] || 0) + 1; });
+          const maxFreq = Math.max(...Object.values(freq));
+          if (maxFreq >= 3) alertas.push(`⏱️ Ponto registrado no mesmo segundo por ${maxFreq} dias`);
+        }
+
+        // 2. Excesso de correções manuais
+        const manuais = (manualCount || []).filter((r: any) => r.employee_id === emp.id).length;
+        if (manuais >= 3) alertas.push(`✏️ ${manuais} correções manuais nos últimos 30 dias`);
+
+        // 3. Registros fora do horário comercial frequentes
+        const foraHorario = empMonth.filter((r: any) => {
+          const h = new Date(r.recorded_at).getHours();
+          return h < 5 || h >= 22;
+        }).length;
+        if (foraHorario >= 3) alertas.push(`🌙 ${foraHorario} registros fora do horário comercial`);
+
+        // 4. Muitos registros duplicados
+        const porDia: Record<string, string[]> = {};
+        empMonth.forEach((r: any) => {
+          const dia = new Date(r.recorded_at).toISOString().slice(0, 10);
+          if (!porDia[dia]) porDia[dia] = [];
+          porDia[dia].push(r.record_type);
+        });
+        const diasDuplicados = Object.values(porDia).filter(tipos => {
+          const freq: Record<string, number> = {};
+          tipos.forEach(t => { freq[t] = (freq[t] || 0) + 1; });
+          return Object.values(freq).some(v => v > 1);
+        }).length;
+        if (diasDuplicados >= 2) alertas.push(`📋 Registros duplicados em ${diasDuplicados} dias`);
+
+        // 5. Saída sempre idêntica ao minuto
+        const saidaMinutes = empMonth
+          .filter((r: any) => r.record_type === "saida")
+          .map((r: any) => {
+            const d = new Date(r.recorded_at);
+            return d.getHours() * 60 + d.getMinutes();
+          });
+        if (saidaMinutes.length >= 5) {
+          const freq: Record<number, number> = {};
+          saidaMinutes.forEach((m: number) => { freq[m] = (freq[m] || 0) + 1; });
+          const maxFreq = Math.max(...Object.values(freq));
+          if (maxFreq >= 5) {
+            const minuto = Number(Object.keys(freq).find(k => freq[Number(k)] === maxFreq));
+            alertas.push(`🤖 Saída sempre às ${String(Math.floor(minuto/60)).padStart(2,"0")}:${String(minuto%60).padStart(2,"0")} (${maxFreq}x)`);
+          }
+        }
+
+        if (alertas.length > 0) comportSuspeitos.push({ id: emp.id, name: emp.name, alertas });
+      });
+      setComportamentos(comportSuspeitos);
+
       setStatuses(statusList);
       setLastUpdated(new Date());
     } catch (err: any) {
@@ -294,6 +373,22 @@ export default function DashboardTab({ onNavigate }: { onNavigate?: (tab: string
         </div>
       </div>
 
+{/* COMPORTAMENTO SUSPEITO */}
+{comportamentos.length > 0 && (
+  <div className="rounded-xl border-2 border-purple-500/50 bg-purple-500/5 p-3 space-y-2">
+    <p className="font-bold text-purple-600 flex items-center gap-2">
+      🔍 Comportamento atípico detectado ({comportamentos.length} funcionário{comportamentos.length > 1 ? "s" : ""})
+    </p>
+    {comportamentos.map(e => (
+      <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1">
+        <p className="text-xs font-semibold text-foreground">{e.name}</p>
+        {e.alertas.map((alerta, i) => (
+          <p key={i} className="text-xs text-purple-700">{alerta}</p>
+        ))}
+      </div>
+    ))}
+  </div>
+)}
       {/* INCONSISTÊNCIAS — destaque máximo */}
       {comInconsistencias.length > 0 && (
         <div className="rounded-xl border-2 border-orange-500/50 bg-orange-500/5 p-3 space-y-2">
