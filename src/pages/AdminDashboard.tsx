@@ -36,6 +36,9 @@ import EspelhoPontoTab from "@/components/admin/payroll/EspelhoPontoTab";
 import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
+import BuscaGlobal from "@/components/admin/BuscaGlobal";
+import { Search } from "lucide-react";
 
 type Employee = Tables<"employees">;
 
@@ -70,6 +73,7 @@ const tabTitles: Record<AdminTab, string> = {
   "espelho-ponto": "Folha — Espelho de Ponto",
   "simulador": "Folha — Simulador",
   "exportacoes": "Exportações",
+  "aprovacoes-lote": "Aprovações em Lote",
 };
 
 export default function AdminDashboard() {
@@ -99,6 +103,18 @@ export default function AdminDashboard() {
   const [editEmail, setEditEmail] = useState("");
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showBusca, setShowBusca] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setShowBusca(true);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   useEffect(() => {
     fetchEmployees();
@@ -223,6 +239,10 @@ export default function AdminDashboard() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowBusca(true)} className="gap-1.5">
+  <Search className="w-4 h-4" />
+  <span className="hidden sm:inline text-muted-foreground text-xs">Ctrl+K</span>
+</Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -266,6 +286,7 @@ export default function AdminDashboard() {
               {tab === "espelho-ponto" && <EspelhoPontoTab employees={employees} />}
               {tab === "mapa-localizacao" && <MapaLocalizacaoTab employees={employees} />}
               {tab === "exportacoes" && <ExportacoesTab employees={employees} />}
+              {tab === "aprovacoes-lote" && <AprovacoesLoteTab employees={employees} />}
               {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
@@ -456,6 +477,13 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
-    </SidebarProvider>
+    {showBusca && (
+  <BuscaGlobal
+    employees={employees}
+    onNavigate={(t) => setTab(t as any)}
+    onClose={() => setShowBusca(false)}
+  />
+)}
+      </SidebarProvider>
   );
 }
