@@ -261,30 +261,60 @@ const exportarExcel = () => {
 
       {selectedId && (
         <>
-          {/* Cards de saldo */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card className={`p-4 border-2 ${saldo >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
-              <p className="text-sm text-muted-foreground">Saldo atual</p>
-              <p className={`text-3xl font-bold mt-1 ${saldo >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {fmtHoras(saldo)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">{saldo >= 0 ? "Horas a receber" : "Horas a compensar"}</p>
-            </Card>
-            <Card className="p-4 border-2 border-emerald-500/20">
-              <p className="text-sm text-muted-foreground">Horas positivas</p>
-              <p className="text-3xl font-bold mt-1 text-emerald-500">
-                {fmtHoras(entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0))}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Total de créditos</p>
-            </Card>
-            <Card className="p-4 border-2 border-rose-500/20">
-              <p className="text-sm text-muted-foreground">Horas negativas</p>
-              <p className="text-3xl font-bold mt-1 text-rose-500">
-                {fmtHoras(entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0))}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Total de débitos</p>
-            </Card>
-          </div>
+          {/* Medidor visual de saldo */}
+          {(() => {
+            const creditos = entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0);
+            const debitos = entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0);
+            const limite = 40;
+            const pct = Math.min(Math.abs(saldo) / limite * 100, 100);
+            const isPositivo = saldo >= 0;
+            return (
+              <Card className={`p-5 border-2 ${isPositivo ? "border-emerald-500/30" : "border-rose-500/30"}`}>
+                <div className="flex items-end justify-between mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Saldo do banco de horas</p>
+                    <p className={`text-5xl font-bold mt-1 tabular-nums ${isPositivo ? "text-emerald-500" : "text-rose-500"}`}>
+                      {saldo > 0 ? "+" : ""}{fmtHoras(saldo)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{isPositivo ? "Horas a receber / compensar" : "Horas em débito"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Limite recomendado</p>
+                    <p className="text-sm font-semibold text-muted-foreground">40h</p>
+                  </div>
+                </div>
+
+                {/* Barra progressiva */}
+                <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-4 rounded-full transition-all duration-700 ${
+                      pct >= 100 ? "bg-rose-500" :
+                      pct >= 75 ? "bg-amber-500" :
+                      isPositivo ? "bg-emerald-500" : "bg-rose-500"
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                  <span>0h</span>
+                  <span>{pct.toFixed(0)}% do limite</span>
+                  <span>40h</span>
+                </div>
+
+                {/* Créditos e débitos */}
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="rounded-xl bg-emerald-500/10 p-3">
+                    <p className="text-xs text-muted-foreground">Créditos</p>
+                    <p className="text-xl font-bold text-emerald-500 mt-0.5">+{fmtHoras(creditos)}</p>
+                  </div>
+                  <div className="rounded-xl bg-rose-500/10 p-3">
+                    <p className="text-xs text-muted-foreground">Débitos</p>
+                    <p className="text-xl font-bold text-rose-500 mt-0.5">-{fmtHoras(debitos)}</p>
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
 
           {saldo > 40 && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
