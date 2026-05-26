@@ -461,6 +461,62 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
             </Card>
           </div>
 
+{/* Calendário visual */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Calendário — {MONTH_NAMES[month-1]}/{year}</p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Presente</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span>Incompleto</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-500 inline-block"></span>Falta</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-200 inline-block"></span>Folga</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
+                <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
+              ))}
+            </div>
+            {(() => {
+              const firstDow = new Date(year, month - 1, 1).getDay();
+              const cells: (DayRecord | null)[] = Array(firstDow).fill(null).concat(days);
+              while (cells.length % 7 !== 0) cells.push(null);
+              const weeks = [];
+              for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+              return weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+                  {week.map((day, di) => {
+                    if (!day) return <div key={di} />;
+                    const dow = new Date(day.date + "T12:00:00").getDay();
+                    const isWeekend = dow === 0 || dow === 6;
+                    const dayNum = parseInt(day.date.split("-")[2]);
+                    let bg = "bg-blue-100 text-blue-600"; // folga/fim de semana
+                    let title = "Fim de semana";
+                    if (!isWeekend) {
+                      if (day.status === "completo") { bg = "bg-emerald-100 text-emerald-700"; title = `${fmtHours(day.totalMinutes)}`; }
+                      else if (day.status === "incompleto") { bg = "bg-amber-100 text-amber-700"; title = "Incompleto"; }
+                      else { bg = "bg-rose-100 text-rose-700"; title = "Falta"; }
+                    }
+                    return (
+                      <div key={di} title={`${day.date} — ${title}`}
+                        className={`rounded-md p-1 text-center cursor-default transition-all hover:opacity-80 ${bg}`}>
+                        <p className="text-xs font-bold">{dayNum}</p>
+                        {!isWeekend && day.totalMinutes > 0 && (
+                          <p className="text-[9px] leading-tight">{fmtHours(day.totalMinutes)}</p>
+                        )}
+                        {!isWeekend && day.status === "incompleto" && (
+                          <p className="text-[9px] leading-tight">inc.</p>
+                        )}
+                        {!isWeekend && day.status === "falta" && day.totalMinutes === 0 && !day.entrada && (
+                          <p className="text-[9px] leading-tight">falta</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
+          </Card>
           {/* Tabela */}
           <Card className="p-0 overflow-hidden">
             <div className="overflow-x-auto">
