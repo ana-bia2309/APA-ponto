@@ -23,7 +23,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Shield } from "lucide-react";
-import logo from "@/assets/logo-AMR.png";
+import logo from "@/assets/logo-APA.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
