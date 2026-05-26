@@ -40,6 +40,7 @@ import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
 import AnalisesTab from "@/components/admin/AnalisesTab";
 import BuscaGlobal from "@/components/admin/BuscaGlobal";
 import { Search } from "lucide-react";
+import HistoricoTab from "@/components/admin/HistoricoTab";
 
 type Employee = Tables<"employees">;
 
@@ -76,6 +77,7 @@ const tabTitles: Record<AdminTab, string> = {
   "exportacoes": "Exportações",
   "aprovacoes-lote": "Aprovações em Lote",
   "analises": "Análises",
+  "historico": "Histórico",
 };
 
 export default function AdminDashboard() {
@@ -290,6 +292,7 @@ export default function AdminDashboard() {
               {tab === "exportacoes" && <ExportacoesTab employees={employees} />}
               {tab === "aprovacoes-lote" && <AprovacoesLoteTab employees={employees} />}
               {tab === "analises" && <AnalisesTab employees={employees} />}
+              {tab === "historico" && <HistoricoTab employees={employees} />}
               {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
