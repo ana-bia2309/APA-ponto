@@ -34,6 +34,7 @@ import MapaLocalizacaoTab from "@/components/admin/MapaLocalizacaoTab";
 import EspelhoPontoTab from "@/components/admin/payroll/EspelhoPontoTab";
 import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 type Employee = Tables<"employees">;
 
@@ -72,6 +73,7 @@ const tabTitles: Record<AdminTab, string> = {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user, profile, signOut, isAdmin, isRh } = useAuth();
+  const { isDark, toggle } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newName, setNewName] = useState("");
   const [newCpf, setNewCpf] = useState("");
@@ -222,6 +224,16 @@ export default function AdminDashboard() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={toggle}
+                className="gap-1.5"
+                title="Alternar tema"
+              >
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                <span className="hidden sm:inline">{isDark ? "Claro" : "Escuro"}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate("/")}
                 className="gap-1.5"
                 title="Voltar para registrar ponto"
@@ -232,11 +244,10 @@ export default function AdminDashboard() {
               <span className="hidden md:inline text-xs text-muted-foreground ml-2">{profile?.full_name || user?.email}</span>
             </div>
           </header>
-
          {/* Content */}
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
             <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {tab === "dashboard" && <DashboardTab />}
+              {tab === "dashboard" && <DashboardTab onNavigate={(t) => setTab(t as any)} />}
               {tab === "records" && <RecordsTab employees={employees} />}
               {tab === "justifications" && <JustificationsTab />}
               {showEpi && <EpiTab employees={employees} activeSubTab={epiSubTab} />}
