@@ -1,7 +1,7 @@
 import {
   Users, Clock, FileText, HardHat, Shield, Activity,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles, MapPin,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles, MapPin, FileDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -47,6 +47,7 @@ export type AdminTab =
   | "simulador"
   | "espelho-ponto"
   | "mapa-localizacao"
+  | "exportacoes"
   | "users";
 
 interface Props {
@@ -64,6 +65,7 @@ const mainItems = [
   { key: "justifications" as const, label: "Atestados", icon: FileText },
   { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
   { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
+  { key: "exportacoes" as const, label: "Exportações", icon: FileDown },
   { key: "assistente" as const, label: "Assistente IA", icon: Sparkles },
 ];
 

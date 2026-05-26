@@ -31,6 +31,7 @@ import AssistenteIA from "@/components/admin/AssistenteIA";
 import UniformsTab from "@/components/admin/UniformsTab";
 import ToolsTab from "@/components/admin/ToolsTab";
 import MapaLocalizacaoTab from "@/components/admin/MapaLocalizacaoTab";
+import ExportacoesTab from "@/components/admin/ExportacoesTab";
 import EspelhoPontoTab from "@/components/admin/payroll/EspelhoPontoTab";
 import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,6 +69,7 @@ const tabTitles: Record<AdminTab, string> = {
   "mapa-localizacao": "Mapa de Localização",
   "espelho-ponto": "Folha — Espelho de Ponto",
   "simulador": "Folha — Simulador",
+  "exportacoes": "Exportações",
 };
 
 export default function AdminDashboard() {
@@ -263,6 +265,7 @@ export default function AdminDashboard() {
               {tab === "assistente" && <AssistenteIA />}
               {tab === "espelho-ponto" && <EspelhoPontoTab employees={employees} />}
               {tab === "mapa-localizacao" && <MapaLocalizacaoTab employees={employees} />}
+              {tab === "exportacoes" && <ExportacoesTab employees={employees} />}
               {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
