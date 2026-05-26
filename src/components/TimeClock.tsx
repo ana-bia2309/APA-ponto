@@ -1309,14 +1309,18 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
 
     let totalMs = 0;
     if (entrada && intervalo) {
-      totalMs += new Date(intervalo.punched_at).getTime() - new Date(entrada.punched_at).getTime();
+      const diff = new Date(intervalo.punched_at).getTime() - new Date(entrada.punched_at).getTime();
+      if (diff > 0) totalMs += diff;
     } else if (entrada && !intervalo) {
-      totalMs += now.getTime() - new Date(entrada.punched_at).getTime();
+      const diff = now.getTime() - new Date(entrada.punched_at).getTime();
+      if (diff > 0) totalMs += diff;
     }
     if (retorno && saida) {
-      totalMs += new Date(saida.punched_at).getTime() - new Date(retorno.punched_at).getTime();
+      const diff = new Date(saida.punched_at).getTime() - new Date(retorno.punched_at).getTime();
+      if (diff > 0) totalMs += diff;
     } else if (retorno && !saida) {
-      totalMs += now.getTime() - new Date(retorno.punched_at).getTime();
+      const diff = now.getTime() - new Date(retorno.punched_at).getTime();
+      if (diff > 0) totalMs += diff;
     }
     const hours = Math.floor(totalMs / 3600000);
     const minutes = Math.floor((totalMs % 3600000) / 60000);
