@@ -40,7 +40,7 @@ const gestaoItems = [
   { key: "justifications" as const, label: "Atestados", icon: FileText },
   { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
   { key: "aprovacoes-lote" as const, label: "Aprovações em Lote", icon: CheckCircle2 },
-  { key: "exportacoes" as const, label: "Exportações", icon: FileDown },
+  { key: "exportacoes" as const, label: "Relatórios", icon: FileDown },
   { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
 ];
 
@@ -75,7 +75,7 @@ const payrollItems = [
   { key: "banco-horas" as const, label: "Banco de Horas", icon: Clock },
   { key: "payslips" as const, label: "Holerites", icon: Receipt },
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
-  { key: "payroll-settings" as const, label: "Configurações", icon: SettingsIcon },
+  { key: "payroll-settings" as const, label: "Parâmetros da Folha", icon: SettingsIcon },
   { key: "trabalhista-config" as const, label: "Regras CLT", icon: FileText },
   { key: "simulador" as const, label: "Simulador", icon: Calculator },
 ];
