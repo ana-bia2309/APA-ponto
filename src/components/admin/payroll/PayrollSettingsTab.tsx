@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Save, Trash2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type Employee = Tables<"employees">;
 
@@ -109,37 +110,36 @@ return (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label>Salário Base (R$)</Label>
-              <Input type="number" step="0.01" value={settings.salario_base}
-                onChange={(e) => upd("salario_base", parseFloat(e.target.value) || 0)} />
+              <CurrencyInput value={settings.salario_base} onChange={(v) => upd("salario_base", v)} />
             </div>
             <div>
               <Label>Carga Horária Mensal</Label>
-              <Input type="number" step="0.01" value={settings.carga_horaria_mensal}
-                onChange={(e) => upd("carga_horaria_mensal", parseFloat(e.target.value) || 0)} />
+              <Input type="number" min="1" value={settings.carga_horaria_mensal || ""}
+                onChange={(e) => upd("carga_horaria_mensal", parseInt(e.target.value) || 0)} />
             </div>
             <div>
               <Label>Dependentes IRRF</Label>
-              <Input type="number" value={settings.dependentes_irrf}
+              <Input type="number" min="0" value={settings.dependentes_irrf || ""}
                 onChange={(e) => upd("dependentes_irrf", parseInt(e.target.value) || 0)} />
             </div>
             <div>
               <Label>Vale Transporte (R$)</Label>
-              <Input type="number" step="0.01" value={settings.vale_transporte}
-                onChange={(e) => upd("vale_transporte", parseFloat(e.target.value) || 0)} />
+              <CurrencyInput value={settings.vale_transporte} onChange={(v) => upd("vale_transporte", v)} />
             </div>
             <div>
               <Label>Vale Alimentação (R$)</Label>
-              <Input type="number" step="0.01" value={settings.vale_alimentacao}
-                onChange={(e) => upd("vale_alimentacao", parseFloat(e.target.value) || 0)} />
+              <CurrencyInput value={settings.vale_alimentacao} onChange={(v) => upd("vale_alimentacao", v)} />
             </div>
             <div>
               <Label>Comissão (%)</Label>
-              <Input type="number" step="0.01" value={settings.percentual_comissao}
+              <Input type="number" min="0" max="100" step="0.01"
+                value={settings.percentual_comissao || ""}
                 onChange={(e) => upd("percentual_comissao", parseFloat(e.target.value) || 0)} />
             </div>
             <div>
               <Label>Adicional Noturno (%)</Label>
-              <Input type="number" step="0.01" value={settings.adicional_noturno_percent}
+              <Input type="number" min="0" max="100" step="0.01"
+                value={settings.adicional_noturno_percent || ""}
                 onChange={(e) => upd("adicional_noturno_percent", parseFloat(e.target.value) || 0)} />
             </div>
             <div className="flex items-center gap-2 pt-6">
