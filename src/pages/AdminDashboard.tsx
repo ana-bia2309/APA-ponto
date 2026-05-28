@@ -41,6 +41,7 @@ import AnalisesTab from "@/components/admin/AnalisesTab";
 import BuscaGlobal from "@/components/admin/BuscaGlobal";
 import { Search } from "lucide-react";
 import HistoricoTab from "@/components/admin/HistoricoTab";
+import EmployeeForm from "@/components/admin/EmployeeForm";
 
 type Employee = Tables<"employees">;
 
@@ -299,42 +300,41 @@ export default function AdminDashboard() {
               {tab === "users" && <UsersTab />}
               {tab === "employees" && (
                 <div className="space-y-6">
-                  {/* Add employee form */}
-                  <Card className="p-5">
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Novo Funcionário</h3>
-                    <form onSubmit={addEmployee} className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <Input placeholder="Nome do funcionário *" value={newName}
-                          onChange={(e) => setNewName(e.target.value)} />
-                        <Input placeholder="CPF (opcional)" value={newCpf}
-                          onChange={(e) => setNewCpf(formatCpf(e.target.value))} maxLength={14} />
-                        <Input placeholder="Cargo" value={newCargo} onChange={(e) => setNewCargo(e.target.value)} />
-                        <Input placeholder="Matrícula" value={newMatricula} onChange={(e) => setNewMatricula(e.target.value)} />
-                        <Input placeholder="Departamento" value={newDepartamento} onChange={(e) => setNewDepartamento(e.target.value)} />
-                        <Input placeholder="Email (para envio de holerite)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} type="email" />
-                        <div className="flex gap-2">
-                          <select value={newPunchMode} onChange={(e) => setNewPunchMode(e.target.value as any)}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                            <option value="full">4 registros</option>
-                            <option value="simple">2 registros</option>
-                          </select>
-                          <select value={newShift} onChange={(e) => setNewShift(e.target.value as any)}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                            <option value="diurno">☀ Diurno</option>
-                            <option value="noturno">🌙 Noturno</option>
-                          </select>
-                          <select value={newEscala} onChange={(e) => setNewEscala(e.target.value)}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                            <option value="padrao">Escala Padrão</option>
-                            <option value="12x36">12×36</option>
-                          </select>
-                        </div>
-                      </div>
-                      <Button type="submit" className="w-full sm:w-auto">
-                        <Plus className="w-4 h-4 mr-2" /> Adicionar Funcionário
-                      </Button>
-                    </form>
-                  </Card>
+                 {/* Add employee form */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <h3 className="text-lg font-semibold text-foreground">👥 Funcionários</h3>
+                      <p className="text-sm text-muted-foreground">Gerencie colaboradores e jornadas</p>
+                    </div>
+                    <Card className="p-5">
+                      <EmployeeForm
+                        loading={false}
+                        onSubmit={async (data) => {
+                          if (!data.name.trim()) return;
+                          const { error } = await supabase.from("employees").insert({
+                            name: data.name.trim(),
+                            cpf: data.cpf || null,
+                            cargo: data.cargo || null,
+                            matricula: data.matricula || null,
+                            departamento: data.departamento || null,
+                            email: data.email || null,
+                            punch_mode: data.punch_mode,
+                            shift: data.shift,
+                            escala: data.escala,
+                            active: true,
+                            ...(data.status && { status: data.status }),
+                            ...(data.tipo_vinculo && { tipo_vinculo: data.tipo_vinculo }),
+                            ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
+                            ...(data.data_admissao && { data_admissao: data.data_admissao }),
+                            ...(data.observacoes && { observacoes: data.observacoes }),
+                          } as any);
+                          if (error) { toast.error("Erro ao adicionar: " + error.message); return; }
+                          toast.success("Colaborador adicionado!");
+                          fetchEmployees();
+                        }}
+                      />
+                    </Card>
+                  </div>
 
                   {/* Report */}
                   <div className="flex items-center gap-3">
