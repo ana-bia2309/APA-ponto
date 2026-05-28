@@ -24,6 +24,8 @@ export type PayrollSettings = {
   hora_extra_habilitada: boolean;
   adicional_noturno_percent: string | number;
   desconta_vt: boolean;
+  gratificacao_fixa?: string | number;
+  gratificacao_percentual?: string | number;
 };
 
 export type WorkSummary = {
@@ -167,6 +169,20 @@ export function calculatePayroll(
     items.push({
       kind: "provento", code: "007", description: "Bonificação",
       amount: round2(D(work.bonificacoes)),
+    });
+  }
+  // 7b. Gratificação
+  const gratFixa = D(settings.gratificacao_fixa ?? 0);
+  const gratPct = D(settings.gratificacao_percentual ?? 0);
+  const gratPctValor = gratPct.gt(0) ? salario.mul(gratPct.div(100)) : D(0);
+  const gratTotal = gratFixa.plus(gratPctValor);
+  if (gratTotal.gt(0)) {
+    const ref = gratFixa.gt(0) && gratPct.gt(0)
+      ? `R$ ${round2(gratFixa)} + ${gratPct.toFixed(2)}%`
+      : gratPct.gt(0) ? `${gratPct.toFixed(2)}% do salário` : "Valor fixo";
+    items.push({
+      kind: "provento", code: "008b", description: "Gratificação",
+      reference: ref, amount: round2(gratTotal),
     });
   }
 

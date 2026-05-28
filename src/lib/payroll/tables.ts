@@ -31,7 +31,7 @@ export function getFeriadosNacionais(year: number): string[] {
     `${year}-11-02`, // Finados
     `${year}-11-15`, // Proclamação da República
     `${year}-12-25`, // Natal
-  ];
+  ]
 }
 
 export function getDiasUteisNoMes(year: number, month: number): number {

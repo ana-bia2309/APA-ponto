@@ -23,12 +23,15 @@ interface Settings {
   hora_extra_habilitada: boolean;
   adicional_noturno_percent: number;
   desconta_vt: boolean;
+  gratificacao_fixa: number;
+  gratificacao_percentual: number;
 }
 
 const DEFAULTS: Omit<Settings, "employee_id"> = {
   salario_base: 0, carga_horaria_mensal: 220, vale_transporte: 0,
   vale_alimentacao: 0, dependentes_irrf: 0, percentual_comissao: 0,
   hora_extra_habilitada: true, adicional_noturno_percent: 20, desconta_vt: true,
+  gratificacao_fixa: 0, gratificacao_percentual: 0,
 };
 
 export default function PayrollSettingsTab({ employees }: { employees: Employee[] }) {
@@ -141,6 +144,16 @@ return (
               <Input type="number" min="0" max="100" step="0.01"
                 value={settings.adicional_noturno_percent || ""}
                 onChange={(e) => upd("adicional_noturno_percent", parseFloat(e.target.value) || 0)} />
+            </div>
+            <div>
+              <Label>Gratificação Fixa (R$)</Label>
+              <CurrencyInput value={settings.gratificacao_fixa} onChange={(v) => upd("gratificacao_fixa", v)} />
+            </div>
+            <div>
+              <Label>Gratificação em % do salário</Label>
+              <Input type="number" min="0" max="100" step="0.01" placeholder="0,00"
+                value={settings.gratificacao_percentual || ""}
+                onChange={(e) => upd("gratificacao_percentual", parseFloat(e.target.value) || 0)} />
             </div>
             <div className="flex items-center gap-2 pt-6">
               <input type="checkbox" id="he" checked={settings.hora_extra_habilitada}

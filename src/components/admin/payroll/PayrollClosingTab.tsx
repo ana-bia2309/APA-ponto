@@ -55,6 +55,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     const { data: settings } = await supabase
       .from("payroll_settings").select("*")
       .eq("employee_id", emp.id).maybeSingle();
+    console.log("DEBUG settings:", settings);
     if (!settings) return false;
 
     const start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
@@ -99,7 +100,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       .from("payslips")
       .upsert(payload as any, { onConflict: "period_id,employee_id" })
       .select().single();
-    if (error) { console.error(error); return false; }
+    if (error) { console.error("PAYSLIP ERROR:", JSON.stringify(error)); return false; }
     await supabase.from("payroll_items").delete().eq("payslip_id", ps.id);
     const itemRows = result.items.map((it, idx) => ({
       payslip_id: ps.id, kind: it.kind, code: it.code,
@@ -121,9 +122,11 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       let ok = 0;
       for (const emp of employees) if (await calcEmployee(emp, pid)) ok++;
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
-        action: "payroll_calculated_all", target_type: "payroll_period",
-        target_id: pid, admin_user_id: user?.id || null,
+      await (supabase as any).from("audit_logs").insert({
+        action: "payroll_calculated_all",
+        table_name: "payroll_period",
+        record_id: pid,
+        user_email: user?.email || null,
         details: { year, month, processed: ok, total: employees.length },
       });
       await loadPeriod();
@@ -144,9 +147,11 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       const ok = await calcEmployee(emp, pid);
       if (!ok) { toast.error("Configure o salário do colaborador"); return; }
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
-        action: "payroll_calculated_employee", target_type: "payslip",
-        target_id: emp.id, admin_user_id: user?.id || null,
+      await (supabase as any).from("audit_logs").insert({
+        action: "payroll_calculated_employee",
+        table_name: "payslip",
+        record_id: emp.id,
+        user_email: user?.email || null,
         details: { year, month, employee_name: emp.name },
       });
       await loadPeriod();
@@ -163,9 +168,11 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       });
       if (error) throw error;
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
-        action: "payroll_period_closed", target_type: "payroll_period",
-        target_id: periodId, admin_user_id: user?.id || null,
+      await (supabase as any).from("audit_logs").insert({
+        action: "payroll_period_closed",
+        table_name: "payroll_period",
+        record_id: periodId,
+        user_email: user?.email || null,
         details: { year, month, totals: (data as any)?.totals },
       });
       await loadPeriod();
@@ -181,9 +188,11 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     await supabase.from("payroll_periods").update({
       status: "aberto", closed_at: null, closed_by: null,
     }).eq("id", periodId);
-    await supabase.from("audit_logs").insert({
-      action: "payroll_period_reopened", target_type: "payroll_period",
-      target_id: periodId, admin_user_id: user?.id || null,
+    await (supabase as any).from("audit_logs").insert({
+      action: "payroll_period_reopened",
+      table_name: "payroll_period",
+      record_id: periodId,
+      user_email: user?.email || null,
       details: { year, month },
     });
     setPeriodStatus("aberto");
