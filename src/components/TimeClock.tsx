@@ -1393,16 +1393,6 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   }
 
   if (showToolAcceptance && selectedEmployee && validatedContext) {
-    if (showTimesheetSign && selectedEmployee && validatedContext) {
-  return (
-    <TimesheetSign
-      cpf={validatedContext.cpf_normalized}
-      employeeName={selectedEmployee.name}
-      onClose={() => setShowTimesheetSign(false)}
-      onSigned={() => fetchPendingTimesheetCount(validatedContext.cpf_normalized)}
-    />
-  );
-}
    return (
       <ToolAcceptance
         cpf={validatedContext.cpf_normalized}
