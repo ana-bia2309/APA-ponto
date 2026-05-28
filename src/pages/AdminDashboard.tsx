@@ -327,6 +327,9 @@ export default function AdminDashboard() {
                             ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
                             ...(data.data_admissao && { data_admissao: data.data_admissao }),
                             ...(data.observacoes && { observacoes: data.observacoes }),
+                            ...(data.foto_url && { foto_url: data.foto_url }),
+                            ...(data.telefone && { telefone: data.telefone }),
+                            ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
                           } as any);
                           if (error) { toast.error("Erro ao adicionar: " + error.message); return; }
                           toast.success("Colaborador adicionado!");

@@ -19,6 +19,9 @@ interface EmployeeFormData {
   carga_horaria_semanal: number;
   status: string;
   observacoes: string;
+  foto_url: string;
+  telefone: string;
+  contato_emergencia: string;
 }
 
 interface Props {
@@ -30,7 +33,7 @@ const DEFAULTS: EmployeeFormData = {
   name: "", cpf: "", matricula: "", cargo: "", departamento: "",
   email: "", tipo_vinculo: "CLT", data_admissao: "",
   punch_mode: "full", shift: "diurno", escala: "padrao",
-  carga_horaria_semanal: 44, status: "ativo", observacoes: "",
+  carga_horaria_semanal: 44, status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
 };
 
 function formatCpf(value: string) {
@@ -75,6 +78,58 @@ const CARGA_OPTIONS = [
   { value: 20, label: "20h semanais (estágio)" },
 ];
 
+function PhotoUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await import("@/integrations/supabase/client").then(m =>
+        m.supabase.storage.from("employee-photos").upload(fileName, file, { contentType: file.type })
+      );
+      if (error) throw error;
+      const { data } = await import("@/integrations/supabase/client").then(m =>
+        m.supabase.storage.from("employee-photos").getPublicUrl(fileName)
+      );
+      onChange(data.publicUrl);
+    } catch (err: any) {
+      alert("Erro ao fazer upload: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-20 h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted flex-shrink-0">
+        {value ? (
+          <img src={value} alt="Foto" className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-6 h-6 text-muted-foreground" />
+        )}
+      </div>
+      <div>
+        <label className="cursor-pointer">
+          <span className="text-xs font-medium text-primary hover:underline">
+            {uploading ? "Enviando..." : value ? "Trocar foto" : "Adicionar foto"}
+          </span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+        </label>
+        <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG até 2MB</p>
+        {value && (
+          <button type="button" onClick={() => onChange("")}
+            className="text-xs text-rose-500 hover:underline mt-0.5 block">
+            Remover
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 function SectionTitle({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
@@ -107,6 +162,9 @@ export default function EmployeeForm({ onSubmit, loading }: Props) {
       <div>
         <SectionTitle icon={User} title="Informações Pessoais" subtitle="Dados de identificação do colaborador" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="lg:col-span-3 mb-2">
+            <PhotoUpload value={form.foto_url} onChange={v => upd("foto_url", v)} />
+          </div>
           <div className="lg:col-span-2">
             <Label className="text-xs text-muted-foreground">Nome completo *</Label>
             <Input className="mt-1" placeholder="Nome do colaborador"
@@ -169,6 +227,16 @@ export default function EmployeeForm({ onSubmit, loading }: Props) {
             <Label className="text-xs text-muted-foreground">Data de admissão</Label>
             <Input className="mt-1" type="date"
               value={form.data_admissao} onChange={e => upd("data_admissao", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Telefone</Label>
+            <Input className="mt-1" placeholder="(61) 99999-9999"
+              value={form.telefone} onChange={e => upd("telefone", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Contato de emergência</Label>
+            <Input className="mt-1" placeholder="Nome e telefone"
+              value={form.contato_emergencia} onChange={e => upd("contato_emergencia", e.target.value)} />
           </div>
           <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Observações</Label>
