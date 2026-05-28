@@ -9,6 +9,7 @@ import { Calculator, Lock, Unlock, RefreshCw, TrendingUp, Wallet, Receipt, Users
 import type { Tables } from "@/integrations/supabase/types";
 import { calculatePayroll, summarizeWorkFromRecords } from "@/lib/payroll/calculator";
 import { generatePayrollReport } from "@/lib/generateReport";
+import { getDiasUteisNoMes } from "@/lib/payroll/tables";
 
 type Employee = Tables<"employees">;
 
@@ -67,7 +68,12 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       .from("payroll_custom_items").select("*")
       .eq("employee_id", emp.id).eq("active", true);
 
-    const work = summarizeWorkFromRecords(records || []);
+    const diasUteis = getDiasUteisNoMes(year, month);
+    const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria: 8, diasUteisPrevistos: diasUteis });
+    work.dias_uteis_mes = diasUteis;
+    work.dias_trabalhados = parseInt(work.faltas_dias as string) >= 0
+      ? diasUteis - parseInt(work.faltas_dias as string)
+      : diasUteis;
     const customItems = (customs || []).map((c: any) => ({
       kind: c.kind, code: "C", description: c.description, amount: String(c.amount),
     }));

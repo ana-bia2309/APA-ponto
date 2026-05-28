@@ -33,9 +33,11 @@ export type WorkSummary = {
   horas_noturnas: string | number;
   faltas_dias: string | number;
   atrasos_minutos: number;
-  comissao_base?: string | number; // valor sobre o qual se aplica comissão
+  comissao_base?: string | number;
   bonificacoes?: string | number;
   custom_items?: PayrollItem[];
+  dias_uteis_mes?: number;
+  dias_trabalhados?: number;
 };
 
 export type PayrollResult = {
@@ -168,11 +170,17 @@ export function calculatePayroll(
     });
   }
 
-  // 8. Vale alimentação (provento informativo se for benefício)
+  // 8. Vale alimentação — proporcional a dias úteis trabalhados
   if (D(settings.vale_alimentacao).gt(0)) {
+    const diasUteis = D(work.dias_uteis_mes ?? 22);
+    const diasTrab = D(work.dias_trabalhados ?? diasUteis.toNumber());
+    const vaProporcional = diasUteis.gt(0)
+      ? D(settings.vale_alimentacao).div(diasUteis).mul(diasTrab)
+      : D(settings.vale_alimentacao);
     items.push({
       kind: "provento", code: "008", description: "Vale Alimentação",
-      amount: round2(D(settings.vale_alimentacao)),
+      reference: `${diasTrab.toFixed(0)}/${diasUteis.toFixed(0)} dias úteis`,
+      amount: round2(vaProporcional),
     });
   }
 
@@ -217,13 +225,21 @@ export function calculatePayroll(
     });
   }
 
-  // 13. Vale transporte (limite 6%)
+  // 13. Vale transporte — proporcional descontando faltas, limite 6%
   if (settings.desconta_vt && D(settings.vale_transporte).gt(0)) {
+    const diasUteis = D(work.dias_uteis_mes ?? 22);
+    const faltas = D(work.faltas_dias ?? 0);
+    const diasVt = Decimal.max(diasUteis.minus(faltas), D(0));
+    const vtProporcional = diasUteis.gt(0)
+      ? D(settings.vale_transporte).div(diasUteis).mul(diasVt)
+      : D(settings.vale_transporte);
     const limite = salario.mul("0.06");
-    const vt = Decimal.min(D(settings.vale_transporte), limite);
+    const vtMin = Decimal.min(vtProporcional, limite);
+    const vt = new Decimal(vtMin.toString());
     items.push({
       kind: "desconto", code: "202", description: "Vale Transporte",
-      reference: "6% máx.", amount: round2(vt),
+      reference: `${diasVt.toFixed(0)} dias · 6% máx.`,
+      amount: round2(vt),
     });
   }
 
@@ -294,7 +310,7 @@ export function summarizeWorkFromRecords(
     cargaHorariaDiaria?: number;
     diasUteisPrevistos?: number; // dias esperados de trabalho no mês
   } = {},
-): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"> {
+): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"|"dias_uteis_mes"|"dias_trabalhados"> {
   const cargaDiaria = opts.cargaHorariaDiaria ?? 8;
 
   // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada")

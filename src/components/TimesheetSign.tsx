@@ -10,6 +10,10 @@ interface PendingTimesheet {
   year: number;
   closed_at: string;
   status: string;
+  horas_trabalhadas: number;
+  dias_trabalhados: number;
+  faltas: number;
+  horas_extras: number;
 }
 
 interface Props {
@@ -32,6 +36,8 @@ export default function TimesheetSign({ cpf, employeeName, onClose, onSigned }: 
   const [selected, setSelected] = useState<PendingTimesheet | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [termoRead, setTermoRead] = useState(false);
+  const [recusando, setRecusando] = useState(false);
+  const [motivoRecusa, setMotivoRecusa] = useState("");
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
@@ -93,15 +99,42 @@ export default function TimesheetSign({ cpf, employeeName, onClose, onSigned }: 
           </div>
 
           <div className="rounded-2xl p-4 mb-4 border border-white/10" style={{ background: cardBg }}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4" style={{ color: "hsl(210 70% 55%)" }} />
               <span className="font-semibold text-sm" style={{ color: textLight }}>
                 {MONTH_NAMES[selected.month - 1]} / {selected.year}
               </span>
             </div>
-            <p className="text-xs mt-2" style={{ color: textMuted }}>
+            <p className="text-xs mb-3" style={{ color: textMuted }}>
               Fechado em: {new Date(selected.closed_at).toLocaleString("pt-BR")}
             </p>
+            {/* Dados consolidados */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl p-3 text-center" style={{ background: "hsl(210 30% 10%)" }}>
+                <p className="text-lg font-bold" style={{ color: "hsl(152 55% 55%)" }}>
+                  {Math.floor(selected.horas_trabalhadas)}h{String(Math.round((selected.horas_trabalhadas % 1) * 60)).padStart(2,"0")}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: textMuted }}>Horas trabalhadas</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "hsl(210 30% 10%)" }}>
+                <p className="text-lg font-bold" style={{ color: "hsl(210 80% 65%)" }}>
+                  {selected.dias_trabalhados}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: textMuted }}>Dias trabalhados</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "hsl(210 30% 10%)" }}>
+                <p className="text-lg font-bold" style={{ color: selected.faltas > 0 ? "hsl(0 72% 60%)" : "hsl(152 55% 55%)" }}>
+                  {selected.faltas}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: textMuted }}>Faltas</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "hsl(210 30% 10%)" }}>
+                <p className="text-lg font-bold" style={{ color: selected.horas_extras > 0 ? "hsl(38 92% 60%)" : textMuted }}>
+                  {Math.floor(selected.horas_extras)}h{String(Math.round((selected.horas_extras % 1) * 60)).padStart(2,"0")}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: textMuted }}>Horas extras</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-2xl p-4 mb-4 border border-white/10" style={{ background: cardBg }}>
@@ -115,10 +148,53 @@ export default function TimesheetSign({ cpf, employeeName, onClose, onSigned }: 
           </div>
 
           {!termoRead ? (
-            <label className="flex items-start gap-2 cursor-pointer rounded-xl p-3 border border-white/10 mb-3" style={{ background: "hsl(210 30% 13%)" }}>
-              <input type="checkbox" checked={termoRead} onChange={e => setTermoRead(e.target.checked)} className="mt-0.5 accent-emerald-500" />
-              <span className="text-xs" style={{ color: textMuted }}>Li e concordo com as informações do espelho de ponto acima.</span>
-            </label>
+            <div className="space-y-2 mb-3">
+              <label className="flex items-start gap-2 cursor-pointer rounded-xl p-3 border border-white/10" style={{ background: "hsl(210 30% 13%)" }}>
+                <input type="checkbox" checked={termoRead} onChange={e => { setTermoRead(e.target.checked); setRecusando(false); }} className="mt-0.5 accent-emerald-500" />
+                <span className="text-xs" style={{ color: textMuted }}>Li e concordo com as informações do espelho de ponto acima.</span>
+              </label>
+              {!recusando ? (
+                <button onClick={() => setRecusando(true)}
+                  className="w-full py-2.5 rounded-xl text-xs font-medium border border-rose-500/30 transition-colors"
+                  style={{ color: "hsl(0 72% 60%)", background: "hsl(0 72% 10%)" }}>
+                  ✕ Recusar espelho
+                </button>
+              ) : (
+                <div className="rounded-xl p-3 border border-rose-500/30 space-y-2" style={{ background: "hsl(0 30% 10%)" }}>
+                  <p className="text-xs font-medium" style={{ color: "hsl(0 72% 65%)" }}>Motivo da recusa:</p>
+                  <textarea value={motivoRecusa} onChange={e => setMotivoRecusa(e.target.value)}
+                    placeholder="Descreva o motivo..."
+                    className="w-full rounded-lg p-2 text-xs resize-none border border-white/10 outline-none"
+                    style={{ background: "hsl(0 20% 8%)", color: textLight, minHeight: 70 }} />
+                  <div className="flex gap-2">
+                    <button onClick={async () => {
+                      if (!motivoRecusa.trim()) { toast.error("Informe o motivo da recusa"); return; }
+                      setSubmitting(true);
+                      try {
+                        await (supabase as any).from("timesheet_closings").update({
+                          status: "recusado",
+                          recusa_motivo: motivoRecusa,
+                          accepted_at: new Date().toISOString(),
+                        }).eq("id", selected.closing_id);
+                        toast.success("Espelho recusado. O admin será notificado.");
+                        resetSelection();
+                        fetchPending();
+                      } catch { toast.error("Erro ao recusar"); }
+                      finally { setSubmitting(false); }
+                    }}
+                      className="flex-1 py-2 rounded-lg text-xs font-semibold"
+                      style={{ background: "hsl(0 72% 45%)", color: "white" }}>
+                      Confirmar recusa
+                    </button>
+                    <button onClick={() => setRecusando(false)}
+                      className="flex-1 py-2 rounded-lg text-xs font-medium border border-white/10"
+                      style={{ color: textMuted }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="rounded-2xl p-4 border border-white/10 space-y-3" style={{ background: cardBg }}>
               <div className="flex items-center gap-2">
