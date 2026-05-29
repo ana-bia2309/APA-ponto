@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileDown, FileSpreadsheet, Zap, BookmarkPlus, Trash2, Loader2, Clock, AlertTriangle } from "lucide-react";
+import { FileDown, FileSpreadsheet, Zap, BookmarkPlus, Trash2, Loader2, Clock, AlertTriangle, Calculator } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 
@@ -60,20 +60,14 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
 
   const buscar = async () => {
-    setLoading(true);
-    setGerado(false);
+    setLoading(true); setGerado(false);
     try {
       const start = new Date(ano, mes - 1, 1).toISOString();
       const end = new Date(ano, mes, 1).toISOString();
       const { data: records } = await (supabase as any)
-        .from("time_records")
-        .select("employee_id, record_type, recorded_at")
-        .gte("recorded_at", start)
-        .lt("recorded_at", end)
-        .order("recorded_at");
-
+        .from("time_records").select("employee_id, record_type, recorded_at")
+        .gte("recorded_at", start).lt("recorded_at", end).order("recorded_at");
       const result: { nome: string; tipo: string; detalhe: string }[] = [];
-
       employees.filter(e => e.active).forEach(emp => {
         const empRecs = (records || []).filter((r: any) => r.employee_id === emp.id);
         const porDia: Record<string, any[]> = {};
@@ -82,7 +76,6 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
           if (!porDia[dia]) porDia[dia] = [];
           porDia[dia].push(r);
         });
-
         Object.entries(porDia).forEach(([dia, recs]) => {
           const tipos = recs.map((r: any) => r.record_type);
           const entrada = recs.find((r: any) => r.record_type === "entrada");
@@ -90,7 +83,6 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
           const retorno = recs.find((r: any) => r.record_type === "retorno");
           const saida = recs.find((r: any) => r.record_type === "saida");
           const dataFmt = new Date(dia + "T12:00:00").toLocaleDateString("pt-BR");
-
           if (entrada && !saida) result.push({ nome: emp.name, tipo: "Sem saída", detalhe: `Dia ${dataFmt}` });
           if (intervalo && !retorno) result.push({ nome: emp.name, tipo: "Intervalo sem retorno", detalhe: `Dia ${dataFmt}` });
           if (entrada && saida) {
@@ -102,44 +94,33 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
           if (Object.values(freq).some(v => v > 1)) result.push({ nome: emp.name, tipo: "Registro duplicado", detalhe: `Dia ${dataFmt}` });
         });
       });
-
-      setInconsistencias(result);
-      setGerado(true);
-    } catch (err: any) {
-      toast.error("Erro ao buscar: " + err.message);
-    } finally { setLoading(false); }
+      setInconsistencias(result); setGerado(true);
+    } catch (err: any) { toast.error("Erro: " + err.message); }
+    finally { setLoading(false); }
   };
 
   const exportarPDF = async () => {
     const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, W, 24, "F");
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 24, "F");
     doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text("RELATÓRIO DE INCONSISTÊNCIAS", W / 2, 11, { align: "center" });
     doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 200, 230);
     doc.text(`${MONTH_NAMES[mes - 1]}/${ano} — APA Ponto`, W / 2, 18, { align: "center" });
     let y = 30;
-    doc.setFillColor(15, 23, 42);
-    doc.rect(12, y, W - 24, 7, "F");
+    doc.setFillColor(15, 23, 42); doc.rect(12, y, W - 24, 7, "F");
     doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
-    doc.text("FUNCIONÁRIO", 14, y + 5);
-    doc.text("TIPO", 80, y + 5);
-    doc.text("DETALHE", 140, y + 5);
-    y += 7;
-    doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
+    doc.text("FUNCIONÁRIO", 14, y + 5); doc.text("TIPO", 80, y + 5); doc.text("DETALHE", 140, y + 5);
+    y += 7; doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
     inconsistencias.forEach((inc, i) => {
       if (i % 2 === 0) { doc.setFillColor(250, 251, 253); doc.rect(12, y, W - 24, 6, "F"); }
       doc.text(inc.nome.slice(0, 30), 14, y + 4.5);
       doc.text(inc.tipo, 80, y + 4.5);
       doc.text(inc.detalhe, 140, y + 4.5);
-      y += 6;
-      if (y > 270) { doc.addPage(); y = 15; }
+      y += 6; if (y > 270) { doc.addPage(); y = 15; }
     });
-    if (inconsistencias.length === 0) {
-      doc.text("Nenhuma inconsistência encontrada no período.", W / 2, y + 10, { align: "center" });
-    }
+    if (inconsistencias.length === 0) doc.text("Nenhuma inconsistência encontrada.", W / 2, y + 10, { align: "center" });
     doc.setFontSize(6.5); doc.setTextColor(120, 120, 130);
     doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} — APA Ponto`, W / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
     doc.save(`inconsistencias_${MONTH_NAMES[mes-1]}_${ano}.pdf`);
@@ -148,27 +129,20 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
   };
 
   const exportarExcel = () => {
-    const rows = [
-      ["Funcionário", "Tipo de inconsistência", "Detalhe"],
-      ...inconsistencias.map(i => [i.nome, i.tipo, i.detalhe]),
-    ];
+    const rows = [["Funcionário", "Tipo", "Detalhe"], ...inconsistencias.map(i => [i.nome, i.tipo, i.detalhe])];
     const csv = rows.map(r => r.join(";")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `inconsistencias_${MONTH_NAMES[mes-1]}_${ano}.csv`;
-    a.click();
+    const a = document.createElement("a"); a.href = url;
+    a.download = `inconsistencias_${MONTH_NAMES[mes-1]}_${ano}.csv`; a.click();
     URL.revokeObjectURL(url);
-    addHistorico(`Relatório de Inconsistências Excel — ${MONTH_NAMES[mes-1]}/${ano}`);
+    addHistorico(`Inconsistências Excel — ${MONTH_NAMES[mes-1]}/${ano}`);
     toast.success("Excel gerado!");
   };
 
   return (
     <div>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-        ⚠️ Relatório de inconsistências
-      </p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">⚠️ Relatório de inconsistências</p>
       <Card className="p-4 space-y-3">
         <div className="flex gap-3 flex-wrap items-end">
           <div>
@@ -189,35 +163,173 @@ function InconsistenciasRelatorio({ employees, addHistorico }: {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
             Analisar
           </Button>
-          {gerado && (
-            <>
-              <Button size="sm" onClick={exportarPDF} className="gap-1">
-                <FileDown className="w-4 h-4" /> PDF
-              </Button>
-              <Button size="sm" variant="outline" onClick={exportarExcel} className="gap-1">
-                <FileSpreadsheet className="w-4 h-4" /> Excel
-              </Button>
-            </>
-          )}
+          {gerado && <>
+            <Button size="sm" onClick={exportarPDF} className="gap-1"><FileDown className="w-4 h-4" /> PDF</Button>
+            <Button size="sm" variant="outline" onClick={exportarExcel} className="gap-1"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
+          </>}
         </div>
+        {gerado && (inconsistencias.length === 0 ? (
+          <p className="text-sm text-emerald-600 font-medium">✅ Nenhuma inconsistência em {MONTH_NAMES[mes-1]}/{ano}!</p>
+        ) : (
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            <p className="text-xs text-muted-foreground">{inconsistencias.length} inconsistência(s) encontrada(s)</p>
+            {inconsistencias.map((inc, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs py-1.5 border-b border-border/50">
+                <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                <span className="font-medium text-foreground w-32 truncate">{inc.nome}</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{inc.tipo}</span>
+                <span className="text-muted-foreground">{inc.detalhe}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
 
-        {gerado && (
-          inconsistencias.length === 0 ? (
-            <p className="text-sm text-emerald-600 font-medium">✅ Nenhuma inconsistência em {MONTH_NAMES[mes-1]}/{ano}!</p>
-          ) : (
-            <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              <p className="text-xs text-muted-foreground">{inconsistencias.length} inconsistência(s) encontrada(s)</p>
-              {inconsistencias.map((inc, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs py-1.5 border-b border-border/50">
-                  <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
-                  <span className="font-medium text-foreground w-32 truncate">{inc.nome}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{inc.tipo}</span>
-                  <span className="text-muted-foreground">{inc.detalhe}</span>
-                </div>
-              ))}
-            </div>
-          )
-        )}
+// ─── Integração Contábil ───
+function IntegracaoContabil({ employees, addHistorico }: {
+  employees: Employee[];
+  addHistorico: (desc: string) => void;
+}) {
+  const [mes, setMes] = useState(new Date().getMonth() + 1);
+  const [ano, setAno] = useState(new Date().getFullYear());
+  const [loading, setLoading] = useState(false);
+  const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
+
+  const fmt = (v: any) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+  const exportar = async () => {
+    setLoading(true);
+    try {
+      // Busca payslips do período
+      const { data: period } = await (supabase as any)
+        .from("payroll_periods").select("id").eq("year", ano).eq("month", mes).maybeSingle();
+
+      let payslips: any[] = [];
+      if (period) {
+        const { data: ps } = await (supabase as any)
+          .from("payslips").select("*, employees(name, cpf, cargo, matricula, departamento)")
+          .eq("period_id", period.id);
+        payslips = ps || [];
+      }
+
+      // Se não tiver payslips, gera a partir dos funcionários ativos
+      if (payslips.length === 0) {
+        toast.info("Nenhuma folha calculada para este período. Calcule a folha primeiro em Folha de Pagamento → Fechamento.");
+        setLoading(false);
+        return;
+      }
+
+      const competencia = `${String(mes).padStart(2,"0")}/${ano}`;
+      const agora = new Date().toLocaleString("pt-BR");
+
+      // Cabeçalho do arquivo
+      const linhas: string[] = [
+        `;;ARQUIVO DE INTEGRAÇÃO CONTÁBIL — APA PONTO`,
+        `;;Competência: ${competencia}`,
+        `;;Gerado em: ${agora}`,
+        `;;`,
+        `MATRICULA;NOME;CPF;CARGO;DEPARTAMENTO;SALARIO_BASE;HORAS_TRABALHADAS;HORAS_EXTRAS_50;HORAS_EXTRAS_100;HORAS_NOTURNAS;FALTAS_DIAS;TOTAL_PROVENTOS;INSS;IRRF;DESCONTO_VT;TOTAL_DESCONTOS;LIQUIDO;FGTS`,
+      ];
+
+      payslips.forEach((ps: any) => {
+        const emp = Array.isArray(ps.employees) ? ps.employees[0] : ps.employees;
+        const cpfFormatado = (emp?.cpf || "").replace(/\D/g, "");
+
+        // Busca INSS e IRRF do snapshot
+        const snapshot = ps.snapshot || {};
+        const inss = snapshot?.calculated?.inss || 0;
+        const irrf = snapshot?.calculated?.irrf || 0;
+        const vt = snapshot?.calculated?.vt || 0;
+
+        linhas.push([
+          emp?.matricula || "",
+          emp?.name || "",
+          cpfFormatado,
+          emp?.cargo || "",
+          emp?.departamento || "",
+          Number(ps.snapshot?.settings?.salario_base || 0).toFixed(2),
+          Number(ps.horas_trabalhadas || 0).toFixed(2),
+          Number(ps.horas_extras_50 || 0).toFixed(2),
+          Number(ps.horas_extras_100 || 0).toFixed(2),
+          Number(ps.horas_noturnas || 0).toFixed(2),
+          Number(ps.faltas_dias || 0).toFixed(0),
+          Number(ps.total_proventos || 0).toFixed(2),
+          Number(ps.base_inss || 0).toFixed(2),
+          Number(ps.base_irrf || 0).toFixed(2),
+          Number(vt).toFixed(2),
+          Number(ps.total_descontos || 0).toFixed(2),
+          Number(ps.liquido || 0).toFixed(2),
+          Number(ps.fgts_mes || 0).toFixed(2),
+        ].join(";"));
+      });
+
+      // Totais
+      const totais = payslips.reduce((acc: any, ps: any) => ({
+        proventos: acc.proventos + Number(ps.total_proventos || 0),
+        descontos: acc.descontos + Number(ps.total_descontos || 0),
+        liquido: acc.liquido + Number(ps.liquido || 0),
+        fgts: acc.fgts + Number(ps.fgts_mes || 0),
+      }), { proventos: 0, descontos: 0, liquido: 0, fgts: 0 });
+
+      linhas.push(`;;`);
+      linhas.push(`;;TOTAIS`);
+      linhas.push(`;;Total proventos: R$ ${totais.proventos.toFixed(2)}`);
+      linhas.push(`;;Total descontos: R$ ${totais.descontos.toFixed(2)}`);
+      linhas.push(`;;Total líquido: R$ ${totais.liquido.toFixed(2)}`);
+      linhas.push(`;;Total FGTS: R$ ${totais.fgts.toFixed(2)}`);
+      linhas.push(`;;Funcionários: ${payslips.length}`);
+
+      const csv = linhas.join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `contabil_${String(mes).padStart(2,"0")}_${ano}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      addHistorico(`Integração Contábil — ${MONTH_NAMES[mes-1]}/${ano}`);
+      toast.success(`Arquivo contábil gerado! ${payslips.length} funcionário(s).`);
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        🧾 Integração contábil
+      </p>
+      <Card className="p-4 space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Exporta os dados da folha em CSV padrão compatível com qualquer software contábil (Domínio, Alterdata, TOTVS, etc).
+        </p>
+        <div className="flex gap-3 flex-wrap items-end">
+          <div>
+            <label className="text-xs text-muted-foreground font-medium">Mês</label>
+            <select value={mes} onChange={e => setMes(Number(e.target.value))}
+              className="mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm block">
+              {MONTH_NAMES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium">Ano</label>
+            <select value={ano} onChange={e => setAno(Number(e.target.value))}
+              className="mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm block">
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <Button size="sm" onClick={exportar} disabled={loading} className="gap-1">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
+            Gerar arquivo contábil
+          </Button>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+          <p className="font-medium text-foreground">Campos exportados:</p>
+          <p>Matrícula · Nome · CPF · Cargo · Departamento · Salário base · Horas trabalhadas · Horas extras · Horas noturnas · Faltas · Proventos · INSS · IRRF · VT · Descontos · Líquido · FGTS</p>
+        </div>
       </Card>
     </div>
   );
@@ -254,9 +366,7 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
   };
 
   const runExport = async (tipo: ExportPreset["tipo"], mes: number, ano: number, empIds: string | "todos") => {
-    const targetEmployees = empIds === "todos"
-      ? employees.filter(e => e.active)
-      : employees.filter(e => e.id === empIds);
+    const targetEmployees = empIds === "todos" ? employees.filter(e => e.active) : employees.filter(e => e.id === empIds);
     if (targetEmployees.length === 0) { toast.error("Nenhum funcionário encontrado"); return; }
     for (const emp of targetEmployees) {
       if (tipo === "ponto_pdf") await generateMonthlyReport(emp, ano, mes);
@@ -273,9 +383,8 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
     try {
       const { mes, ano } = getMesAno(periodo);
       await runExport(tipo, mes, ano, "todos");
-    } catch (err: any) {
-      toast.error("Erro ao exportar: " + err.message);
-    } finally { setExporting(null); }
+    } catch (err: any) { toast.error("Erro: " + err.message); }
+    finally { setExporting(null); }
   };
 
   const handleRunPreset = async (preset: ExportPreset) => {
@@ -283,9 +392,8 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
     try {
       const { mes, ano } = getMesAno(preset.periodo, preset.mes, preset.ano);
       await runExport(preset.tipo, mes, ano, preset.funcionarios);
-    } catch (err: any) {
-      toast.error("Erro ao exportar: " + err.message);
-    } finally { setExporting(null); }
+    } catch (err: any) { toast.error("Erro: " + err.message); }
+    finally { setExporting(null); }
   };
 
   const salvarPreset = () => {
@@ -323,9 +431,7 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
 
       {/* Exportações rápidas */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          ⚡ Exportações rápidas
-        </p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">⚡ Exportações rápidas</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {exportacoesRapidas.map(exp => (
             <Card key={exp.key} className="p-4 flex items-center justify-between gap-3">
@@ -337,8 +443,7 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
                 </div>
               </div>
               <Button size="sm" variant="outline" disabled={exporting === exp.key}
-                onClick={() => handleExportRapida(exp.key, exp.tipo, exp.periodo)}
-                className="gap-1 flex-shrink-0">
+                onClick={() => handleExportRapida(exp.key, exp.tipo, exp.periodo)} className="gap-1 flex-shrink-0">
                 {exporting === exp.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 Exportar
               </Button>
@@ -350,12 +455,13 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
       {/* Relatório de inconsistências */}
       <InconsistenciasRelatorio employees={employees} addHistorico={addHistorico} />
 
+      {/* Integração contábil */}
+      <IntegracaoContabil employees={employees} addHistorico={addHistorico} />
+
       {/* Presets salvos */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            🔖 Exportações salvas
-          </p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🔖 Exportações salvas</p>
           <Button size="sm" variant="outline" onClick={() => setShowNovoPreset(!showNovoPreset)} className="gap-1">
             <BookmarkPlus className="w-4 h-4" /> Novo preset
           </Button>
@@ -366,8 +472,7 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Nome do preset</Label>
-                <input value={novoNome} onChange={e => setNovoNome(e.target.value)}
-                  placeholder='Ex: "Fechamento mensal"'
+                <input value={novoNome} onChange={e => setNovoNome(e.target.value)} placeholder='Ex: "Fechamento mensal"'
                   className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
               </div>
               <div>
@@ -394,29 +499,25 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
                   {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               </div>
-              {novoPeriodo === "personalizado" && (
-                <>
-                  <div>
-                    <Label>Mês</Label>
-                    <select value={novoMes} onChange={e => setNovoMes(Number(e.target.value))}
-                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                      {MONTH_NAMES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Ano</Label>
-                    <select value={novoAno} onChange={e => setNovoAno(Number(e.target.value))}
-                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                      {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                </>
-              )}
+              {novoPeriodo === "personalizado" && (<>
+                <div>
+                  <Label>Mês</Label>
+                  <select value={novoMes} onChange={e => setNovoMes(Number(e.target.value))}
+                    className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    {MONTH_NAMES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label>Ano</Label>
+                  <select value={novoAno} onChange={e => setNovoAno(Number(e.target.value))}
+                    className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </>)}
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={salvarPreset} className="gap-1">
-                <BookmarkPlus className="w-4 h-4" /> Salvar preset
-              </Button>
+              <Button size="sm" onClick={salvarPreset} className="gap-1"><BookmarkPlus className="w-4 h-4" /> Salvar preset</Button>
               <Button size="sm" variant="ghost" onClick={() => setShowNovoPreset(false)}>Cancelar</Button>
             </div>
           </Card>
@@ -425,7 +526,6 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
           <Card className="p-8 text-center">
             <BookmarkPlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Nenhum preset salvo ainda.</p>
-            <p className="text-xs text-muted-foreground mt-1">Crie um preset para exportar com 1 clique.</p>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -438,19 +538,15 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
                     <FileDown className="w-5 h-5 flex-shrink-0 text-primary" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">{preset.nome}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {TIPO_LABELS[preset.tipo]} · {MONTH_NAMES[mes-1]}/{ano} · {empLabel}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{TIPO_LABELS[preset.tipo]} · {MONTH_NAMES[mes-1]}/{ano} · {empLabel}</p>
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button size="sm" disabled={exporting === preset.id}
-                      onClick={() => handleRunPreset(preset)} className="gap-1">
+                    <Button size="sm" disabled={exporting === preset.id} onClick={() => handleRunPreset(preset)} className="gap-1">
                       {exporting === preset.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                       Exportar
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => excluirPreset(preset.id)}
-                      className="text-destructive hover:text-destructive">
+                    <Button size="sm" variant="ghost" onClick={() => excluirPreset(preset.id)} className="text-destructive hover:text-destructive">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -465,13 +561,9 @@ export default function ExportacoesTab({ employees }: { employees: Employee[] })
       {historico.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              🕐 Últimas exportações
-            </p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🕐 Últimas exportações</p>
             <button onClick={() => { setHistorico([]); localStorage.removeItem("apa_export_historico"); }}
-              className="text-xs text-muted-foreground hover:text-destructive">
-              Limpar
-            </button>
+              className="text-xs text-muted-foreground hover:text-destructive">Limpar</button>
           </div>
           <div className="space-y-1.5">
             {historico.map(h => (
