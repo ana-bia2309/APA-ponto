@@ -1,5 +1,5 @@
 import {
-  Users, Clock, FileText, HardHat, Shield, Activity,
+  Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
   DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles, MapPin, FileDown, CheckCircle2,
 } from "lucide-react";
@@ -19,7 +19,7 @@ export type AdminTab =
   | "payroll-dashboard" | "payroll-settings" | "banco-horas" | "trabalhista-config"
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
-  | "aprovacoes-lote" | "analises" | "historico" | "users";
+  | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users";
 
 interface Props {
   activeTab: AdminTab;
@@ -42,6 +42,7 @@ const gestaoItems = [
   { key: "aprovacoes-lote" as const, label: "Aprovações em Lote", icon: CheckCircle2 },
   { key: "exportacoes" as const, label: "Relatórios", icon: FileDown },
   { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
+  { key: "agenda" as const, label: "Agenda", icon: Calendar },
 ];
 
 const inteligenciaItems = [
