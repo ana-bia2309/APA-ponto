@@ -281,64 +281,82 @@ const empId = empData?.id;
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-4 py-8 relative"
-      style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onClose} className="flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: "hsl(210 20% 60%)" }}>
-          <ArrowLeft className="w-4 h-4" /> Voltar
-        </button>
-        <h2 className="text-lg font-bold" style={{ color: "hsl(0 0% 95%)" }}>Meus Documentos</h2>
-        <div className="w-16" />
-      </div>
-
-      <p className="text-sm mb-6" style={{ color: "hsl(210 20% 55%)" }}>{employeeName}</p>
-
-      {loading ? (
-        <div className="flex items-center justify-center gap-2 py-12" style={{ color: "hsl(210 15% 55%)" }}>
-          <Loader2 className="w-5 h-5 animate-spin" /> Carregando documentos...
+    <div className="min-h-screen flex flex-col px-4 py-6 relative" style={{ background: "#F0F4F8" }}>
+      <div className="w-full max-w-md mx-auto" style={{ marginTop: "28px" }}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-blue-600" />
+            Meus Documentos
+          </h2>
+          <button onClick={onClose}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 transition-colors"
+            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <ArrowLeft className="w-4 h-4" /> Voltar
+          </button>
         </div>
-      ) : docs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3">
-          <FolderOpen className="w-12 h-12" style={{ color: "hsl(210 15% 40%)" }} />
-          <p className="text-sm" style={{ color: "hsl(210 15% 50%)" }}>Nenhum documento disponível.</p>
-        </div>
-      ) : (
-        <div className="space-y-3 max-w-md mx-auto w-full">
-          {docs.map((doc) => {
-            const tipo = TIPO_LABELS[doc.tipo] || TIPO_LABELS.outro;
-            const isDownloading = downloading === doc.id;
-            return (
-              <div key={doc.id} className="p-4 rounded-2xl border border-white/10 flex items-center justify-between"
-                style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)" }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "hsl(210 30% 20%)" }}>
-                    <FileText className="w-5 h-5" style={{ color: "hsl(200 70% 65%)" }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "hsl(0 0% 90%)" }}>{doc.nome}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${tipo.color}`}>
-                        {tipo.label}
-                      </span>
-                      <span className="text-[11px]" style={{ color: "hsl(210 15% 50%)" }}>
-                        {new Date(doc.criado_em).toLocaleDateString("pt-BR")}
-                        {doc.tamanho && ` · ${doc.tamanho}`}
-                      </span>
+
+        <p className="text-xs text-gray-400 mb-4">{employeeName}</p>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-12 bg-white rounded-2xl"
+            style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            <span className="text-sm text-gray-400">Carregando documentos...</span>
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl"
+            style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <FolderOpen className="w-12 h-12 text-gray-300 mb-3" />
+            <p className="text-sm text-gray-400">Nenhum documento disponível.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {docs.map((doc) => {
+              const tipo = TIPO_LABELS[doc.tipo] || TIPO_LABELS.outro;
+              const isDownloading = downloading === doc.id;
+              const tipoCores: Record<string, { bg: string; text: string }> = {
+                holerite:           { bg: "#eff6ff", text: "#1e40af" },
+                informe_rendimento: { bg: "#f5f3ff", text: "#7c3aed" },
+                contrato:           { bg: "#f0fdf4", text: "#15803d" },
+                advertencia:        { bg: "#fff1f2", text: "#be123c" },
+                recibo:             { bg: "#fffbeb", text: "#b45309" },
+                espelho_ponto:      { bg: "#ecfeff", text: "#0e7490" },
+                outro:              { bg: "#f8fafc", text: "#475569" },
+              };
+              const c = tipoCores[doc.tipo] || tipoCores.outro;
+              return (
+                <div key={doc.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between"
+                  style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: c.bg }}>
+                      <FileText className="w-5 h-5" style={{ color: c.text }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{doc.nome}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                          style={{ background: c.bg, color: c.text }}>
+                          {tipo.label}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(doc.criado_em).toLocaleDateString("pt-BR")}
+                          {doc.tamanho && ` · ${doc.tamanho}`}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <button onClick={() => handleDownload(doc)} disabled={isDownloading}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:shadow-md disabled:opacity-50 active:scale-95"
+                    style={{ background: c.bg, color: c.text }}>
+                    {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  </button>
                 </div>
-                <button onClick={() => handleDownload(doc)} disabled={isDownloading}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 disabled:opacity-50"
-                  style={{ color: "hsl(200 70% 65%)" }}>
-                  {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
