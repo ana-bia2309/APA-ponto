@@ -19,6 +19,14 @@ import {
   RefreshCw,
   HardHat,
   FolderOpen,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  Droplets,
+  Wind,
+  Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +57,74 @@ import { groupRecordsIntoJourneys } from "@/lib/group-journeys";
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
 type PunchRecord = DisplayPunchRecord;
+
+// ── Weather ────────────────────────────────────────────────────────────────
+type WeatherData = {
+  temp: number;
+  weatherCode: number;
+  windspeed: number;
+  humidity: number;
+};
+
+function useWeather() {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  useEffect(() => {
+    // Coordenadas de Manaus/AM — ajuste se necessário
+    const LAT = -15.7997;
+    const LON = -47.8645;
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true&hourly=relativehumidity_2m&timezone=America%2FFortaleza`
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        const cw = d.current_weather;
+        const humidity = d.hourly?.relativehumidity_2m?.[new Date().getHours()] ?? 0;
+        setWeather({
+          temp: Math.round(cw.temperature),
+          weatherCode: cw.weathercode,
+          windspeed: Math.round(cw.windspeed),
+          humidity,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  return weather;
+}
+
+function WeatherIcon({ code, hour }: { code: number; hour: number }) {
+  const isNight = hour < 6 || hour >= 18;
+  if (code === 0) return isNight ? <Moon className="w-5 h-5 text-blue-200" /> : <Sun className="w-5 h-5 text-yellow-400" />;
+  if (code <= 3) return <Cloud className="w-5 h-5 text-gray-300" />;
+  if (code <= 67) return <CloudRain className="w-5 h-5 text-blue-400" />;
+  if (code <= 77) return <CloudSnow className="w-5 h-5 text-blue-200" />;
+  if (code <= 99) return <CloudLightning className="w-5 h-5 text-yellow-300" />;
+  return <Sun className="w-5 h-5 text-yellow-400" />;
+}
+
+function getDynamicPhrase(hour: number, weatherCode: number): string {
+  const isRainy = weatherCode >= 51 && weatherCode <= 99;
+  const isStormy = weatherCode >= 80;
+
+  if (hour >= 5 && hour < 12) {
+    if (isStormy) return "Dia de chuva forte, mas o time APA não para! 💪";
+    if (isRainy) return "Chovendo lá fora, mas aqui dentro é foco total! ☔";
+    return "Bom dia! Mais um dia de excelência na APA. 🌅";
+  }
+  if (hour >= 12 && hour < 14) {
+    return "Hora do almoço — recarrega as energias! 🍽️";
+  }
+  if (hour >= 14 && hour < 18) {
+    if (isRainy) return "Tarde chuvosa, café quentinho e produtividade! ☕";
+    return "Boa tarde! Mantendo o padrão APA de qualidade. 👷";
+  }
+  if (hour >= 18 && hour < 22) {
+    return "Boa noite! Finalizando mais um dia de trabalho. 🌙";
+  }
+  return "Madrugada em campo — dedicação total! ⭐";
+}
+// ───────────────────────────────────────────────────────────────────────────
 
 /** Single source of truth after CPF validation */
 interface ValidatedContext {
@@ -511,6 +587,8 @@ export default function TimeClock() {
     records_today: { record_type: string; recorded_at: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const weather = useWeather();
+  const currentHour = new Date().getHours();
   const { isAdmin } = useAuth();
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
@@ -1837,12 +1915,29 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
 
         <ConnectionIndicator />
 
-        <div className="text-center mb-10 relative z-10">
-          {/* Logo with subtle glow */}
-          <div className="relative inline-block mb-6">
+        <div className="text-center mb-6">
+          <div className="relative inline-block mb-4">
             <div className="absolute inset-[-20px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
             <img src={logo} alt="AMR Refrigeração e Climatização" className="w-56 h-56 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
           </div>
+
+          {/* Widget de clima + frase dinâmica */}
+          {weather && (
+            <div className="flex flex-col items-center gap-1 mb-2">
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-white text-sm">
+                <WeatherIcon code={weather.weatherCode} hour={currentHour} />
+                <span className="font-semibold">{weather.temp}°C</span>
+                <span className="text-white/60">|</span>
+                <Droplets className="w-4 h-4 text-blue-300" />
+                <span className="text-white/80">{weather.humidity}%</span>
+                <Wind className="w-4 h-4 text-white/60" />
+                <span className="text-white/80">{weather.windspeed} km/h</span>
+              </div>
+              <p className="text-white/70 text-xs italic text-center px-4">
+                {getDynamicPhrase(currentHour, weather.weatherCode)}
+              </p>
+            </div>
+          )}
 
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
             <Clock className="w-4 h-4" />
