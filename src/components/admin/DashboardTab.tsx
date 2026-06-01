@@ -114,6 +114,11 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
+  const [comparativo, setComparativo] = useState<{
+    presencaMes: number; presencaMesAnterior: number;
+    atrasosMes: number; atrasosMesAnterior: number;
+    horasExtrasMes: number; horasExtrasMesAnterior: number;
+  } | null>(null);
 
   const fetch = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -287,6 +292,51 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         if (alertas.length > 0) comportSuspeitos.push({ id: emp.id, name: emp.name, alertas });
       });
       setComportamentos(comportSuspeitos);
+
+      // Comparativo mês anterior
+      try {
+        const mesAtual = new Date();
+        const mesAnterior = new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1);
+        const inicioMesAtual = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 1).toISOString();
+        const inicioMesAnterior = mesAnterior.toISOString();
+        const fimMesAnterior = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 0, 23, 59, 59).toISOString();
+
+        const [recMesAtual, recMesAnterior] = await Promise.all([
+          (supabase as any).from("time_records").select("employee_id, record_type, recorded_at")
+            .gte("recorded_at", inicioMesAtual).lte("recorded_at", endOfDay),
+          (supabase as any).from("time_records").select("employee_id, record_type, recorded_at")
+            .gte("recorded_at", inicioMesAnterior).lte("recorded_at", fimMesAnterior),
+        ]);
+
+        const calcStats = (recs: any[]) => {
+          const porDia: Record<string, Set<string>> = {};
+          const atrasos: Set<string> = new Set();
+          let horasExtras = 0;
+          recs.forEach((r: any) => {
+            const dia = r.recorded_at.slice(0, 10);
+            if (!porDia[dia]) porDia[dia] = new Set();
+            porDia[dia].add(r.employee_id);
+            if (r.record_type === "entrada") {
+              const h = new Date(r.recorded_at).getHours();
+              const m = new Date(r.recorded_at).getMinutes();
+              if (h > 8 || (h === 8 && m > 15)) atrasos.add(`${r.employee_id}_${dia}`);
+            }
+          });
+          const diasComPresenca = Object.values(porDia).reduce((acc, s) => acc + s.size, 0);
+          return { presenca: diasComPresenca, atrasos: atrasos.size, horasExtras };
+        };
+
+        const statsMes = calcStats(recMesAtual.data || []);
+        const statsAnterior = calcStats(recMesAnterior.data || []);
+        setComparativo({
+          presencaMes: statsMes.presenca,
+          presencaMesAnterior: statsAnterior.presenca,
+          atrasosMes: statsMes.atrasos,
+          atrasosMesAnterior: statsAnterior.atrasos,
+          horasExtrasMes: horaExtraTotal,
+          horasExtrasMesAnterior: 0,
+        });
+      } catch {}
 
       setStatuses(statusList);
       setLastUpdated(new Date());
@@ -515,6 +565,64 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   </>
 )}
 
+{/* Comparativo mês anterior */}
+      {comparativo && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+            📊 Comparativo com Mês Anterior
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              {
+                label: "Presenças",
+                atual: comparativo.presencaMes,
+                anterior: comparativo.presencaMesAnterior,
+                icon: "✅",
+                positivo: true,
+              },
+              {
+                label: "Atrasos",
+                atual: comparativo.atrasosMes,
+                anterior: comparativo.atrasosMesAnterior,
+                icon: "⏰",
+                positivo: false,
+              },
+              {
+                label: "Horas Extras",
+                atual: Math.round(horaExtraTotal * 10) / 10,
+                anterior: comparativo.horasExtrasMesAnterior,
+                icon: "⏱️",
+                positivo: true,
+                sufixo: "h",
+              },
+            ].map((item) => {
+              const diff = item.anterior > 0
+                ? Math.round(((item.atual - item.anterior) / item.anterior) * 100)
+                : 0;
+              const subiu = diff > 0;
+              const cor = (item.positivo ? subiu : !subiu) ? "#15803d" : "#dc2626";
+              const bg = (item.positivo ? subiu : !subiu) ? "#f0fdf4" : "#fff1f2";
+              return (
+                <div key={item.label} className="rounded-xl p-3 text-center" style={{ background: "#f8fafc" }}>
+                  <p className="text-base mb-1">{item.icon}</p>
+                  <p className="text-lg font-black text-gray-800">{item.atual}{item.sufixo || ""}</p>
+                  <p className="text-[10px] text-gray-400 mb-1">{item.label}</p>
+                  {diff !== 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: bg, color: cor }}>
+                      {subiu ? "▲" : "▼"} {Math.abs(diff)}%
+                    </span>
+                  )}
+                  {diff === 0 && <span className="text-[10px] text-gray-400">= igual</span>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2 text-center">
+            Comparado com {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+          </p>
+        </div>
+      )}
 
 {/* Próximos feriados */}
       {(() => {
