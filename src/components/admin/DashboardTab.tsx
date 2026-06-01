@@ -115,6 +115,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
   const [riscosTrabalhistas, setRiscosTrabalhistas] = useState<{ name: string; alertas: string[] }[]>([]);
+  const [previsaoAtrasos, setPrevisaoAtrasos] = useState<{ name: string; probabilidade: number; motivo: string }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -388,6 +389,78 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           horasExtrasMes: horaExtraTotal,
           horasExtrasMesAnterior: 0,
         });
+      } catch {}
+// IA de previsão de atrasos
+      try {
+        const amanha = new Date();
+        amanha.setDate(amanha.getDate() + 1);
+        const diaSemanaAmanha = amanha.getDay();
+        const previsoes: { name: string; probabilidade: number; motivo: string }[] = [];
+
+        employees.forEach(emp => {
+          const empMonth = (monthRecords || []).filter((r: any) => r.employee_id === emp.id);
+          const porDia: Record<string, any[]> = {};
+          empMonth.forEach((r: any) => {
+            const dia = r.recorded_at.slice(0, 10);
+            if (!porDia[dia]) porDia[dia] = [];
+            porDia[dia].push(r);
+          });
+
+          let score = 0;
+          const motivos: string[] = [];
+
+          // 1. Taxa de atraso histórica
+          const diasComEntrada = Object.entries(porDia).filter(([, recs]) => recs.some((r: any) => r.record_type === "entrada"));
+          const diasAtrasados = diasComEntrada.filter(([, recs]) => {
+            const entrada = recs.find((r: any) => r.record_type === "entrada");
+            if (!entrada) return false;
+            const h = new Date(entrada.recorded_at).getHours();
+            const m = new Date(entrada.recorded_at).getMinutes();
+            return h > 8 || (h === 8 && m > 15);
+          });
+          const taxaAtraso = diasComEntrada.length > 0 ? diasAtrasados.length / diasComEntrada.length : 0;
+          if (taxaAtraso > 0.3) { score += 40; motivos.push(`${Math.round(taxaAtraso * 100)}% de atrasos no mês`); }
+
+          // 2. Padrão de atraso no mesmo dia da semana
+          const mesmoDia = diasAtrasados.filter(([dia]) => new Date(dia + "T12:00:00").getDay() === diaSemanaAmanha);
+          const totalMesmoDia = diasComEntrada.filter(([dia]) => new Date(dia + "T12:00:00").getDay() === diaSemanaAmanha);
+          if (totalMesmoDia.length >= 2 && mesmoDia.length / totalMesmoDia.length > 0.5) {
+            score += 30;
+            const nomes = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+            motivos.push(`Costuma atrasar às ${nomes[diaSemanaAmanha]}feiras`);
+          }
+
+          // 3. Saída muito tarde ontem (cansaço)
+          const ontemStr = todayStr;
+          const ontemRecs = porDia[ontemStr] || [];
+          const saidaOntem = ontemRecs.find((r: any) => r.record_type === "saida");
+          if (saidaOntem) {
+            const h = new Date(saidaOntem.recorded_at).getHours();
+            if (h >= 20) { score += 20; motivos.push(`Saiu tarde hoje (${h}h)`); }
+          }
+
+          // 4. Últimos 3 dias com atraso consecutivo
+          const ultimos3 = Object.keys(porDia).sort().slice(-3);
+          const atrasos3 = ultimos3.filter(dia => {
+            const recs = porDia[dia];
+            const entrada = recs?.find((r: any) => r.record_type === "entrada");
+            if (!entrada) return false;
+            const h = new Date(entrada.recorded_at).getHours();
+            const m = new Date(entrada.recorded_at).getMinutes();
+            return h > 8 || (h === 8 && m > 15);
+          });
+          if (atrasos3.length >= 2) { score += 25; motivos.push(`${atrasos3.length} atrasos nos últimos 3 dias`); }
+
+          if (score >= 40) {
+            previsoes.push({
+              name: emp.name,
+              probabilidade: Math.min(score, 95),
+              motivo: motivos.slice(0, 2).join(" • "),
+            });
+          }
+        });
+
+        setPrevisaoAtrasos(previsoes.sort((a, b) => b.probabilidade - a.probabilidade).slice(0, 5));
       } catch {}
 
       setStatuses(statusList);
@@ -695,6 +768,45 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
             ))}
           </div>
           <p className="text-[10px] text-gray-400 mt-2">⚖️ Baseado nos registros dos últimos 7 dias</p>
+        </div>
+      )}
+
+{/* IA de previsão de atrasos */}
+      {previsaoAtrasos.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-2xl border border-purple-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.08)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-purple-600 mb-1 flex items-center gap-2">
+            🤖 IA — Previsão de Atrasos Amanhã
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#f5f3ff", color: "#7c3aed" }}>
+              {previsaoAtrasos.length} em risco
+            </span>
+          </p>
+          <p className="text-[10px] text-gray-400 mb-3">Baseado no histórico dos últimos 30 dias</p>
+          <div className="space-y-2">
+            {previsaoAtrasos.map((p, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}>
+                  {p.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-700">{p.name}</p>
+                  <p className="text-[10px] text-gray-400 truncate">{p.motivo}</p>
+                </div>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-sm font-black" style={{ color: p.probabilidade >= 70 ? "#dc2626" : p.probabilidade >= 50 ? "#d97706" : "#7c3aed" }}>
+                    {p.probabilidade}%
+                  </span>
+                  <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden mt-0.5">
+                    <div className="h-full rounded-full"
+                      style={{
+                        width: `${p.probabilidade}%`,
+                        background: p.probabilidade >= 70 ? "#dc2626" : p.probabilidade >= 50 ? "#d97706" : "#7c3aed"
+                      }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       
