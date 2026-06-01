@@ -1686,32 +1686,31 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     </div>
   );
 
-  // Initial loading screen
+ // Initial loading screen
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-        <div className="text-center space-y-4">
-          <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm" style={{ color: "hsl(210 20% 60%)" }}>Carregando sistema...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
+        <img src={logo} alt="APA" className="w-24 h-24 object-contain mb-6" style={{ filter: "drop-shadow(0 4px 16px rgba(30,64,175,0.25))" }} />
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Carregando sistema...</p>
       </div>
     );
   }
 
-  // Error screen with retry
+// Error screen with retry
   if (loadError && employees.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 gap-4" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: "hsl(0 50% 20%)" }}>
-            <WifiOff className="w-8 h-8" style={{ color: "hsl(0 80% 70%)" }} />
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
+        <div className="text-center space-y-4 bg-white p-8 rounded-2xl max-w-sm w-full" style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: "#fff1f2" }}>
+            <WifiOff className="w-8 h-8 text-red-500" />
           </div>
-          <p className="text-base font-semibold" style={{ color: "hsl(0 0% 90%)" }}>Erro ao carregar dados</p>
-          <p className="text-sm max-w-xs" style={{ color: "hsl(210 15% 50%)" }}>{loadError}</p>
+          <p className="text-base font-black text-gray-800">Erro ao carregar dados</p>
+          <p className="text-sm text-gray-400">{loadError}</p>
           <button
             onClick={loadInitialData}
-            className="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg"
-            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))" }}
+            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
           >
             Tentar novamente
           </button>
@@ -1723,25 +1722,19 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   // Success overlay
   if (showSuccess) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
         <div className="text-center animate-in fade-in zoom-in duration-500">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: "linear-gradient(135deg, hsl(152 55% 42%), hsl(160 60% 50%))", boxShadow: "0 0 40px hsl(152 55% 42% / 0.4)" }}>
+          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)", boxShadow: "0 0 40px rgba(22,163,74,0.25)" }}>
             <CheckCircle2 className="w-12 h-12 text-white" />
           </div>
-          <h2 className="text-2xl font-bold mb-2" style={{ color: "hsl(0 0% 95%)" }}>
-            Ponto Registrado!
-          </h2>
-          <p className="text-base" style={{ color: "hsl(210 15% 55%)" }}>
-            {successMessage}
-          </p>
-          <p className="text-sm mt-4" style={{ color: "hsl(210 15% 45%)" }}>
-            Redirecionando automaticamente...
-          </p>
+          <h2 className="text-2xl font-black text-gray-800 mb-2">Ponto Registrado!</h2>
+          <p className="text-base text-gray-500">{successMessage}</p>
+          <p className="text-sm mt-4 text-gray-400">Redirecionando automaticamente...</p>
           <button
             onClick={resetToStart}
-            className="mt-6 h-12 rounded-xl px-6 font-semibold text-sm text-white transition-all hover:shadow-lg"
-            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+            className="mt-6 h-12 rounded-xl px-6 font-bold text-sm text-white transition-all hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
           >
             Voltar ao início
           </button>
@@ -1749,35 +1742,31 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       </div>
     );
   }
-
-  // Confirmation dialog
+// Confirmation dialog
   if (showConfirm && selectedEmployee && nextAllowedStep) {
     const step = nextAllowedStep;
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
-        <div className="w-full max-w-sm p-8 rounded-2xl border border-white/10 text-center" style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5)" }}>
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", boxShadow: "0 0 20px hsl(210 70% 40% / 0.3)" }}>
-            <step.icon className="w-8 h-8 text-white" />
+        <div className="w-full max-w-sm p-8 rounded-2xl border border-gray-100 bg-white text-center" style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#eff6ff" }}>
+            <step.icon className="w-8 h-8" style={{ color: "#1e40af" }} />
           </div>
-          <h3 className="text-lg font-bold mb-2" style={{ color: "hsl(0 0% 95%)" }}>
-            Confirmar registro?
-          </h3>
-          <p className="text-sm mb-6" style={{ color: "hsl(210 15% 55%)" }}>
-            Registrar <strong style={{ color: "hsl(200 80% 60%)" }}>{step.label}</strong> para {selectedEmployee.name}
+          <h3 className="text-lg font-black text-gray-800 mb-2">Confirmar registro?</h3>
+          <p className="text-sm text-gray-500 mb-6">
+            Registrar <strong style={{ color: "#1e40af" }}>{step.label}</strong> para {selectedEmployee.name}
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => setShowConfirm(false)}
-              className="flex-1 h-12 rounded-xl border border-white/10 font-medium text-sm transition-colors hover:bg-white/5"
-              style={{ color: "hsl(0 0% 75%)" }}
+              className="flex-1 h-12 rounded-xl border border-gray-200 font-medium text-sm text-gray-500 transition-colors hover:bg-gray-50"
             >
               Cancelar
             </button>
             <button
               onClick={confirmPunch}
-              className="flex-1 h-12 rounded-xl font-semibold text-sm text-white transition-all hover:shadow-lg"
-              style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
+              className="flex-1 h-12 rounded-xl font-bold text-sm text-white transition-all hover:shadow-lg"
+              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
             >
               Confirmar
             </button>
@@ -1787,56 +1776,57 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
-  // History screen
+ // History screen
   if (showHistory && selectedEmployee) {
     const journeys = groupRecordsIntoJourneys(historyRecords).reverse();
-
     const STEP_LABELS: Record<string, string> = { entrada: "Entrada", intervalo: "Intervalo", retorno: "Retorno", saida: "Saída" };
 
     return (
-      <div className="min-h-screen flex flex-col px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
+      <div className="min-h-screen flex flex-col px-4 py-6 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
-        <div className="w-full max-w-md mx-auto relative z-10">
-          <div className="flex items-center justify-between mb-6 mt-4">
-            <h2 className="text-lg font-bold" style={{ color: "hsl(0 0% 95%)" }}>
-              <History className="w-5 h-5 inline mr-2" />
+        <div className="w-full max-w-md mx-auto" style={{ marginTop: "28px" }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+              <History className="w-5 h-5 text-blue-600" />
               Meu Histórico
             </h2>
             <button
               onClick={() => setShowHistory(false)}
-              className="px-4 py-2 text-sm rounded-xl border border-white/10 transition-colors hover:bg-white/5"
-              style={{ color: "hsl(210 20% 60%)" }}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 transition-colors"
+              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
             >
-              <ArrowLeft className="w-4 h-4 inline mr-1" /> Voltar
+              <ArrowLeft className="w-4 h-4" /> Voltar
             </button>
           </div>
-          <p className="text-xs mb-4" style={{ color: "hsl(210 15% 50%)" }}>
-            {selectedEmployee.name} • Últimos 30 dias
-          </p>
+
+          <p className="text-xs text-gray-400 mb-4">{selectedEmployee.name} • Últimos 30 dias</p>
 
           {journeys.length === 0 ? (
-            <div className="text-center py-12">
-              <p style={{ color: "hsl(210 15% 45%)" }}>Nenhum registro encontrado.</p>
+            <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <p className="text-gray-400">Nenhum registro encontrado.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {journeys.map((journey, ji) => (
-                <div key={ji} className="p-4 rounded-xl border border-white/10" style={{ background: "hsl(210 30% 13%)" }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-semibold capitalize" style={{ color: "hsl(210 20% 65%)" }}>{journey.label}</p>
+                <div key={ji} className="bg-white p-4 rounded-2xl border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-sm font-bold text-gray-700 capitalize">{journey.label}</p>
                     {!journey.complete && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "hsl(40 80% 50% / 0.15)", color: "hsl(40 80% 60%)" }}>Aberta</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#fff7ed", color: "#c2410c" }}>Aberta</span>
+                    )}
+                    {journey.complete && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#f0fdf4", color: "#15803d" }}>Completa</span>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {journey.records.map((rec) => (
-                      <div key={rec.id} className="flex items-center justify-between text-sm">
-                        <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: "hsl(210 30% 20%)", color: "hsl(200 70% 65%)" }}>
+                      <div key={rec.id} className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: "#eff6ff", color: "#1e40af" }}>
                           {STEP_LABELS[rec.step] || rec.step}
                         </span>
                         <div className="flex items-center gap-2">
-                          {(rec as any).address && <MapPin className="w-3 h-3" style={{ color: "hsl(152 55% 50%)" }} />}
-                          <span className="tabular-nums" style={{ color: "hsl(0 0% 80%)" }}>
+                          {(rec as any).address && <MapPin className="w-3 h-3 text-emerald-500" />}
+                          <span className="tabular-nums text-sm font-semibold text-gray-700">
                             {formatTime(rec.punched_at)}
                           </span>
                         </div>
@@ -1855,52 +1845,53 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   // CPF verification screen
   if (pendingEmployee) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
-        <div className="text-center mb-8 relative z-10">
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
-            <img src={logo} alt="Logo" className="w-48 h-48 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
+
+        <div className="w-full max-w-sm flex flex-col items-center" style={{ marginTop: "28px" }}>
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-6">
+            <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-2" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
+            <p className="font-bold text-lg text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
+            <p className="text-xs text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
           </div>
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
-            <Clock className="w-4 h-4" />
-            APA Ponto
+
+          {/* Card */}
+          <div className="w-full bg-white rounded-2xl px-6 py-6 space-y-4" style={{ boxShadow: "0 2px 16px rgba(30,64,175,0.10)" }}>
+            <div className="text-center mb-2">
+              <p className="text-xl font-black text-gray-800">{pendingEmployee.name}</p>
+              <p className="text-sm text-gray-400 mt-1">Informe seu CPF para continuar</p>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              value={cpfInput}
+              onChange={(e) => { setCpfInput(formatCpfInput(e.target.value)); setCpfError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
+              className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all text-gray-800 bg-gray-50"
+            />
+
+            {cpfError && (
+              <p className="text-sm text-red-500 text-center font-medium">{cpfError}</p>
+            )}
+
+            <button
+              onClick={verifyCpf}
+              className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white"
+              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+            >
+              Confirmar
+            </button>
+
+            <button
+              className="w-full py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1"
+              onClick={() => { setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError(""); }}
+            >
+              <ArrowLeft className="w-4 h-4" /> Voltar
+            </button>
           </div>
-          <p className="text-xl font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>{pendingEmployee.name}</p>
-          <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>Informe seu CPF para continuar</p>
-        </div>
-        <div className="w-full max-w-sm space-y-4 relative z-10">
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="000.000.000-00"
-            value={cpfInput}
-            onChange={(e) => {
-              setCpfInput(formatCpfInput(e.target.value));
-              setCpfError("");
-            }}
-            onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
-            className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-white/15 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all"
-            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 92%)" }}
-          />
-          {cpfError && (
-            <p className="text-sm text-red-400 text-center font-medium">{cpfError}</p>
-          )}
-          <button
-            onClick={verifyCpf}
-            className="w-full h-14 rounded-xl text-base font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
-            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
-          >
-            Confirmar
-          </button>
-          <button
-            className="w-full py-3 text-sm font-medium rounded-xl transition-colors"
-            style={{ color: "hsl(210 20% 60%)" }}
-            onClick={() => { setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError(""); }}
-          >
-            Voltar
-          </button>
         </div>
       </div>
     );
@@ -2079,14 +2070,11 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </button>
         )}
 
-        {/* Logo + identidade */}
-        <div className="w-full rounded-2xl flex flex-col items-center py-6 px-4 mb-4 relative overflow-hidden"
-          style={{ background: "linear-gradient(160deg, #1e3a5f 0%, #1e40af 60%, #0ea5e9 100%)", boxShadow: "0 4px 24px rgba(30,64,175,0.25)" }}>
-          {/* Ondas decorativas */}
-          <div className="absolute bottom-0 left-0 right-0 h-12 opacity-10" style={{ background: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60'%3E%3Cpath fill='white' d='M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z'/%3E%3C/svg%3E\") bottom/cover" }} />
-          <img src={logo} alt="APA" className="w-28 h-28 object-contain mb-2 relative z-10" style={{ filter: "drop-shadow(0 2px 12px rgba(255,255,255,0.2))" }} />
-          <p className="text-white font-bold text-lg tracking-tight relative z-10">APA Refrigeração e Climatização</p>
-          <p className="text-blue-200 text-xs tracking-wider relative z-10">Sistema de Registro de Ponto</p>
+        {/* Logo destacada */}
+        <div className="flex flex-col items-center mb-4">
+          <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-1" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
+          <p className="font-bold text-base text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
+          <p className="text-xs text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
         </div>
 
         {/* Saudação + relógio */}
