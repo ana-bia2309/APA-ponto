@@ -43,6 +43,7 @@ import { Search } from "lucide-react";
 import HistoricoTab from "@/components/admin/HistoricoTab";
 import EmployeeForm from "@/components/admin/EmployeeForm";
 import AgendaTab from "@/components/admin/AgendaTab";
+import SolicitacoesTab from "@/components/admin/SolicitacoesTab";
 
 type Employee = Tables<"employees">;
 
@@ -81,6 +82,7 @@ const tabTitles: Record<AdminTab, string> = {
   "analises": "Análises",
   "historico": "Histórico",
   "agenda": "Agenda",
+  "solicitacoes": "Solicitações dos Colaboradores",
 };
 
 export default function AdminDashboard() {
@@ -297,6 +299,7 @@ export default function AdminDashboard() {
               {tab === "analises" && <AnalisesTab employees={employees} />}
               {tab === "historico" && <HistoricoTab employees={employees} />}
               {tab === "agenda" && <AgendaTab employees={employees} />}
+              {tab === "solicitacoes" && <SolicitacoesTab />}
               {tab === "simulador" && <SimuladorFolhaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}

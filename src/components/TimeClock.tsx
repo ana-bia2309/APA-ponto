@@ -606,6 +606,8 @@ const [showTimesheetSign, setShowTimesheetSign] = useState(false);
 const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
 const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
 const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
+const [solicitacaoTexto, setSolicitacaoTexto] = useState("");
+const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -1625,6 +1627,27 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     }
   };
 
+  const enviarSolicitacao = async (tipo: string) => {
+    if (!selectedEmployee) return;
+    setEnviandoSolicitacao(true);
+    try {
+      const { error } = await (supabase as any).from("employee_requests").insert({
+        employee_id: selectedEmployee.id,
+        tipo,
+        observacao: solicitacaoTexto || null,
+        status: "pendente",
+      });
+      if (error) throw error;
+      toast.success(`Solicitação de ${tipo} enviada ao RH! ✅`);
+      setShowSolicitacao(null);
+      setSolicitacaoTexto("");
+    } catch (e: any) {
+      toast.error("Erro ao enviar solicitação: " + e.message);
+    } finally {
+      setEnviandoSolicitacao(false);
+    }
+  };
+
   // Fetch history for employee (last 30 days)
   const fetchHistory = async () => {
     if (!selectedEmployee) return;
@@ -2465,16 +2488,13 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">⚡ Solicitações Rápidas</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "Férias", icon: "🏖️", color: "#0ea5e9" },
-              { label: "Abono", icon: "📝", color: "#7c3aed" },
-              { label: "Declaração", icon: "📄", color: "#15803d" },
-              { label: "Ajuste de Ponto", icon: "⏱️", color: "#ea580c" },
-            ].map(({ label, icon, color }) => (
+              { label: "Férias", icon: "🏖️", color: "#0ea5e9", bg: "#eff6ff" },
+              { label: "Abono", icon: "📝", color: "#7c3aed", bg: "#f5f3ff" },
+              { label: "Declaração", icon: "📄", color: "#15803d", bg: "#f0fdf4" },
+              { label: "Ajuste de Ponto", icon: "⏱️", color: "#ea580c", bg: "#fff7ed" },
+            ].map(({ label, icon, color, bg }) => (
               <button key={label}
-                onClick={() => {
-                  toast.info(`Solicitação de ${label} enviada ao RH!`);
-                  setShowSolicitacao(label);
-                }}
+                onClick={() => setShowSolicitacao(label)}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm active:scale-95 text-left"
                 style={{ borderColor: "#e2e8f0", background: "white" }}>
                 <span className="text-base">{icon}</span>
@@ -2483,6 +2503,40 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             ))}
           </div>
         </div>
+
+        {/* Modal de solicitação */}
+        {showSolicitacao && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center pb-6 px-4" style={{ background: "rgba(0,0,0,0.4)" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowSolicitacao(null); }}>
+            <div className="w-full max-w-md bg-white rounded-2xl p-6 animate-in slide-in-from-bottom-4 duration-300"
+              style={{ boxShadow: "0 -4px 32px rgba(0,0,0,0.15)" }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-black text-gray-800">Solicitar {showSolicitacao}</h3>
+                <button onClick={() => setShowSolicitacao(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">Sua solicitação será enviada ao RH para análise.</p>
+              <textarea
+                value={solicitacaoTexto}
+                onChange={(e) => setSolicitacaoTexto(e.target.value)}
+                placeholder="Observação ou detalhes (opcional)..."
+                className="w-full h-24 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400/40 resize-none mb-4"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setShowSolicitacao(null)}
+                  className="flex-1 h-12 rounded-xl border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => enviarSolicitacao(showSolicitacao)}
+                  disabled={enviandoSolicitacao}
+                  className="flex-1 h-12 rounded-xl text-sm font-bold text-white transition-all hover:shadow-lg disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                  {enviandoSolicitacao ? "Enviando..." : "Enviar Solicitação"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Ações secundárias */}
         <div className="w-full grid grid-cols-4 gap-2 mb-3">

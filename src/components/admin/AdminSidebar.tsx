@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export type AdminTab =
   | "dashboard" | "employees" | "records" | "justifications"
@@ -19,7 +21,8 @@ export type AdminTab =
   | "payroll-dashboard" | "payroll-settings" | "banco-horas" | "trabalhista-config"
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
-  | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users";
+  | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users"
+  | "solicitacoes";
 
 interface Props {
   activeTab: AdminTab;
@@ -29,20 +32,10 @@ interface Props {
   isRh?: boolean;
 }
 
-// Grupos reorganizados
 const principalItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: Activity },
   { key: "employees" as const, label: "Funcionários", icon: Users },
   { key: "records" as const, label: "Registros", icon: Clock },
-];
-
-const gestaoItems = [
-  { key: "justifications" as const, label: "Atestados", icon: FileText },
-  { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
-  { key: "aprovacoes-lote" as const, label: "Aprovações em Lote", icon: CheckCircle2 },
-  { key: "exportacoes" as const, label: "Relatórios", icon: FileDown },
-  { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
-  { key: "agenda" as const, label: "Agenda", icon: Calendar },
 ];
 
 const inteligenciaItems = [
@@ -87,11 +80,12 @@ const systemItems = [
   { key: "debug" as const, label: "Logs", icon: Activity },
 ];
 
-function MenuGroup({ items, activeTab, onTabChange, collapsed }: {
+function MenuGroup({ items, activeTab, onTabChange, collapsed, badges }: {
   items: { key: AdminTab; label: string; icon: any }[];
   activeTab: AdminTab;
   onTabChange: (tab: AdminTab) => void;
   collapsed: boolean;
+  badges?: Record<string, number>;
 }) {
   return (
     <SidebarMenu>
@@ -99,7 +93,17 @@ function MenuGroup({ items, activeTab, onTabChange, collapsed }: {
         <SidebarMenuItem key={item.key}>
           <SidebarMenuButton isActive={activeTab === item.key} onClick={() => onTabChange(item.key)} tooltip={item.label}>
             <item.icon className="h-4 w-4" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && (
+              <span className="flex-1 flex items-center justify-between">
+                {item.label}
+                {badges?.[item.key] ? (
+                  <span className="ml-2 min-w-[18px] h-[18px] rounded-full text-[10px] font-black flex items-center justify-center px-1"
+                    style={{ background: "#dc2626", color: "white" }}>
+                    {badges[item.key]}
+                  </span>
+                ) : null}
+              </span>
+            )}
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
@@ -107,8 +111,8 @@ function MenuGroup({ items, activeTab, onTabChange, collapsed }: {
   );
 }
 
-function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed }: {
-  label: string; icon: any; children: React.ReactNode; defaultOpen?: boolean; collapsed: boolean;
+function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed, badge }: {
+  label: string; icon: any; children: React.ReactNode; defaultOpen?: boolean; collapsed: boolean; badge?: number;
 }) {
   return (
     <SidebarGroup>
@@ -119,7 +123,17 @@ function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed 
               <Icon className="h-4 w-4" />
               {!collapsed && label}
             </span>
-            {!collapsed && <ChevronDown className="h-3 w-3" />}
+            {!collapsed && (
+              <span className="flex items-center gap-1">
+                {badge ? (
+                  <span className="min-w-[18px] h-[18px] rounded-full text-[10px] font-black flex items-center justify-center px-1"
+                    style={{ background: "#dc2626", color: "white" }}>
+                    {badge}
+                  </span>
+                ) : null}
+                <ChevronDown className="h-3 w-3" />
+              </span>
+            )}
           </SidebarGroupLabel>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -133,13 +147,51 @@ function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed 
 export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin = false, isRh = false }: Props) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
 
-  const isGestaoActive = ["justifications","documentos","aprovacoes-lote","exportacoes","mapa-localizacao"].includes(activeTab);
+  useEffect(() => {
+    const fetchPendentes = async () => {
+      try {
+        const { count } = await (supabase as any)
+          .from("employee_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pendente");
+        setSolicitacoesPendentes(count || 0);
+      } catch {}
+    };
+
+    fetchPendentes();
+
+    // Realtime subscription
+    const channel = (supabase as any)
+      .channel("solicitacoes-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "employee_requests" }, () => {
+        fetchPendentes();
+      })
+      .subscribe();
+
+    return () => { (supabase as any).removeChannel(channel); };
+  }, []);
+
+  const isGestaoActive = ["justifications","documentos","aprovacoes-lote","exportacoes","mapa-localizacao","solicitacoes","agenda"].includes(activeTab);
   const isInteligenciaActive = ["analises","historico","assistente"].includes(activeTab);
   const isEpiActive = activeTab.startsWith("epi-");
   const isUniformActive = activeTab.startsWith("uniforms-");
   const isToolActive = activeTab.startsWith("tools-");
   const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto"].includes(activeTab);
+
+  const gestaoItems = [
+    { key: "justifications" as const, label: "Atestados", icon: FileText },
+    { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
+    { key: "aprovacoes-lote" as const, label: "Aprovações em Lote", icon: CheckCircle2 },
+    { key: "exportacoes" as const, label: "Relatórios", icon: FileDown },
+    { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
+    { key: "agenda" as const, label: "Agenda", icon: Calendar },
+    { key: "solicitacoes" as const, label: "Solicitações", icon: FileText },
+  ];
+
+  const gestaoBadges: Record<string, number> = {};
+  if (solicitacoesPendentes > 0) gestaoBadges["solicitacoes"] = solicitacoesPendentes;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -148,7 +200,6 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Principal */}
         <SidebarGroup>
           <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -156,37 +207,30 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Gestão */}
-        <CollapsibleGroup label="Gestão" icon={CheckCircle2} defaultOpen={isGestaoActive} collapsed={collapsed}>
-          <MenuGroup items={gestaoItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+        <CollapsibleGroup label="Gestão" icon={CheckCircle2} defaultOpen={isGestaoActive} collapsed={collapsed} badge={solicitacoesPendentes}>
+          <MenuGroup items={gestaoItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} badges={gestaoBadges} />
         </CollapsibleGroup>
 
-        {/* Inteligência */}
         <CollapsibleGroup label="Inteligência" icon={BarChart2} defaultOpen={isInteligenciaActive} collapsed={collapsed}>
           <MenuGroup items={inteligenciaItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
         </CollapsibleGroup>
 
-        {/* EPIs */}
         <CollapsibleGroup label="EPIs" icon={HardHat} defaultOpen={isEpiActive} collapsed={collapsed}>
           <MenuGroup items={epiItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
         </CollapsibleGroup>
 
-        {/* Uniformes */}
         <CollapsibleGroup label="Uniformes" icon={Shirt} defaultOpen={isUniformActive} collapsed={collapsed}>
           <MenuGroup items={uniformItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
         </CollapsibleGroup>
 
-        {/* Ferramentas */}
         <CollapsibleGroup label="Ferramentas" icon={Wrench} defaultOpen={isToolActive} collapsed={collapsed}>
           <MenuGroup items={toolItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
         </CollapsibleGroup>
 
-        {/* Folha de Pagamento */}
         <CollapsibleGroup label="Folha de Pagamento" icon={DollarSign} defaultOpen={isPayrollActive} collapsed={collapsed}>
           <MenuGroup items={payrollItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
         </CollapsibleGroup>
 
-        {/* Sistema */}
         {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Sistema</SidebarGroupLabel>
