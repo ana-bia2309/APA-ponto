@@ -1736,22 +1736,73 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
-  // Success overlay
+// Success overlay
   if (showSuccess) {
+    const stepColors: Record<string, { from: string; to: string; emoji: string }> = {
+      entrada: { from: "#16a34a", to: "#22c55e", emoji: "🟢" },
+      intervalo: { from: "#d97706", to: "#f59e0b", emoji: "🟡" },
+      retorno: { from: "#2563eb", to: "#3b82f6", emoji: "🔵" },
+      saida: { from: "#dc2626", to: "#ef4444", emoji: "🔴" },
+    };
+    const lastStep = records.length > 0 ? [...records].sort((a, b) => new Date(b.punched_at).getTime() - new Date(a.punched_at).getTime())[0]?.step : "entrada";
+    const colors = stepColors[lastStep || "entrada"] || stepColors.entrada;
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
-        <div className="text-center animate-in fade-in zoom-in duration-500">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)", boxShadow: "0 0 40px rgba(22,163,74,0.25)" }}>
-            <CheckCircle2 className="w-12 h-12 text-white" />
+
+        {/* Círculos animados de fundo */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-96 h-96 rounded-full opacity-10 animate-ping" style={{ background: `radial-gradient(circle, ${colors.from}, transparent)`, animationDuration: "1.5s" }} />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-64 h-64 rounded-full opacity-15 animate-ping" style={{ background: `radial-gradient(circle, ${colors.from}, transparent)`, animationDuration: "1s", animationDelay: "0.2s" }} />
+        </div>
+
+        <div className="text-center animate-in fade-in zoom-in duration-500 relative z-10">
+          {/* Ícone principal */}
+          <div className="relative mx-auto mb-6 w-32 h-32">
+            <div className="w-32 h-32 rounded-full flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${colors.from}, ${colors.to})`, boxShadow: `0 0 60px ${colors.from}50` }}>
+              <CheckCircle2 className="w-16 h-16 text-white" />
+            </div>
+            {/* Partículas decorativas */}
+            {[0, 60, 120, 180, 240, 300].map((deg) => (
+              <div key={deg} className="absolute w-3 h-3 rounded-full animate-ping"
+                style={{
+                  background: colors.from,
+                  top: `${50 + 45 * Math.sin((deg * Math.PI) / 180)}%`,
+                  left: `${50 + 45 * Math.cos((deg * Math.PI) / 180)}%`,
+                  animationDelay: `${deg / 360}s`,
+                  animationDuration: "1.2s",
+                  opacity: 0.7,
+                }} />
+            ))}
           </div>
-          <h2 className="text-2xl font-black text-gray-800 mb-2">Ponto Registrado!</h2>
-          <p className="text-base text-gray-500">{successMessage}</p>
-          <p className="text-sm mt-4 text-gray-400">Redirecionando automaticamente...</p>
+
+          {/* Mensagem */}
+          <div className="bg-white rounded-2xl px-8 py-6 mb-4 mx-4" style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+            <p className="text-4xl mb-2">{colors.emoji}</p>
+            <h2 className="text-2xl font-black text-gray-800 mb-1">Ponto Registrado!</h2>
+            <p className="text-base font-semibold mb-1" style={{ color: colors.from }}>{successMessage}</p>
+            <p className="text-xs text-gray-400">
+              {new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} — {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+            </p>
+          </div>
+
+          {/* Barra de progresso */}
+          <div className="w-full max-w-xs mx-auto mb-4 px-4">
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full rounded-full animate-[width_2s_linear_forwards]"
+                style={{ background: `linear-gradient(90deg, ${colors.from}, ${colors.to})`, width: "100%", transition: "width 2s linear" }} />
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5 text-center">Redirecionando automaticamente...</p>
+          </div>
+
           <button
             onClick={resetToStart}
-            className="mt-6 h-12 rounded-xl px-6 font-bold text-sm text-white transition-all hover:shadow-lg"
-            style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+            className="h-12 rounded-xl px-8 font-bold text-sm text-white transition-all hover:shadow-lg active:scale-95"
+            style={{ background: `linear-gradient(135deg, ${colors.from}, ${colors.to})`, boxShadow: `0 4px 16px ${colors.from}50` }}
           >
             Voltar ao início
           </button>
@@ -2432,7 +2483,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             ))}
           </div>
         </div>
-        
+
         {/* Ações secundárias */}
         <div className="w-full grid grid-cols-4 gap-2 mb-3">
           {[
