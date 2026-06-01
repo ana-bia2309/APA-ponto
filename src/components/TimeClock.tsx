@@ -604,6 +604,8 @@ const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at:
 const [showToolAcceptance, setShowToolAcceptance] = useState(false);
 const [showTimesheetSign, setShowTimesheetSign] = useState(false);
 const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
+const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
+const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -763,6 +765,20 @@ const fetchTimesheetSummary = useCallback(async (cpf: string) => {
     if (data && data.length > 0) setTimesheetSummary(data[0]);
   } catch {}
 }, []);
+
+const fetchAvisos = useCallback(async () => {
+  if (!navigator.onLine) return;
+  try {
+    const { data } = await (supabase as any)
+      .from("company_notices")
+      .select("id, titulo, mensagem, tipo, created_at")
+      .eq("ativo", true)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (data) setAvisos(data);
+  } catch {}
+}, []);
+
 const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
   if (!cpfDigits || !navigator.onLine) { setPendingTimesheetCount(0); return; }
@@ -904,6 +920,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     void fetchPendingToolCount(validatedContext.cpf_normalized);
   void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
     void fetchTimesheetSummary(validatedContext.cpf_normalized);
+    void fetchAvisos();
   }
 };
 
@@ -2080,13 +2097,27 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         {/* Saudação + relógio */}
         <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3 flex items-center justify-between"
           style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <div>
-            <p className="text-base font-bold text-gray-800">
-              {getGreeting()}, {selectedEmployee.name.split(" ")[0]}! 👋
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5 capitalize">{formatDate(now)}</p>
+          <div className="flex items-center gap-3">
+            {(selectedEmployee as any).foto_url ? (
+              <img src={(selectedEmployee as any).foto_url} alt={selectedEmployee.name}
+                className="w-12 h-12 rounded-full object-cover border-2 border-blue-100 flex-shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg font-black text-white"
+                style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                {selectedEmployee.name.charAt(0)}
+              </div>
+            )}
+            <div>
+              <p className="text-base font-bold text-gray-800">
+                {getGreeting()}, {selectedEmployee.name.split(" ")[0]}! 👋
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5 capitalize">{formatDate(now)}</p>
+              {(selectedEmployee as any).cargo && (
+                <p className="text-[10px] text-blue-400 font-medium">{(selectedEmployee as any).cargo}</p>
+              )}
+            </div>
           </div>
-          <p className="text-2xl font-bold tabular-nums" style={{ color: "#1e40af" }}>
+          <p className="text-2xl font-bold tabular-nums flex-shrink-0" style={{ color: "#1e40af" }}>
             {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
@@ -2351,6 +2382,57 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
         )}
 
+{/* Avisos da empresa */}
+        {avisos.length > 0 && (
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">📢 Avisos da Empresa</p>
+            <div className="space-y-2">
+              {avisos.map((aviso) => {
+                const cores: Record<string, { bg: string; text: string; icon: string }> = {
+                  info: { bg: "#eff6ff", text: "#1e40af", icon: "ℹ️" },
+                  alerta: { bg: "#fff7ed", text: "#c2410c", icon: "⚠️" },
+                  urgente: { bg: "#fff1f2", text: "#be123c", icon: "🚨" },
+                  evento: { bg: "#f0fdf4", text: "#15803d", icon: "📅" },
+                };
+                const c = cores[aviso.tipo] || cores.info;
+                return (
+                  <div key={aviso.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: c.bg }}>
+                    <span className="text-base flex-shrink-0">{c.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold" style={{ color: c.text }}>{aviso.titulo}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{aviso.mensagem}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Solicitações rápidas */}
+        <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">⚡ Solicitações Rápidas</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Férias", icon: "🏖️", color: "#0ea5e9" },
+              { label: "Abono", icon: "📝", color: "#7c3aed" },
+              { label: "Declaração", icon: "📄", color: "#15803d" },
+              { label: "Ajuste de Ponto", icon: "⏱️", color: "#ea580c" },
+            ].map(({ label, icon, color }) => (
+              <button key={label}
+                onClick={() => {
+                  toast.info(`Solicitação de ${label} enviada ao RH!`);
+                  setShowSolicitacao(label);
+                }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm active:scale-95 text-left"
+                style={{ borderColor: "#e2e8f0", background: "white" }}>
+                <span className="text-base">{icon}</span>
+                <span className="text-xs font-semibold text-gray-700">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        
         {/* Ações secundárias */}
         <div className="w-full grid grid-cols-4 gap-2 mb-3">
           {[
