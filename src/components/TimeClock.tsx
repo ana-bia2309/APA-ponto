@@ -1906,86 +1906,75 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
-  // ---- SHIFT SELECTION SCREEN ----
+ // ---- SHIFT SELECTION SCREEN ----
   if (!selectedShift) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-        {/* Subtle glow effect */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
 
-        <div className="text-center mb-6">
-          <div className="relative inline-block mb-4">
-            <div className="absolute inset-[-20px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
-            <img src={logo} alt="AMR Refrigeração e Climatização" className="w-56 h-56 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
-          </div>
+        <div className="w-full max-w-md flex flex-col items-center" style={{ marginTop: "28px" }}>
+          {/* Logo destacada sem card */}
+          <div className="flex flex-col items-center mb-4">
+            <img src={logo} alt="APA" className="w-44 h-44 object-contain mb-3" style={{ filter: "drop-shadow(0 4px 24px rgba(30,64,175,0.35))" }} />
+            <p className="font-bold text-xl text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
+            <p className="text-sm text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
 
-          {/* Widget de clima + frase dinâmica */}
-          {weather && (
-            <div className="flex flex-col items-center gap-1 mb-2">
-              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-white text-sm">
+            {weather && (
+              <div className="mt-3 flex items-center gap-3 bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100">
                 <WeatherIcon code={weather.weatherCode} hour={currentHour} />
-                <span className="font-semibold">{weather.temp}°C</span>
-                <span className="text-white/60">|</span>
-                <Droplets className="w-4 h-4 text-blue-300" />
-                <span className="text-white/80">{weather.humidity}%</span>
-                <Wind className="w-4 h-4 text-white/60" />
-                <span className="text-white/80">{weather.windspeed} km/h</span>
+                <span className="font-bold text-gray-700">{weather.temp}°C</span>
+                <span className="text-gray-300">|</span>
+                <Droplets className="w-4 h-4 text-blue-400" />
+                <span className="text-gray-500 text-sm">{weather.humidity}%</span>
+                <Wind className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-500 text-sm">{weather.windspeed} km/h</span>
               </div>
-              <p className="text-white/70 text-xs italic text-center px-4">
-                {getDynamicPhrase(currentHour, weather.weatherCode)}
-              </p>
+            )}
+            {weather && (
+              <p className="text-gray-400 text-xs italic mt-2">{getDynamicPhrase(currentHour, weather.weatherCode)}</p>
+            )}
+          </div>
+
+          {/* Relógio */}
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-6 text-center" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+            <p className="text-4xl font-black tabular-nums" style={{ color: "#1e40af" }}>{formatTime(now)}</p>
+            <p className="text-sm text-gray-400 capitalize mt-1">{formatDate(now)}</p>
+          </div>
+
+          {/* Título */}
+          <p className="text-lg font-bold text-gray-700 mb-4">Selecione sua equipe</p>
+
+          {/* Cards de turno */}
+          <div className="w-full grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 border border-blue-100"
+              style={{ boxShadow: "0 2px 12px rgba(30,64,175,0.08)" }}
+              onClick={() => setSelectedShift("diurno")}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#eff6ff" }}>
+                <Sun className="w-6 h-6 text-yellow-500" />
+              </div>
+              <p className="font-bold text-sm text-gray-700">EQUIPE DIURNA</p>
+              <button className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 12px rgba(30,64,175,0.3)" }}>
+                Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+              </button>
             </div>
-          )}
 
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
-            <Clock className="w-4 h-4" />
-            APA Ponto
+            <div className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 border border-indigo-100"
+              style={{ boxShadow: "0 2px 12px rgba(99,102,241,0.08)" }}
+              onClick={() => setSelectedShift("noturno")}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#eef2ff" }}>
+                <Moon className="w-6 h-6 text-indigo-500" />
+              </div>
+              <p className="font-bold text-sm text-gray-700">EQUIPE NOTURNA</p>
+              <button className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 4px 12px rgba(79,70,229,0.3)" }}>
+                Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+              </button>
+            </div>
           </div>
 
-          <p className="text-sm tracking-wider mb-6" style={{ color: "hsl(210 20% 60%)" }}>Refrigeração e Climatização</p>
-          <p className="text-2xl font-bold tracking-tight" style={{ color: "hsl(0 0% 95%)" }}>Selecione sua equipe</p>
-        </div>
-
-        <div className="w-full max-w-md grid grid-cols-2 gap-5 relative z-10">
-          {/* Equipe Diurna */}
-          <div
-            className="rounded-2xl p-6 flex flex-col items-center gap-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border border-white/10 backdrop-blur-sm"
-            style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5), 0 0 0 1px hsl(210 40% 30% / 0.1)" }}
-            onClick={() => setSelectedShift("diurno")}
-          >
-            <p className="font-bold text-sm tracking-wide" style={{ color: "hsl(0 0% 90%)" }}>EQUIPE DIURNA</p>
-            <button
-              className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
-              style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
-            >
-              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
-            </button>
-          </div>
-
-          {/* Equipe Noturna */}
-          <div
-            className="rounded-2xl p-6 flex flex-col items-center gap-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border border-white/10 backdrop-blur-sm"
-            style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5), 0 0 0 1px hsl(210 40% 30% / 0.1)" }}
-            onClick={() => setSelectedShift("noturno")}
-          >
-            <p className="font-bold text-sm tracking-wide" style={{ color: "hsl(0 0% 90%)" }}>EQUIPE NOTURNA</p>
-            <button
-              className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 hover:shadow-lg"
-              style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 16px hsl(210 70% 40% / 0.3)" }}
-            >
-              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-10 text-center relative z-10">
-          <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
-            {formatTime(now)}
-          </p>
-          <p className="mt-2 capitalize text-sm tracking-wide" style={{ color: "hsl(210 15% 50%)" }}>
-            {formatDate(now)}
+          <p className="text-[10px] text-gray-400 flex items-center gap-1">
+            <Shield className="w-3 h-3" /> APA Refrigeração e Climatização — Tecnologia e confiança
           </p>
         </div>
       </div>
@@ -1995,627 +1984,413 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   // ---- EMPLOYEE LIST SCREEN (filtered by shift) ----
   if (!selectedEmployee) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
-        <div className="text-center mb-8 relative z-10">
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-[-16px] rounded-full opacity-30 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
-            <img src={logo} alt="Logo" className="w-48 h-48 object-contain relative" style={{ filter: "drop-shadow(0 4px 24px hsl(200 70% 50% / 0.35))" }} />
-          </div>
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
-            <Clock className="w-4 h-4" />
-            APA Ponto
-          </div>
-          <p className="text-sm tracking-wider mb-4" style={{ color: "hsl(210 20% 55%)" }}>Refrigeração e Climatização</p>
-          <p className="text-lg font-bold mb-1" style={{ color: "hsl(0 0% 95%)" }}>
-            Equipe {selectedShift === "diurno" ? "Diurna" : "Noturna"}
-          </p>
-          <p className="text-sm" style={{ color: "hsl(210 20% 55%)" }}>
-            Selecione seu nome
-          </p>
-        </div>
 
-        <div className="w-full max-w-sm space-y-2 relative z-10">
-          {filteredEmployees.map((emp) => (
-            <button
-              key={emp.id}
-              className="w-full h-14 text-base text-left px-5 rounded-xl border border-white/10 transition-all duration-200 hover:-translate-y-0.5 font-medium"
-              style={{ background: "linear-gradient(180deg, hsl(210 30% 16%) 0%, hsl(215 25% 12%) 100%)", color: "hsl(0 0% 90%)", boxShadow: "0 4px 16px hsl(220 40% 5% / 0.4)" }}
-              onClick={() => {
-                if (!emp.has_cpf) {
-                  setSelectedEmployee(emp);
-                  setValidatedEmployee(emp);
-                  setValidatedCpf("");
-                  setShowDropdown(false);
-                } else {
-                  setSelectedEmployee(null);
-                  setValidatedEmployee(null);
-                  setValidatedCpf("");
-                  setPendingEmployee(emp);
-                  setCpfInput("");
-                  setCpfError("");
-                }
-              }}
-            >
-              {emp.name}
-            </button>
-          ))}
-          {filteredEmployees.length === 0 && (
-            <p className="text-center py-8" style={{ color: "hsl(210 20% 50%)" }}>
-              Nenhum funcionário neste turno.
-            </p>
-          )}
+        <div className="w-full max-w-md flex flex-col items-center" style={{ marginTop: "28px" }}>
+          {/* Logo destacada sem card */}
+          <div className="flex flex-col items-center mb-5">
+            <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-2" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
+            <p className="font-bold text-lg text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
+            <p className="text-xs text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
+          </div>
+
+          {/* Turno selecionado */}
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-4 flex items-center justify-between" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Equipe</p>
+              <p className="text-lg font-black" style={{ color: "#1e40af" }}>
+                {selectedShift === "diurno" ? "☀️ Diurna" : "🌙 Noturna"}
+              </p>
+            </div>
+            <p className="text-xl font-bold tabular-nums text-gray-700">{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+          </div>
+
+          <p className="text-base font-bold text-gray-700 mb-3">Selecione seu nome</p>
+
+          {/* Lista de funcionários */}
+          <div className="w-full space-y-2 mb-4">
+            {filteredEmployees.map((emp) => (
+              <button
+                key={emp.id}
+                className="w-full h-14 text-base text-left px-5 rounded-xl border border-gray-100 bg-white transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 font-medium text-gray-700 flex items-center justify-between"
+                style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+                onClick={() => {
+                  if (!emp.has_cpf) {
+                    setSelectedEmployee(emp);
+                    setValidatedEmployee(emp);
+                    setValidatedCpf("");
+                    setShowDropdown(false);
+                  } else {
+                    setSelectedEmployee(null);
+                    setValidatedEmployee(null);
+                    setValidatedCpf("");
+                    setPendingEmployee(emp);
+                    setCpfInput("");
+                    setCpfError("");
+                  }
+                }}
+              >
+                <span>{emp.name}</span>
+                <LogIn className="w-4 h-4 text-blue-400" />
+              </button>
+            ))}
+            {filteredEmployees.length === 0 && (
+              <p className="text-center py-8 text-gray-400">Nenhum funcionário neste turno.</p>
+            )}
+          </div>
+
           <button
-            className="w-full mt-4 py-3 text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-1"
-            style={{ color: "hsl(210 20% 60%)" }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
             onClick={() => setSelectedShift(null)}
           >
-            <ArrowLeft className="w-4 h-4" /> Voltar
+            <ArrowLeft className="w-4 h-4" /> Voltar para seleção de equipe
           </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-8 relative overflow-hidden" style={{ background: "linear-gradient(160deg, hsl(220 30% 8%) 0%, hsl(215 40% 14%) 50%, hsl(210 35% 10%) 100%)" }}>
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, hsl(200 80% 50%) 0%, transparent 70%)" }} />
-      <ConnectionIndicator />
-      {isAdmin && (
-        <button
-          onClick={() => navigate("/admin")}
-          className="fixed top-9 right-3 sm:top-10 sm:right-4 z-40 inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-full text-xs font-semibold border border-white/20 backdrop-blur-md shadow-lg hover:bg-white/10 active:scale-95 transition-all"
-          style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.85), hsl(200 50% 25% / 0.7))", color: "hsl(0 0% 100%)" }}
-          title="Acessar painel administrativo"
-          aria-label="Acessar painel administrativo"
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>Painel Admin</span>
-        </button>
-      )}
-      {/* Header */}
-      <div className="text-center mb-8 relative z-10">
-        <div className="relative inline-block mb-4">
-          <div className="absolute inset-[-12px] rounded-full opacity-25 blur-2xl" style={{ background: "radial-gradient(circle, hsl(200 80% 55%) 0%, transparent 70%)" }} />
-          <img src={logo} alt="Logo" className="w-40 h-40 object-contain relative" style={{ filter: "drop-shadow(0 4px 20px hsl(200 70% 50% / 0.3))" }} />
-        </div>
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-3 border border-white/10 backdrop-blur-sm" style={{ background: "linear-gradient(135deg, hsl(210 60% 30% / 0.6), hsl(200 50% 25% / 0.4))", color: "hsl(0 0% 100%)" }}>
-          <Clock className="w-3 h-3" />
-          APA Ponto
-        </div>
-        <p className="text-xs tracking-wider mb-3" style={{ color: "hsl(210 20% 50%)" }}>Refrigeração e Climatização</p>
-        <p className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
-          {formatTime(now)}
-        </p>
-        <p className="mt-2 capitalize text-sm" style={{ color: "hsl(210 15% 50%)" }}>
-          {formatDate(now)}
-        </p>
+ // Greeting
+  const getGreeting = () => {
+    if (currentHour >= 5 && currentHour < 12) return "Bom dia";
+    if (currentHour >= 12 && currentHour < 18) return "Boa tarde";
+    return "Boa noite";
+  };
 
-        {(statusNotice || (!isOnline && hasOfflineBase) || employeesSyncedAt) && (
-          <div className="mt-3 space-y-1">
-            {statusNotice && (
-              <p className="text-xs font-medium" style={{ color: "hsl(200 65% 70%)" }}>
-                {statusNotice}
-              </p>
-            )}
-            {!statusNotice && !isOnline && hasOfflineBase && (
-              <p className="text-xs font-medium" style={{ color: "hsl(200 65% 70%)" }}>
-                Modo offline ativo usando a base local já sincronizada.
-              </p>
-            )}
-            {employeesSyncedAt && (
-              <p className="text-[11px]" style={{ color: "hsl(210 15% 50%)" }}>
-                Base offline atualizada em {new Date(employeesSyncedAt).toLocaleString("pt-BR")}
-              </p>
-            )}
-            <button
-              onClick={async () => {
-                setIsSyncing(true);
-                setStatusNotice("Forçando atualização...");
+  const lastRecord = records.length > 0 ? [...records].sort((a, b) => new Date(b.punched_at).getTime() - new Date(a.punched_at).getTime())[0] : null;
+  const STEP_LABELS_MAP: Record<string, string> = { entrada: "Entrada", intervalo: "Saída p/ Almoço", retorno: "Retorno do Almoço", saida: "Saída" };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center px-3 pb-10 relative" style={{ background: "#F0F4F8" }}>
+      <ConnectionIndicator />
+
+      {/* Header institucional */}
+      <div className="w-full max-w-md pt-8 pb-4 flex flex-col items-center" style={{ marginTop: "28px" }}>
+        {/* Painel Admin */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/admin")}
+            className="self-end mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
+            style={{ background: "white", color: "#1e40af", borderColor: "#bfdbfe" }}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            Painel Admin
+          </button>
+        )}
+
+        {/* Logo + identidade */}
+        <div className="w-full rounded-2xl flex flex-col items-center py-6 px-4 mb-4 relative overflow-hidden"
+          style={{ background: "linear-gradient(160deg, #1e3a5f 0%, #1e40af 60%, #0ea5e9 100%)", boxShadow: "0 4px 24px rgba(30,64,175,0.25)" }}>
+          {/* Ondas decorativas */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 opacity-10" style={{ background: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60'%3E%3Cpath fill='white' d='M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z'/%3E%3C/svg%3E\") bottom/cover" }} />
+          <img src={logo} alt="APA" className="w-28 h-28 object-contain mb-2 relative z-10" style={{ filter: "drop-shadow(0 2px 12px rgba(255,255,255,0.2))" }} />
+          <p className="text-white font-bold text-lg tracking-tight relative z-10">APA Refrigeração e Climatização</p>
+          <p className="text-blue-200 text-xs tracking-wider relative z-10">Sistema de Registro de Ponto</p>
+        </div>
+
+        {/* Saudação + relógio */}
+        <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3 flex items-center justify-between"
+          style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+          <div>
+            <p className="text-base font-bold text-gray-800">
+              {getGreeting()}, {selectedEmployee.name.split(" ")[0]}! 👋
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5 capitalize">{formatDate(now)}</p>
+          </div>
+          <p className="text-2xl font-bold tabular-nums" style={{ color: "#1e40af" }}>
+            {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          </p>
+        </div>
+
+        {/* Status / avisos */}
+        {(statusNotice || (!isOnline && hasOfflineBase)) && (
+          <div className="w-full rounded-xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2"
+            style={{ background: isOnline ? "#f0fdf4" : "#fff7ed", border: `1px solid ${isOnline ? "#bbf7d0" : "#fed7aa"}` }}>
+            <p className="text-xs font-medium" style={{ color: isOnline ? "#15803d" : "#c2410c" }}>
+              {statusNotice || "Modo offline ativo usando a base local sincronizada."}
+            </p>
+            {isOnline && (
+              <button onClick={async () => {
+                setIsSyncing(true); setStatusNotice("Atualizando...");
                 try {
-                  // Force SW update
-                  if ("serviceWorker" in navigator) {
-                    const regs = await navigator.serviceWorker.getRegistrations();
-                    await Promise.all(regs.map(r => r.update().catch(() => {})));
-                    // Clear all caches
-                    const cacheNames = await caches.keys();
-                    await Promise.all(cacheNames.map(n => caches.delete(n)));
-                  }
-                  // Re-fetch all data
+                  if ("serviceWorker" in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const cacheNames = await caches.keys(); await Promise.all(cacheNames.map(n => caches.delete(n))); }
                   await fetchEmployees();
                   if (selectedEmployee) await fetchTodayRecords(selectedEmployee.id);
-                  if (validatedContext?.cpf_normalized) {
-                    await fetchNextStep(validatedContext.cpf_normalized);
-                    await fetchPendingEpiCount(validatedContext.cpf_normalized);
-                  }
-                  setStatusNotice("Dados atualizados com sucesso!");
-                  toast.success("App atualizado com os dados mais recentes.");
-                } catch {
-                  setStatusNotice("Erro ao atualizar. Tente novamente.");
-                  toast.error("Falha ao forçar atualização.");
-                } finally {
-                  setIsSyncing(false);
-                }
-              }}
-              disabled={isSyncing || !isOnline}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed mt-1"
-              style={{
-                background: "linear-gradient(135deg, hsl(210 60% 30%), hsl(200 50% 35%))",
-                color: "hsl(200 80% 80%)",
-                boxShadow: "0 2px 8px hsl(210 60% 20% / 0.3)",
-              }}
-            >
-              <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
-              {isSyncing ? "Atualizando..." : "Forçar atualização"}
+                  if (validatedContext?.cpf_normalized) { await fetchNextStep(validatedContext.cpf_normalized); await fetchPendingEpiCount(validatedContext.cpf_normalized); }
+                  setStatusNotice("Atualizado!"); toast.success("App atualizado.");
+                } catch { setStatusNotice("Erro ao atualizar."); } finally { setIsSyncing(false); }
+              }} disabled={isSyncing} className="flex-shrink-0 flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all"
+                style={{ background: "#dcfce7", color: "#15803d" }}>
+                <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "..." : "Atualizar"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Card próximo registro + botão */}
+        <div className="w-full bg-white rounded-2xl mb-3 overflow-hidden" style={{ boxShadow: "0 2px 16px rgba(30,64,175,0.10)" }}>
+          <div className="px-5 pt-4 pb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#64748b" }}>Próximo Registro</p>
+            {recordsLoading || (navigator.onLine && !serverStepInfo && validatedContext) ? (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-400">Verificando...</span>
+              </div>
+            ) : !allDone && nextAllowedStep ? (
+              <>
+                <p className="text-3xl font-black mb-1" style={{ color: "#1e40af" }}>{nextAllowedStep.label.toUpperCase()}</p>
+                <p className="text-xs text-gray-400 mb-4">Registre seu ponto para {nextAllowedStep.label === "Entrada" ? "iniciar sua jornada" : nextAllowedStep.label === "Intervalo" ? "pausar para o almoço" : nextAllowedStep.label === "Retorno" ? "retomar a jornada" : "encerrar o dia"}</p>
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={loading}
+                  className="w-full h-14 text-base font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", color: "white", boxShadow: "0 4px 16px rgba(30,64,175,0.35)" }}
+                >
+                  <Camera className="w-5 h-5" />
+                  {loading ? "Registrando..." : "REGISTRAR PONTO"}
+                </button>
+                <p className="text-center text-[10px] text-gray-400 mt-2 flex items-center justify-center gap-1">
+                  <Shield className="w-3 h-3" /> Seu registro é seguro e criptografado
+                </p>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 py-2">
+                <Check className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-bold text-emerald-600">Jornada concluída!</p>
+                  <p className="text-xs text-gray-400">Total: {getWorkedTime()}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Grid: Último registro + Banco de horas */}
+        <div className="w-full grid grid-cols-2 gap-3 mb-3">
+          {/* Último registro */}
+          <div className="bg-white rounded-2xl p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Último Registro</p>
+            {lastRecord ? (
+              <>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2" style={{ background: "#eff6ff" }}>
+                  {(() => { const Icon = STEPS.find(s => s.key === lastRecord.step)?.icon || Check; return <Icon className="w-4 h-4" style={{ color: "#1e40af" }} />; })()}
+                </div>
+                <p className="text-sm font-bold text-gray-800">{STEP_LABELS_MAP[lastRecord.step] || lastRecord.step}</p>
+                <p className="text-lg font-black tabular-nums" style={{ color: "#1e40af" }}>{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" }).replace(":", ":")}{new Date(lastRecord.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="text-[10px] text-gray-400">Hoje, {new Date(lastRecord.punched_at).toLocaleDateString("pt-BR")}</p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Nenhum registro hoje</p>
+            )}
+          </div>
+
+          {/* Banco de horas */}
+          <div className="bg-white rounded-2xl p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Banco de Horas</p>
+            {timesheetSummary ? (
+              <>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2"
+                  style={{ background: timesheetSummary.diferenca >= 0 ? "#f0fdf4" : "#fff1f2" }}>
+                  <Clock className="w-4 h-4" style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }} />
+                </div>
+                <p className="text-xl font-black tabular-nums" style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }}>
+                  {timesheetSummary.diferenca >= 0 ? "+" : ""}{Math.floor(Math.abs(timesheetSummary.diferenca))}h{String(Math.round((Math.abs(timesheetSummary.diferenca) % 1) * 60)).padStart(2, "0")}
+                </p>
+                <p className="text-[10px] font-medium" style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }}>
+                  {timesheetSummary.diferenca >= 0 ? "Saldo positivo" : "Saldo negativo"}
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Sem dados</p>
+            )}
+          </div>
+        </div>
+
+        {/* Jornada de hoje */}
+        <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sua Jornada de Hoje</p>
+            <button onClick={() => setShowDropdown(!showDropdown)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border"
+              style={{ background: "#f8fafc", color: "#1e40af", borderColor: "#bfdbfe" }}>
+              {selectedEmployee.name.split(" ")[0]} <ChevronDown className="w-3 h-3" />
             </button>
           </div>
-        )}
-
-        {selectedEmployee && !recordsLoading && (
-      <div className="mt-3 space-y-1">
-            <p className="text-xs font-semibold" style={{ color: "hsl(200 65% 70%)" }}>
-              {allDone ? "Todos os registros do dia já foram concluídos" : `Próximo registro: ${nextAllowedStep?.label}`}
-            </p>
-          </div>
-        )}
-
-        {/* Employee selector */}
-        <div className="relative mt-4">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-white/10"
-            style={{ background: "hsl(210 30% 16%)", color: "hsl(0 0% 88%)" }}
-          >
-            {selectedEmployee.name}
-            <ChevronDown className="w-4 h-4" />
-          </button>
           {showDropdown && (
-            <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 rounded-xl shadow-2xl z-10 min-w-[200px] border border-white/10 overflow-hidden" style={{ background: "hsl(210 30% 14%)" }}>
+            <div className="absolute mt-1 rounded-xl shadow-xl z-20 min-w-[180px] border border-gray-100 overflow-hidden bg-white">
               {filteredEmployees.map((emp) => (
-                <button
-                  key={emp.id}
-                  onClick={() => {
-                    setServerStepInfo(null);
-                    if (!emp.has_cpf) {
-                      setSelectedEmployee(emp);
-                      setValidatedEmployee(emp);
-                      setValidatedCpf("");
-                      setRecords([]);
-                      setShowDropdown(false);
-                    } else {
-                      setSelectedEmployee(null);
-                      setValidatedEmployee(null);
-                      setValidatedCpf("");
-                      setPendingEmployee(emp);
-                      setCpfInput("");
-                      setCpfError("");
-                      setShowDropdown(false);
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
-                  style={{ color: "hsl(0 0% 88%)" }}
-                >
-                  {emp.name}
-                </button>
+                <button key={emp.id} onClick={() => {
+                  setServerStepInfo(null);
+                  if (!emp.has_cpf) { setSelectedEmployee(emp); setValidatedEmployee(emp); setValidatedCpf(""); setRecords([]); setShowDropdown(false); }
+                  else { setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf(""); setPendingEmployee(emp); setCpfInput(""); setCpfError(""); setShowDropdown(false); }
+                }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 text-gray-700">{emp.name}</button>
               ))}
-              <button
-                onClick={() => {
-                  setSelectedEmployee(null);
-                  setValidatedEmployee(null);
-                  setValidatedCpf("");
-                  setSelectedShift(null);
-                  setRecords([]);
-                  setShowDropdown(false);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5 border-t border-white/10"
-                style={{ color: "hsl(210 20% 55%)" }}
-              >
-                <ArrowLeft className="w-3 h-3 inline mr-1" /> Trocar equipe
+              <button onClick={() => { setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf(""); setSelectedShift(null); setRecords([]); setShowDropdown(false); }}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-400 border-t border-gray-100 flex items-center gap-1">
+                <ArrowLeft className="w-3 h-3" /> Trocar equipe
               </button>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* EPI pending card - prominent position */}
-      {pendingEpiCount > 0 && (
-        <div
-          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
-          style={{
-            background: "linear-gradient(135deg, hsl(40 80% 15%), hsl(35 60% 11%))",
-            borderColor: "hsl(40 70% 30%)",
-            boxShadow: "0 4px 24px hsl(40 80% 20% / 0.35), inset 0 1px 0 hsl(40 90% 50% / 0.1)",
-          }}
-        >
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(40 90% 50%), hsl(35 85% 45%))" }}>
-                <HardHat className="w-5.5 h-5.5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: "hsl(40 90% 75%)" }}>
-                  {pendingEpiCount === 1 ? "EPI pendente de aceite" : `${pendingEpiCount} EPIs pendentes de aceite`}
-                </p>
-                {pendingEpiCount === 1 && pendingEpis[0] ? (
-                  <div className="mt-1.5 space-y-0.5">
-                    <p className="text-xs font-medium" style={{ color: "hsl(40 60% 65%)" }}>
-                      🦺 {pendingEpis[0].epi_name}
-                    </p>
-                    <p className="text-[11px]" style={{ color: "hsl(40 40% 50%)" }}>
-                      Entrega: {new Date(pendingEpis[0].delivered_at + "T00:00:00").toLocaleDateString("pt-BR")}
-                    </p>
+          <div className="space-y-2">
+            {STEPS.map((step, index) => {
+              const record = getRecordForStep(step.key);
+              const isActive = index === currentStepIndex;
+              const isDone = !!record;
+              const Icon = step.icon;
+              return (
+                <div key={step.key} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={isDone ? { background: "#dcfce7" } : isActive ? { background: "#eff6ff" } : { background: "#f1f5f9" }}>
+                    {isDone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Icon className="w-3.5 h-3.5" style={{ color: isActive ? "#1e40af" : "#94a3b8" }} />}
                   </div>
-                ) : (
-                  <p className="text-xs mt-1" style={{ color: "hsl(40 50% 55%)" }}>
-                    Você possui {pendingEpiCount} EPIs aguardando sua assinatura
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowEpiAcceptance(true)}
-              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{
-                background: "linear-gradient(135deg, hsl(40 85% 45%), hsl(35 80% 40%))",
-                color: "white",
-                boxShadow: "0 2px 10px hsl(40 80% 35% / 0.4)",
-              }}
-            >
-              Ver e assinar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Payslip pending card */}
-      {pendingPayslipCount > 0 && (
-        <div
-          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
-          style={{
-            background: "linear-gradient(135deg, hsl(210 60% 16%), hsl(215 55% 12%))",
-            borderColor: "hsl(210 70% 35%)",
-            boxShadow: "0 4px 24px hsl(210 80% 20% / 0.35), inset 0 1px 0 hsl(210 90% 60% / 0.1)",
-          }}
-        >
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(210 80% 50%), hsl(200 85% 50%))" }}>
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: "hsl(210 90% 80%)" }}>
-                  {pendingPayslipCount === 1 ? "Holerite pendente de assinatura" : `${pendingPayslipCount} holerites pendentes`}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "hsl(210 50% 65%)" }}>
-                  Assine digitalmente para confirmar o recebimento.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowPayslipSign(true)}
-              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{
-                background: "linear-gradient(135deg, hsl(210 80% 45%), hsl(200 85% 45%))",
-                color: "white",
-                boxShadow: "0 2px 10px hsl(210 80% 35% / 0.4)",
-              }}
-            >
-              Ver e assinar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Uniforme pending card */}
-      {pendingUniformCount > 0 && (
-        <div
-          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
-          style={{
-            background: "linear-gradient(135deg, hsl(270 60% 16%), hsl(275 55% 12%))",
-            borderColor: "hsl(270 70% 35%)",
-            boxShadow: "0 4px 24px hsl(270 80% 20% / 0.35), inset 0 1px 0 hsl(270 90% 60% / 0.1)",
-          }}
-        >
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(270 80% 50%), hsl(280 85% 50%))" }}>
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: "hsl(270 90% 80%)" }}>
-                  {pendingUniformCount === 1 ? "Uniforme pendente de confirmação" : `${pendingUniformCount} uniformes pendentes`}
-                </p>
-                {pendingUniform[0] && (
-                  <p className="text-xs mt-1" style={{ color: "hsl(270 50% 65%)" }}>
-                    👕 {pendingUniform[0].uniform_name} • Entregue em {new Date(pendingUniform[0].delivered_at + "T00:00:00").toLocaleDateString("pt-BR")}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowUniformAcceptance(true)}
-              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{
-                background: "linear-gradient(135deg, hsl(270 80% 45%), hsl(280 85% 45%))",
-                color: "white",
-                boxShadow: "0 2px 10px hsl(270 80% 35% / 0.4)",
-              }}
-            >
-              Confirmar recebimento
-            </button>
-          </div>
-        </div>
-      )}
-
-     {/* Ferramenta pending card */}
-      {pendingToolCount > 0 && (
-        <div
-          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
-          style={{
-            background: "linear-gradient(135deg, hsl(30 60% 16%), hsl(35 55% 12%))",
-            borderColor: "hsl(30 70% 35%)",
-            boxShadow: "0 4px 24px hsl(30 80% 20% / 0.35), inset 0 1px 0 hsl(30 90% 60% / 0.1)",
-          }}
-        >
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(30 80% 50%), hsl(35 85% 50%))" }}>
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: "hsl(30 90% 80%)" }}>
-                  {pendingToolCount === 1 ? "Ferramenta pendente de confirmação" : `${pendingToolCount} ferramentas pendentes`}
-                </p>
-                {pendingTools[0] && (
-                  <p className="text-xs mt-1" style={{ color: "hsl(30 50% 65%)" }}>
-                    🔧 {pendingTools[0].tool_name} • Emprestada em {new Date(pendingTools[0].loaned_at + "T00:00:00").toLocaleDateString("pt-BR")}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowToolAcceptance(true)}
-              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{
-                background: "linear-gradient(135deg, hsl(30 80% 45%), hsl(35 85% 45%))",
-                color: "white",
-                boxShadow: "0 2px 10px hsl(30 80% 35% / 0.4)",
-              }}
-            >
-              Confirmar recebimento
-            </button>
-          </div>
-        </div>
-      )}
-
-{/* Resumo folha de ponto */}
-{timesheetSummary && (
-  <div className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden"
-    style={{ background: "linear-gradient(135deg, hsl(220 30% 14%), hsl(215 25% 11%))", borderColor: "hsl(210 30% 25%)" }}>
-    <div className="p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "hsl(210 50% 60%)" }}>
-        📊 Folha de Ponto — {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
-      </p>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-lg font-bold text-blue-400">{Math.floor(timesheetSummary.horas_trabalhadas)}h{String(Math.round((timesheetSummary.horas_trabalhadas % 1) * 60)).padStart(2,"0")}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Trabalhado</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold" style={{ color: "hsl(0 0% 75%)" }}>{Math.floor(timesheetSummary.horas_esperadas)}h{String(Math.round((timesheetSummary.horas_esperadas % 1) * 60)).padStart(2,"0")}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Esperado</p>
-        </div>
-        <div>
-          <p className={`text-lg font-bold ${timesheetSummary.diferenca >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {timesheetSummary.diferenca >= 0 ? "+" : ""}{Math.floor(Math.abs(timesheetSummary.diferenca))}h{String(Math.round((Math.abs(timesheetSummary.diferenca) % 1) * 60)).padStart(2,"0")}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: "hsl(210 15% 55%)" }}>Diferença</p>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-      {/* Espelho de ponto pending card */}
-      {pendingTimesheetCount > 0 && (
-        <div
-          className="w-full max-w-md mb-5 rounded-2xl border relative z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500"
-          style={{
-            background: "linear-gradient(135deg, hsl(210 60% 16%), hsl(215 55% 12%))",
-            borderColor: "hsl(210 70% 35%)",
-            boxShadow: "0 4px 24px hsl(210 80% 20% / 0.35)",
-          }}
-        >
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, hsl(210 80% 50%), hsl(200 85% 50%))" }}>
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: "hsl(210 90% 80%)" }}>
-                  {pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos para assinar`}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "hsl(210 50% 65%)" }}>
-                  Seu espelho de ponto foi fechado e aguarda sua assinatura.
-                </p>
-              </div>
-            </div>
-            <button onClick={() => setShowTimesheetSign(true)}
-              className="w-full mt-3 h-10 text-sm font-semibold rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, hsl(210 80% 45%), hsl(200 85% 45%))", color: "white" }}>
-              Ver e assinar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Steps timeline */}
-      <div className="w-full max-w-md p-6 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "linear-gradient(180deg, hsl(210 30% 14%) 0%, hsl(215 25% 11%) 100%)", boxShadow: "0 8px 32px hsl(220 40% 5% / 0.5)" }}>
-        <div className="space-y-4">
-          {STEPS.map((step, index) => {
-            const record = getRecordForStep(step.key);
-            const isActive = index === currentStepIndex;
-            const isDone = !!record;
-            const Icon = step.icon;
-
-            return (
-              <div key={step.key} className="flex items-center gap-4">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300"
-                  style={
-                    isDone
-                      ? { background: "hsl(152 55% 42%)", color: "white" }
-                      : isActive
-                        ? { background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 0 16px hsl(210 70% 40% / 0.4)" }
-                        : { background: "hsl(210 20% 20%)", color: "hsl(210 15% 45%)" }
-                  }
-                >
-                  {isDone ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <Icon className="w-5 h-5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold" style={{ color: isDone ? "#16a34a" : isActive ? "#1e40af" : "#94a3b8" }}>
+                      {STEP_LABELS_MAP[step.key] || step.label}
+                    </p>
+                    {record && <p className="text-[10px] text-gray-400 tabular-nums">{new Date(record.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>}
+                  </div>
+                  {isActive && !isDone && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#eff6ff", color: "#1e40af" }}>próximo</span>
                   )}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="font-semibold text-sm"
-                    style={{
-                      color: isDone
-                        ? "hsl(152 55% 55%)"
-                        : isActive
-                          ? "hsl(0 0% 92%)"
-                          : "hsl(210 15% 45%)",
-                    }}
-                  >
-                    {step.label}
-                  </p>
-                  {record && (
-                    <div>
-                      <p className="text-xs tabular-nums" style={{ color: "hsl(210 15% 50%)" }}>
-                        {formatTime(record.punched_at)}
-                      </p>
-                      {record.address && (
-                        <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "hsl(210 15% 50%)" }}>
-                          <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: "hsl(152 55% 50%)" }} />
-                          <span className="truncate max-w-[200px]">{record.address}</span>
-                        </p>
-                      )}
-                      {record.photo_url && (
-                        <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "hsl(210 15% 50%)" }}>
-                          <Camera className="w-3 h-3 flex-shrink-0" style={{ color: "hsl(152 55% 50%)" }} />
-                          <span>Foto registrada ✓</span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Worked time */}
-      {records.length > 0 && (
-        <div className="w-full max-w-md p-4 mb-6 rounded-2xl border border-white/10 relative z-10" style={{ background: "hsl(210 30% 13%)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium" style={{ color: "hsl(210 15% 50%)" }}>
-              Horas trabalhadas
-            </span>
-            <span className="text-lg font-bold tabular-nums" style={{ color: "hsl(0 0% 95%)" }}>
-              {getWorkedTime()}
-            </span>
+              );
+            })}
           </div>
-        </div>
-      )}
-
-      {/* Geo status */}
-      {geoStatus && (
-        <p className="text-xs mb-3 flex items-center gap-1 relative z-10" style={{ color: "hsl(210 15% 50%)" }}>
-          <MapPin className="w-3 h-3" /> {geoStatus}
-        </p>
-      )}
-
-      {/* Action button */}
-      <div className="w-full max-w-md space-y-3 relative z-10">
-        {recordsLoading ? (
-          <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
-            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Carregando registros do dia...
-          </div>
-        ) : navigator.onLine && !serverStepInfo && validatedContext ? (
-          <div className="w-full h-14 flex items-center justify-center gap-2 text-sm" style={{ color: "hsl(210 15% 55%)" }}>
-            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Consultando próxima etAMR...
-          </div>
-        ) : !allDone && nextAllowedStep ? (
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={loading || recordsLoading}
-            className="w-full h-14 text-base font-semibold rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ background: "linear-gradient(135deg, hsl(210 70% 40%), hsl(200 80% 45%))", color: "white", boxShadow: "0 4px 20px hsl(210 70% 40% / 0.35)" }}
-          >
-            {loading ? (
-              "Registrando..."
-            ) : (
-              <>
-                <Camera className="w-5 h-5" />
-                Registrar {nextAllowedStep.label}
-              </>
-            )}
-          </button>
-        ) : (
-          <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 font-semibold" style={{ color: "hsl(152 55% 55%)" }}>
-              <Check className="w-5 h-5" />
-              Todos os registros do dia já foram concluídos
+          {records.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-xs text-gray-400">Horas trabalhadas</span>
+              <span className="text-sm font-bold" style={{ color: "#1e40af" }}>{getWorkedTime()}</span>
             </div>
-            <p className="text-sm mt-1" style={{ color: "hsl(210 15% 50%)" }}>
-              Total: {getWorkedTime()}
-            </p>
+          )}
+        </div>
+
+        {/* Widget clima */}
+        {weather && (
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Clima em Brasília - DF</p>
+            <div className="flex items-center gap-4">
+              <WeatherIcon code={weather.weatherCode} hour={currentHour} />
+              <div>
+                <p className="text-2xl font-black text-gray-800">{weather.temp}°C</p>
+                <p className="text-xs text-gray-400 flex items-center gap-2">
+                  <Droplets className="w-3 h-3 text-blue-400" />{weather.humidity}%
+                  <Wind className="w-3 h-3 text-gray-400" />{weather.windspeed} km/h
+                </p>
+              </div>
+              <p className="ml-auto text-xs text-gray-500 italic text-right max-w-[120px]">{getDynamicPhrase(currentHour, weather.weatherCode)}</p>
+            </div>
           </div>
         )}
 
-        {/* Secondary actions */}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
-            onClick={() => setShowManualPunch(true)}
-          >
-            <Pencil className="w-4 h-4" />
-            Manual
-          </button>
-          <button
-            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
-            onClick={fetchHistory}
-          >
-            <History className="w-4 h-4" />
-            Histórico
-          </button>
-          <button
-            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
-            onClick={() => setShowJustification(true)}
-          >
-            <FileText className="w-4 h-4" />
-            Atestado
-          </button>
-          <button
-            className="flex-1 h-11 text-sm font-medium rounded-xl border border-white/10 transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-            style={{ background: "hsl(210 30% 14%)", color: "hsl(0 0% 85%)" }}
-            onClick={() => setShowDocumentos(true)}
-          >
-            <FolderOpen className="w-4 h-4" />
-            Documentos
-          </button>
+        {/* Cards de pendências */}
+        {pendingEpiCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}>
+                <HardHat className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-800">{pendingEpiCount === 1 ? "EPI pendente de aceite" : `${pendingEpiCount} EPIs pendentes`}</p>
+                {pendingEpis[0] && <p className="text-xs text-amber-600">🦺 {pendingEpis[0].epi_name}</p>}
+              </div>
+              <button onClick={() => setShowEpiAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#f59e0b", color: "white" }}>Assinar</button>
+            </div>
+          </div>
+        )}
+
+        {pendingPayslipCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#dbeafe" }}>
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-blue-800">{pendingPayslipCount === 1 ? "Holerite para assinar" : `${pendingPayslipCount} holerites pendentes`}</p>
+                <p className="text-xs text-blue-500">Assine digitalmente para confirmar.</p>
+              </div>
+              <button onClick={() => setShowPayslipSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#1e40af", color: "white" }}>Assinar</button>
+            </div>
+          </div>
+        )}
+
+        {pendingUniformCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#f5f3ff", borderColor: "#ddd6fe" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#ede9fe" }}>
+                <FileText className="w-5 h-5 text-violet-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-violet-800">{pendingUniformCount === 1 ? "Uniforme para confirmar" : `${pendingUniformCount} uniformes pendentes`}</p>
+                {pendingUniform[0] && <p className="text-xs text-violet-500">👕 {pendingUniform[0].uniform_name}</p>}
+              </div>
+              <button onClick={() => setShowUniformAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#7c3aed", color: "white" }}>Confirmar</button>
+            </div>
+          </div>
+        )}
+
+        {pendingToolCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#fff7ed", borderColor: "#fed7aa" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#ffedd5" }}>
+                <FileText className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-orange-800">{pendingToolCount === 1 ? "Ferramenta para confirmar" : `${pendingToolCount} ferramentas pendentes`}</p>
+                {pendingTools[0] && <p className="text-xs text-orange-500">🔧 {pendingTools[0].tool_name}</p>}
+              </div>
+              <button onClick={() => setShowToolAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#ea580c", color: "white" }}>Confirmar</button>
+            </div>
+          </div>
+        )}
+
+        {pendingTimesheetCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#dbeafe" }}>
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-blue-800">{pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos pendentes`}</p>
+                <p className="text-xs text-blue-500">Seu espelho foi fechado e aguarda assinatura.</p>
+              </div>
+              <button onClick={() => setShowTimesheetSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#1e40af", color: "white" }}>Assinar</button>
+            </div>
+          </div>
+        )}
+
+        {/* Ações secundárias */}
+        <div className="w-full grid grid-cols-4 gap-2 mb-3">
+          {[
+            { label: "Manual", icon: Pencil, action: () => setShowManualPunch(true) },
+            { label: "Histórico", icon: History, action: fetchHistory },
+            { label: "Atestado", icon: FileText, action: () => setShowJustification(true) },
+            { label: "Documentos", icon: FolderOpen, action: () => setShowDocumentos(true) },
+          ].map(({ label, icon: Icon, action }) => (
+            <button key={label} onClick={action}
+              className="flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all hover:shadow-md active:scale-95"
+              style={{ background: "white", borderColor: "#e2e8f0", color: "#1e40af" }}>
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-semibold text-gray-600">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Geo status */}
+        {geoStatus && (
+          <p className="text-[10px] text-gray-400 flex items-center gap-1 mb-2">
+            <MapPin className="w-3 h-3" /> {geoStatus}
+          </p>
+        )}
+
+        {/* Footer */}
+        <div className="w-full flex items-center justify-center gap-2 pt-2">
+          <Shield className="w-3.5 h-3.5 text-gray-300" />
+          <p className="text-[10px] text-gray-400">APA Refrigeração e Climatização — Tecnologia e confiança para o seu dia a dia.</p>
         </div>
       </div>
     </div>
