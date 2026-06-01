@@ -1,39 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
     <title>AMR Ponto - Refrigeração e Climatização</title>
     <meta name="description" content="AMR Ponto - Sistema de registro de ponto | Refrigeração e Climatização">
     <meta name="author" content="AMR Ponto" />
     <link rel="icon" type="image/x-icon" href="/favicon.jpg">
 
-    <!-- TODO: Update og:title to match your application name -->
-    
-    
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/pwa-192x192.png">
-
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@Lovable" />
     <meta name="twitter:image" content="/pwa-192x192.png">
-    
-  
-  
-  
-    <meta name="theme-color" content="#1e3a5f">
-    <link rel="apple-touch-icon" href="/pwa-192x192.png">
-  
-  
-  
-  
-  <meta property="og:title" content="AMR Ponto - Refrigeração e Climatização">
-  <meta name="twitter:title" content="AMR Ponto - Refrigeração e Climatização">
-  <meta property="og:description" content="AMR Ponto - Sistema de registro de ponto | Refrigeração e Climatização">
-  <meta name="twitter:description" content="AMR Ponto - Sistema de registro de ponto | Refrigeração e Climatização">
-</head>
 
+    <!-- Tema claro -->
+    <meta name="theme-color" content="#F0F4F8">
+    <link rel="apple-touch-icon" href="/pwa-192x192.png">
+
+    <meta property="og:title" content="AMR Ponto - Refrigeração e Climatização">
+    <meta name="twitter:title" content="AMR Ponto - Refrigeração e Climatização">
+    <meta property="og:description" content="AMR Ponto - Sistema de registro de ponto | Refrigeração e Climatização">
+    <meta name="twitter:description" content="AMR Ponto - Sistema de registro de ponto | Refrigeração e Climatização">
+
+    <!-- Fundo claro enquanto o app carrega -->
+    <style>
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        background-color: #F0F4F8;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
