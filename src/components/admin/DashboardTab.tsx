@@ -367,25 +367,105 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
-      {/* Números principais */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="rounded-xl border bg-emerald-500/5 border-emerald-500/20 p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{presentes.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Presentes</p>
+     {/* Visão em tempo real */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">Online</p>
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <p className="text-3xl font-black text-emerald-600">{trabalhando.length}</p>
+          <p className="text-[11px] text-emerald-500 mt-1">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-2">
+            {trabalhando.slice(0, 5).map((e) => (
+              <div key={e.id} className="w-6 h-6 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+                {e.name.charAt(0)}
+              </div>
+            ))}
+            {trabalhando.length > 5 && <div className="w-6 h-6 rounded-full bg-emerald-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-emerald-700">+{trabalhando.length - 5}</div>}
+          </div>
         </div>
-        <div className="rounded-xl border bg-rose-500/5 border-rose-500/20 p-3 text-center">
-          <p className="text-2xl font-bold text-rose-600">{faltas.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Faltas</p>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-600">Em Pausa</p>
+            <span className="text-base">⏸️</span>
+          </div>
+          <p className="text-3xl font-black text-amber-600">
+            {statuses.filter(e => e.lastType === "intervalo" && !statuses.find(s => s.id === e.id && s.lastType === "retorno")).length}
+          </p>
+          <p className="text-[11px] text-amber-500 mt-1">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-2">
+            {statuses.filter(e => e.lastType === "intervalo").slice(0, 5).map((e) => (
+              <div key={e.id} className="w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+                {e.name.charAt(0)}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="rounded-xl border bg-amber-500/5 border-amber-500/20 p-3 text-center">
-          <p className="text-2xl font-bold text-amber-600">{atrasados.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Atrasados</p>
+
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-rose-600">Atrasados</p>
+            <span className="text-base">⏰</span>
+          </div>
+          <p className="text-3xl font-black text-rose-600">{atrasados.length}</p>
+          <p className="text-[11px] text-rose-500 mt-1">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-2">
+            {atrasados.slice(0, 5).map((e) => (
+              <div key={e.id} className="w-6 h-6 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+                {e.name.charAt(0)}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-3 text-center">
-          <p className="text-2xl font-bold text-blue-600">{trabalhando.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Trabalhando</p>
+
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Ausentes</p>
+            <span className="text-base">👤</span>
+          </div>
+          <p className="text-3xl font-black text-gray-500">{faltas.length}</p>
+          <p className="text-[11px] text-gray-400 mt-1">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-2">
+            {faltas.slice(0, 5).map((e) => (
+              <div key={e.id} className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-600" title={e.name}>
+                {e.name.charAt(0)}
+              </div>
+            ))}
+            {faltas.length > 5 && <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-500">+{faltas.length - 5}</div>}
+          </div>
         </div>
       </div>
+
+      {/* Atividade agora — linha do tempo */}
+      {statuses.filter(e => e.lastTime).length > 0 && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Atividade agora</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {statuses
+              .filter(e => e.lastTime)
+              .sort((a, b) => new Date(b.lastTime!).getTime() - new Date(a.lastTime!).getTime())
+              .slice(0, 8)
+              .map((e) => {
+                const colors: Record<string, string> = { entrada: "bg-emerald-500", intervalo: "bg-amber-400", retorno: "bg-blue-500", saida: "bg-rose-500" };
+                const dotColor = colors[e.lastType || ""] || "bg-gray-400";
+                return (
+                  <div key={e.id} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                        {e.name.charAt(0)}
+                      </div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${dotColor}`} />
+                    </div>
+                    <p className="text-[10px] font-semibold text-gray-700 text-center max-w-[52px] truncate">{e.name.split(" ")[0]}</p>
+                    <p className="text-[10px] text-gray-400">{fmtTime(e.lastTime!)}</p>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
 {(role === "admin" || !role) && (
   <>
@@ -435,6 +515,175 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   </>
 )}
 
+
+{/* Próximos feriados */}
+      {(() => {
+        const feriados = [
+          { data: "2026-06-04", nome: "Corpus Christi", tipo: "Nacional" },
+          { data: "2026-09-07", nome: "Independência do Brasil", tipo: "Nacional" },
+          { data: "2026-10-12", nome: "Nossa Sra. Aparecida", tipo: "Nacional" },
+          { data: "2026-11-02", nome: "Finados", tipo: "Nacional" },
+          { data: "2026-11-15", nome: "Proclamação da República", tipo: "Nacional" },
+          { data: "2026-11-20", nome: "Consciência Negra", tipo: "Nacional" },
+          { data: "2026-12-25", nome: "Natal", tipo: "Nacional" },
+          { data: "2027-01-01", nome: "Ano Novo", tipo: "Nacional" },
+          { data: "2027-04-21", nome: "Tiradentes", tipo: "Nacional" },
+          { data: "2027-05-01", nome: "Dia do Trabalho", tipo: "Nacional" },
+        ];
+        const hoje = new Date();
+        const proximos = feriados
+          .map(f => ({ ...f, date: new Date(f.data + "T12:00:00") }))
+          .filter(f => f.date >= hoje)
+          .slice(0, 4);
+        if (proximos.length === 0) return null;
+        return (
+          <div className="rounded-2xl border border-blue-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">📅 Próximos Feriados</p>
+            <div className="space-y-2">
+              {proximos.map((f, i) => {
+                const diffDays = Math.ceil((f.date.getTime() - hoje.getTime()) / 86400000);
+                return (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={{ background: "#eff6ff" }}>
+                        <p className="text-[10px] font-bold text-blue-400 uppercase">{f.date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</p>
+                        <p className="text-sm font-black text-blue-700 leading-none">{f.date.getDate()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">{f.nome}</p>
+                        <p className="text-[10px] text-gray-400">{f.tipo}</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: diffDays <= 7 ? "#fef3c7" : "#f1f5f9", color: diffDays <= 7 ? "#b45309" : "#64748b" }}>
+                      {diffDays === 0 ? "Hoje!" : diffDays === 1 ? "Amanhã" : `em ${diffDays}d`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Linha do tempo operacional */}
+      {statuses.filter(e => e.lastTime).length > 0 && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">🕐 Linha do Tempo Operacional <span className="text-emerald-500 ml-1">● Tempo real</span></p>
+          <div className="space-y-2">
+            {statuses
+              .filter(e => e.records.length > 0)
+              .flatMap(e => e.records.map(r => ({ ...r, name: e.name, id: e.id })))
+              .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+              .slice(0, 8)
+              .map((r, i) => {
+                const colors: Record<string, { bg: string; text: string; label: string }> = {
+                  entrada: { bg: "#dcfce7", text: "#15803d", label: "Entrada" },
+                  intervalo: { bg: "#fef3c7", text: "#b45309", label: "Saída p/ Almoço" },
+                  retorno: { bg: "#dbeafe", text: "#1e40af", label: "Retorno" },
+                  saida: { bg: "#fee2e2", text: "#dc2626", label: "Saída" },
+                };
+                const c = colors[r.type] || { bg: "#f1f5f9", text: "#64748b", label: r.type };
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                      {r.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-700 truncate">{r.name}</p>
+                      <p className="text-[10px] text-gray-400">{fmtTime(r.time)}</p>
+                    </div>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: c.bg, color: c.text }}>
+                      {c.label}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Heatmap de presença */}
+      {(() => {
+        const hoje = new Date();
+        const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+        const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        const presencasPorDia: Record<number, number> = {};
+        statuses.forEach(e => {
+          if (e.records.length > 0) {
+            const dia = hoje.getDate();
+            presencasPorDia[dia] = (presencasPorDia[dia] || 0) + 1;
+          }
+        });
+        const maxPresenca = Math.max(...Object.values(presencasPorDia), 1);
+        const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
+        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).getDay();
+        return (
+          <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+              🔵 Heatmap de Presença — {hoje.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </p>
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {diasSemana.map(d => (
+                <p key={d} className="text-[10px] text-center font-bold text-gray-400">{d}</p>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e-${i}`} />)}
+              {dias.map(dia => {
+                const presencas = presencasPorDia[dia] || 0;
+                const intensidade = presencas / maxPresenca;
+                const isHoje = dia === hoje.getDate();
+                const isFuturo = dia > hoje.getDate();
+                const bg = isFuturo ? "#f8fafc" : presencas === 0 ? "#f1f5f9" : `rgba(30, 64, 175, ${0.15 + intensidade * 0.75})`;
+                return (
+                  <div key={dia} className="aspect-square rounded-md flex items-center justify-center relative" style={{ background: bg, border: isHoje ? "2px solid #1e40af" : "none" }} title={`Dia ${dia}: ${presencas} presente(s)`}>
+                    <span className="text-[10px] font-bold" style={{ color: intensidade > 0.5 ? "white" : "#64748b" }}>{dia}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2 mt-3 justify-end">
+              <p className="text-[10px] text-gray-400">Baixa presença</p>
+              <div className="flex gap-1">
+                {[0.1, 0.3, 0.5, 0.7, 0.9].map(v => (
+                  <div key={v} className="w-4 h-4 rounded-sm" style={{ background: `rgba(30, 64, 175, ${v})` }} />
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400">Alta presença</p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Pendências consolidadas */}
+      {(() => {
+        const pendencias = [];
+        const semSaida = statuses.filter(e => {
+          const hora = new Date().getHours();
+          return e.lastType && e.lastType !== "saida" && hora >= 18;
+        });
+        if (semSaida.length > 0) pendencias.push({ icon: "🚪", label: `${semSaida.length} funcionário${semSaida.length > 1 ? "s" : ""} sem saída após 18h`, cor: "#dc2626", bg: "#fee2e2", action: "records" });
+        if (atestadosPendentes > 0) pendencias.push({ icon: "📋", label: `${atestadosPendentes} atestado${atestadosPendentes > 1 ? "s" : ""} aguardando aprovação`, cor: "#7c3aed", bg: "#f5f3ff", action: "justifications" });
+        if (bancoCriticos.length > 0) pendencias.push({ icon: "🏦", label: `${bancoCriticos.length} funcionário${bancoCriticos.length > 1 ? "s" : ""} com banco de horas crítico`, cor: "#b45309", bg: "#fef3c7", action: "banco-horas" });
+        if (comInconsistencias.length > 0) pendencias.push({ icon: "⚠️", label: `${comInconsistencias.length} inconsistência${comInconsistencias.length > 1 ? "s" : ""} nos registros hoje`, cor: "#ea580c", bg: "#fff7ed", action: "records" });
+        if (pendencias.length === 0) return null;
+        return (
+          <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">⚠️ Pendências</p>
+            <div className="space-y-2">
+              {pendencias.map((p, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ background: p.bg }}>
+                  <p className="text-sm font-semibold" style={{ color: p.cor }}>{p.icon} {p.label}</p>
+                  <button onClick={() => onNavigate?.(p.action)} className="text-[11px] font-bold px-3 py-1 rounded-full text-white transition-all" style={{ background: p.cor }}>
+                    Ver →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+      
       {/* Alertas */}
       <div className="space-y-2">
         {faltas.length > 0 && (
