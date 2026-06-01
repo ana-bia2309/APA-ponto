@@ -114,6 +114,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
+  const [riscosTrabalhistas, setRiscosTrabalhistas] = useState<{ name: string; alertas: string[] }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -292,6 +293,57 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         if (alertas.length > 0) comportSuspeitos.push({ id: emp.id, name: emp.name, alertas });
       });
       setComportamentos(comportSuspeitos);
+
+      // Detector de risco trabalhista
+      try {
+        const riscos: { name: string; alertas: string[] }[] = [];
+        const ultimos7 = new Date();
+        ultimos7.setDate(ultimos7.getDate() - 7);
+        const { data: recSemana } = await (supabase as any)
+          .from("time_records")
+          .select("employee_id, record_type, recorded_at")
+          .gte("recorded_at", ultimos7.toISOString())
+          .order("recorded_at", { ascending: true });
+
+        employees.forEach(emp => {
+          const alertas: string[] = [];
+          const empRecs = (recSemana || []).filter((r: any) => r.employee_id === emp.id);
+
+          // Por dia
+          const porDia: Record<string, any[]> = {};
+          empRecs.forEach((r: any) => {
+            const dia = r.recorded_at.slice(0, 10);
+            if (!porDia[dia]) porDia[dia] = [];
+            porDia[dia].push(r);
+          });
+
+          let diasSemIntervalo = 0;
+          let diasComHoraExtra = 0;
+          let totalHorasSemana = 0;
+
+          Object.entries(porDia).forEach(([, recs]) => {
+            const entrada = recs.find((r: any) => r.record_type === "entrada");
+            const intervalo = recs.find((r: any) => r.record_type === "intervalo");
+            const saida = recs.find((r: any) => r.record_type === "saida");
+
+            if (entrada && saida && !intervalo) diasSemIntervalo++;
+
+            if (entrada && saida) {
+              const horas = (new Date(saida.recorded_at).getTime() - new Date(entrada.recorded_at).getTime()) / 3600000;
+              totalHorasSemana += horas;
+              if (horas > 10) diasComHoraExtra++;
+            }
+          });
+
+          if (diasSemIntervalo >= 2) alertas.push(`🍽️ ${diasSemIntervalo} dias sem intervalo de almoço esta semana`);
+          if (diasComHoraExtra >= 3) alertas.push(`⏰ ${diasComHoraExtra} dias com jornada acima de 10h esta semana`);
+          if (totalHorasSemana > 44) alertas.push(`📋 ${Math.round(totalHorasSemana)}h trabalhadas esta semana (limite CLT: 44h)`);
+
+          if (alertas.length > 0) riscos.push({ name: emp.name, alertas });
+        });
+
+        setRiscosTrabalhistas(riscos);
+      } catch {}
 
       // Comparativo mês anterior
       try {
@@ -623,7 +675,29 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </p>
         </div>
       )}
-
+{/* Detector de risco trabalhista */}
+      {riscosTrabalhistas.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-2xl border-2 border-red-200 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(220,38,38,0.08)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "#dc2626" }}>
+            🛡️ Risco Trabalhista Detectado
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#fff1f2", color: "#dc2626" }}>
+              {riscosTrabalhistas.length} funcionário{riscosTrabalhistas.length > 1 ? "s" : ""}
+            </span>
+          </p>
+          <div className="space-y-2">
+            {riscosTrabalhistas.map((r, i) => (
+              <div key={i} className="rounded-xl p-3" style={{ background: "#fff1f2" }}>
+                <p className="text-xs font-bold text-red-700 mb-1">{r.name}</p>
+                {r.alertas.map((alerta, ii) => (
+                  <p key={ii} className="text-xs text-red-600 flex items-center gap-1">{alerta}</p>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2">⚖️ Baseado nos registros dos últimos 7 dias</p>
+        </div>
+      )}
+      
 {/* Próximos feriados */}
       {(() => {
         const feriados = [
