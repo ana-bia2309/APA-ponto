@@ -51,8 +51,8 @@ export default defineConfig(({ mode }) => ({
         name: "AMR Ponto - Refrigeração e Climatização",
         short_name: "AMR Ponto",
         description: "AMR Ponto - Sistema de registro de ponto",
-        theme_color: "#1e3a5f",
-        background_color: "#f5f6f8",
+        theme_color: "#F0F4F8",
+        background_color: "#F0F4F8",
         display: "standalone",
         start_url: "/",
         icons: [
