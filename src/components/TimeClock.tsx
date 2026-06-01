@@ -204,10 +204,12 @@ interface CachedEmployee {
   name: string;
   cpf: string | null;
   shift: string;
-   jornada: string;
+  jornada: string;
   punch_mode: string;
   has_cpf: boolean;
-   active: boolean;
+  active: boolean;
+  foto_url?: string | null;
+  cargo?: string | null;
 }
 
 interface EmployeesCachePayload {
@@ -1052,6 +1054,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         punch_mode: e.punch_mode,
         has_cpf: !!(e.cpf && e.cpf.trim()),
         active: true,
+        foto_url: e.foto_url || null,
+        cargo: e.cargo || null,
       }));
       cacheEmployees(cachedList);
       setHasOfflineBase(cachedList.length > 0);

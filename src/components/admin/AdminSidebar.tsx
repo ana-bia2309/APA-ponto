@@ -21,7 +21,7 @@ export type AdminTab =
   | "payroll-dashboard" | "payroll-settings" | "banco-horas" | "trabalhista-config"
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
-  | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users"
+  | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
   | "solicitacoes";
 
 interface Props {
@@ -173,8 +173,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
     return () => { (supabase as any).removeChannel(channel); };
   }, []);
 
-  const isGestaoActive = ["justifications","documentos","aprovacoes-lote","exportacoes","mapa-localizacao","solicitacoes","agenda"].includes(activeTab);
-  const isInteligenciaActive = ["analises","historico","assistente"].includes(activeTab);
+  const isGestaoActive = ["justifications","documentos","aprovacoes-lote","exportacoes","mapa-localizacao","solicitacoes","agenda","avisos"].includes(activeTab);  const isInteligenciaActive = ["analises","historico","assistente"].includes(activeTab);
   const isEpiActive = activeTab.startsWith("epi-");
   const isUniformActive = activeTab.startsWith("uniforms-");
   const isToolActive = activeTab.startsWith("tools-");
@@ -188,6 +187,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
     { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
     { key: "agenda" as const, label: "Agenda", icon: Calendar },
     { key: "solicitacoes" as const, label: "Solicitações", icon: FileText },
+    { key: "avisos" as const, label: "Avisos", icon: Activity },
   ];
 
   const gestaoBadges: Record<string, number> = {};
