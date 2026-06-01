@@ -368,72 +368,72 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       )}
 
      {/* Visão em tempo real */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">Online</p>
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Online</p>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <p className="text-3xl font-black text-emerald-600">{trabalhando.length}</p>
-          <p className="text-[11px] text-emerald-500 mt-1">Funcionários</p>
-          <div className="flex -space-x-1.5 mt-2">
+          <p className="text-2xl font-black text-emerald-600">{trabalhando.length}</p>
+          <p className="text-[10px] text-emerald-500">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-1.5">
             {trabalhando.slice(0, 5).map((e) => (
-              <div key={e.id} className="w-6 h-6 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+              <div key={e.id} className="w-5 h-5 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center text-[8px] font-bold text-white" title={e.name}>
                 {e.name.charAt(0)}
               </div>
             ))}
-            {trabalhando.length > 5 && <div className="w-6 h-6 rounded-full bg-emerald-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-emerald-700">+{trabalhando.length - 5}</div>}
+            {trabalhando.length > 5 && <div className="w-5 h-5 rounded-full bg-emerald-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-emerald-700">+{trabalhando.length - 5}</div>}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-600">Em Pausa</p>
-            <span className="text-base">⏸️</span>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Em Pausa</p>
+            <span className="text-sm">⏸️</span>
           </div>
-          <p className="text-3xl font-black text-amber-600">
+          <p className="text-2xl font-black text-amber-600">
             {statuses.filter(e => e.lastType === "intervalo" && !statuses.find(s => s.id === e.id && s.lastType === "retorno")).length}
           </p>
-          <p className="text-[11px] text-amber-500 mt-1">Funcionários</p>
-          <div className="flex -space-x-1.5 mt-2">
+          <p className="text-[10px] text-amber-500">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-1.5">
             {statuses.filter(e => e.lastType === "intervalo").slice(0, 5).map((e) => (
-              <div key={e.id} className="w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+              <div key={e.id} className="w-5 h-5 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[8px] font-bold text-white" title={e.name}>
                 {e.name.charAt(0)}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-rose-600">Atrasados</p>
-            <span className="text-base">⏰</span>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Atrasados</p>
+            <span className="text-sm">⏰</span>
           </div>
-          <p className="text-3xl font-black text-rose-600">{atrasados.length}</p>
-          <p className="text-[11px] text-rose-500 mt-1">Funcionários</p>
-          <div className="flex -space-x-1.5 mt-2">
+          <p className="text-2xl font-black text-rose-600">{atrasados.length}</p>
+          <p className="text-[10px] text-rose-500">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-1.5">
             {atrasados.slice(0, 5).map((e) => (
-              <div key={e.id} className="w-6 h-6 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white" title={e.name}>
+              <div key={e.id} className="w-5 h-5 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-[8px] font-bold text-white" title={e.name}>
                 {e.name.charAt(0)}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Ausentes</p>
-            <span className="text-base">👤</span>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ausentes</p>
+            <span className="text-sm">👤</span>
           </div>
-          <p className="text-3xl font-black text-gray-500">{faltas.length}</p>
-          <p className="text-[11px] text-gray-400 mt-1">Funcionários</p>
-          <div className="flex -space-x-1.5 mt-2">
+          <p className="text-2xl font-black text-gray-500">{faltas.length}</p>
+          <p className="text-[10px] text-gray-400">Funcionários</p>
+          <div className="flex -space-x-1.5 mt-1.5">
             {faltas.slice(0, 5).map((e) => (
-              <div key={e.id} className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-600" title={e.name}>
+              <div key={e.id} className="w-5 h-5 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-600" title={e.name}>
                 {e.name.charAt(0)}
               </div>
             ))}
-            {faltas.length > 5 && <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-500">+{faltas.length - 5}</div>}
+            {faltas.length > 5 && <div className="w-5 h-5 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">+{faltas.length - 5}</div>}
           </div>
         </div>
       </div>
@@ -602,59 +602,6 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
-      {/* Heatmap de presença */}
-      {(() => {
-        const hoje = new Date();
-        const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-        const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-        const presencasPorDia: Record<number, number> = {};
-        statuses.forEach(e => {
-          if (e.records.length > 0) {
-            const dia = hoje.getDate();
-            presencasPorDia[dia] = (presencasPorDia[dia] || 0) + 1;
-          }
-        });
-        const maxPresenca = Math.max(...Object.values(presencasPorDia), 1);
-        const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
-        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).getDay();
-        return (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
-              🔵 Heatmap de Presença — {hoje.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-            </p>
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {diasSemana.map(d => (
-                <p key={d} className="text-[10px] text-center font-bold text-gray-400">{d}</p>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e-${i}`} />)}
-              {dias.map(dia => {
-                const presencas = presencasPorDia[dia] || 0;
-                const intensidade = presencas / maxPresenca;
-                const isHoje = dia === hoje.getDate();
-                const isFuturo = dia > hoje.getDate();
-                const bg = isFuturo ? "#f8fafc" : presencas === 0 ? "#f1f5f9" : `rgba(30, 64, 175, ${0.15 + intensidade * 0.75})`;
-                return (
-                  <div key={dia} className="aspect-square rounded-md flex items-center justify-center relative" style={{ background: bg, border: isHoje ? "2px solid #1e40af" : "none" }} title={`Dia ${dia}: ${presencas} presente(s)`}>
-                    <span className="text-[10px] font-bold" style={{ color: intensidade > 0.5 ? "white" : "#64748b" }}>{dia}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-2 mt-3 justify-end">
-              <p className="text-[10px] text-gray-400">Baixa presença</p>
-              <div className="flex gap-1">
-                {[0.1, 0.3, 0.5, 0.7, 0.9].map(v => (
-                  <div key={v} className="w-4 h-4 rounded-sm" style={{ background: `rgba(30, 64, 175, ${v})` }} />
-                ))}
-              </div>
-              <p className="text-[10px] text-gray-400">Alta presença</p>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Pendências consolidadas */}
       {(() => {
         const pendencias = [];
@@ -683,7 +630,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </div>
         );
       })()}
-      
+
       {/* Alertas */}
       <div className="space-y-2">
         {faltas.length > 0 && (
