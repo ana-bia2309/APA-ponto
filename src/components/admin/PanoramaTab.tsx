@@ -234,7 +234,20 @@ export default function PanoramaTab() {
       });
       setLastUpdated(new Date());
     } catch (err) {
-      console.error(err);
+      console.error("PanoramaTab erro:", err);
+      setData({
+        totalAtivos: 0,
+        presentesHoje: 0,
+        ausентesHoje: 0,
+        atrasadosHoje: 0,
+        horasExtrasMes: 0,
+        faltasMes: 0,
+        mediaHorasDia: 0,
+        aniversarianteMes: [],
+        topPontuais: [],
+        proximosFeriados: [],
+        presencaSemana: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -248,7 +261,11 @@ export default function PanoramaTab() {
     </div>
   );
 
-  if (!data) return null;
+  if (!data) return (
+    <div className="flex items-center justify-center py-12">
+      <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   const presencaPct = data.totalAtivos > 0 ? Math.round((data.presentesHoje / data.totalAtivos) * 100) : 0;
 
