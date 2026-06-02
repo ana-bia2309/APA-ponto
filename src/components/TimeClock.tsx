@@ -759,6 +759,59 @@ const fetchPendingToolCount = useCallback(async (cpf: string) => {
   }
 }, []);
 
+const [calendarioDias, setCalendarioDias] = useState<Record<string, "trabalhado" | "falta" | "atestado" | "ferias">>({});
+
+const fetchCalendario = useCallback(async (cpf: string) => {
+  const cpfDigits = normalizeCpf(cpf);
+  if (!cpfDigits || !navigator.onLine) return;
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { data: empData } = await (supabase as any)
+      .from("employees")
+      .select("id")
+      .filter("cpf", "ilike", `%${cpfDigits}%`)
+      .single();
+
+    if (!empData?.id) return;
+
+    const [recordsRes, justRes] = await Promise.all([
+      (supabase as any).from("time_records")
+        .select("recorded_at, record_type")
+        .eq("employee_id", empData.id)
+        .gte("recorded_at", startOfMonth)
+        .lte("recorded_at", endOfMonth),
+      (supabase as any).from("absence_justifications")
+        .select("data_inicio, data_fim, tipo")
+        .eq("employee_id", empData.id)
+        .gte("data_inicio", startOfMonth.slice(0, 10))
+        .lte("data_inicio", endOfMonth.slice(0, 10)),
+    ]);
+
+    const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias"> = {};
+
+    // Dias trabalhados
+    (recordsRes.data || []).forEach((r: any) => {
+      const dia = r.recorded_at.slice(0, 10);
+      if (!dias[dia]) dias[dia] = "trabalhado";
+    });
+
+    // Atestados e férias
+    (justRes.data || []).forEach((j: any) => {
+      const start = new Date(j.data_inicio + "T12:00:00");
+      const end = j.data_fim ? new Date(j.data_fim + "T12:00:00") : start;
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dStr = d.toISOString().slice(0, 10);
+        dias[dStr] = j.tipo === "ferias" ? "ferias" : "atestado";
+      }
+    });
+
+    setCalendarioDias(dias);
+  } catch {}
+}, []);
+
 const [timesheetSummary, setTimesheetSummary] = useState<{ horas_trabalhadas: number; horas_esperadas: number; diferenca: number; month: number; year: number; } | null>(null);
 
 const fetchTimesheetSummary = useCallback(async (cpf: string) => {
@@ -825,6 +878,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     setStatusNotice(null);
     setRecordsLoading(false);
     setServerStepInfo(null);
+    setCalendarioDias({});
     navigate("/", { replace: true });
   }, [navigate]);
 
@@ -924,6 +978,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     void fetchPendingToolCount(validatedContext.cpf_normalized);
   void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
     void fetchTimesheetSummary(validatedContext.cpf_normalized);
+    void fetchCalendario(validatedContext.cpf_normalized);
     void fetchAvisos();
   }
 };
@@ -2366,6 +2421,84 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           )}
         </div>
 
+{/* Calendário do mês */}
+        {Object.keys(calendarioDias).length > 0 && (
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+              📅 {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </p>
+            {/* Legenda */}
+            <div className="flex gap-3 mb-3 flex-wrap">
+              {[
+                { cor: "#22c55e", label: "Trabalhado" },
+                { cor: "#f59e0b", label: "Atestado" },
+                { cor: "#0ea5e9", label: "Férias" },
+                { cor: "#f1f5f9", label: "Falta/Final de semana" },
+              ].map(l => (
+                <div key={l.label} className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm" style={{ background: l.cor }} />
+                  <span className="text-[10px] text-gray-400">{l.label}</span>
+                </div>
+              ))}
+            </div>
+            {/* Grid */}
+            {(() => {
+              const now = new Date();
+              const ano = now.getFullYear();
+              const mes = now.getMonth();
+              const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+              const primeiroDia = new Date(ano, mes, 1).getDay();
+              const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
+              const feriados = ["2026-06-04"];
+              return (
+                <div>
+                  <div className="grid grid-cols-7 gap-0.5 mb-1">
+                    {diasSemana.map((d, i) => (
+                      <p key={i} className="text-[9px] text-center font-bold text-gray-400">{d}</p>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e-${i}`} />)}
+                    {Array.from({ length: diasNoMes }, (_, i) => i + 1).map(dia => {
+                      const dStr = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+                      const dow = new Date(dStr + "T12:00:00").getDay();
+                      const isWeekend = dow === 0 || dow === 6;
+                      const isFeriado = feriados.includes(dStr);
+                      const isHoje = dia === now.getDate();
+                      const status = calendarioDias[dStr];
+                      const bg = isFeriado ? "#fef3c7"
+                        : status === "trabalhado" ? "#dcfce7"
+                        : status === "atestado" ? "#fef3c7"
+                        : status === "ferias" ? "#dbeafe"
+                        : isWeekend ? "#f8fafc"
+                        : dia < now.getDate() ? "#fff1f2"
+                        : "#f8fafc";
+                      const textColor = isFeriado ? "#b45309"
+                        : status === "trabalhado" ? "#15803d"
+                        : status === "atestado" ? "#b45309"
+                        : status === "ferias" ? "#1e40af"
+                        : isWeekend ? "#94a3b8"
+                        : dia < now.getDate() ? "#dc2626"
+                        : "#94a3b8";
+                      return (
+                        <div key={dia}
+                          className="w-full aspect-square rounded-sm flex items-center justify-center relative"
+                          style={{
+                            background: bg,
+                            border: isHoje ? "2px solid #1e40af" : "none",
+                          }}>
+                          <span className="text-[9px] font-bold" style={{ color: textColor }}>{dia}</span>
+                          {isFeriado && <span className="absolute top-0 right-0 text-[6px]">🎉</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        
         {/* Widget clima */}
         {weather && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
