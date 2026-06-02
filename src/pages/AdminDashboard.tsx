@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ToggleLeft, ToggleRight,
   Pencil, Download, X, Check, Sun, Moon, Clock,
+  Sparkles,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -53,6 +54,7 @@ import AnomaliaTab from "@/components/admin/AnomaliaTab";
 import MapaCalorTab from "@/components/admin/MapaCalorTab";
 import OrganogramaTab from "@/components/admin/OrganogramaTab";
 import CoberturaTab from "@/components/admin/CoberturaTab";
+import TourGuiado from "@/components/admin/TourGuiado";
 
 type Employee = Tables<"employees">;
 
@@ -131,6 +133,7 @@ export default function AdminDashboard() {
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showBusca, setShowBusca] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
@@ -147,6 +150,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+  const tourConcluido = localStorage.getItem("amr_tour_concluido");
+  if (!tourConcluido) {
+    setTimeout(() => setShowTour(true), 1000);
+  }
+}, []);
 
   const fetchEmployees = async () => {
     const { data } = await supabase.from("employees").select("*").order("name");
@@ -275,6 +285,10 @@ export default function AdminDashboard() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowTour(true)} className="gap-1.5" title="Tour guiado">
+  <Sparkles className="w-4 h-4" />
+  <span className="hidden sm:inline">Tour</span>
+</Button>
               <Button variant="outline" size="sm" onClick={() => setShowBusca(true)} className="gap-1.5">
   <Search className="w-4 h-4" />
   <span className="hidden sm:inline text-muted-foreground text-xs">Ctrl+K</span>
@@ -568,6 +582,13 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
+
+      {showTour && (
+  <TourGuiado
+    onClose={() => setShowTour(false)}
+    onNavigate={(t) => { setTab(t as any); setShowTour(false); }}
+  />
+)}
     {showBusca && (
   <BuscaGlobal
     employees={employees}
