@@ -23,6 +23,13 @@ interface EmployeeFormData {
   foto_url: string;
   telefone: string;
   contato_emergencia: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
 }
 
 interface Props {
@@ -39,6 +46,13 @@ const DEFAULTS: EmployeeFormData = {
   data_nascimento: "",
   punch_mode: "full", shift: "diurno", escala: "padrao",
   carga_horaria_semanal: 44, status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
+  cep: "",
+  logradouro: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
 };
 
 function formatCpf(value: string) {
@@ -247,6 +261,49 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
             <Label className="text-xs text-muted-foreground">Contato de emergência</Label>
             <Input className="mt-1" placeholder="Nome e telefone"
               value={form.contato_emergencia} onChange={e => upd("contato_emergencia", e.target.value)} />
+          </div>
+          <div className="lg:col-span-3">
+            <Label className="text-xs text-muted-foreground font-semibold">📍 Endereço</Label>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">CEP</Label>
+            <Input className="mt-1" placeholder="00000-000"
+              value={form.cep} onChange={e => upd("cep", e.target.value)} maxLength={9} />
+          </div>
+          <div className="lg:col-span-2">
+            <Label className="text-xs text-muted-foreground">Logradouro</Label>
+            <Input className="mt-1" placeholder="Rua, Avenida, etc."
+              value={form.logradouro} onChange={e => upd("logradouro", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Número</Label>
+            <Input className="mt-1" placeholder="Ex: 123"
+              value={form.numero} onChange={e => upd("numero", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Complemento</Label>
+            <Input className="mt-1" placeholder="Apto, Bloco, etc."
+              value={form.complemento} onChange={e => upd("complemento", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Bairro</Label>
+            <Input className="mt-1" placeholder="Ex: Asa Norte"
+              value={form.bairro} onChange={e => upd("bairro", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Cidade</Label>
+            <Input className="mt-1" placeholder="Ex: Brasília"
+              value={form.cidade} onChange={e => upd("cidade", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Estado</Label>
+            <select value={form.estado} onChange={e => upd("estado", e.target.value)}
+              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">Selecione</option>
+              {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => (
+                <option key={uf} value={uf}>{uf}</option>
+              ))}
+            </select>
           </div>
           <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Observações</Label>

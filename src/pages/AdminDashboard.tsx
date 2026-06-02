@@ -350,6 +350,13 @@ export default function AdminDashboard() {
                             ...(data.foto_url && { foto_url: data.foto_url }),
                             ...(data.telefone && { telefone: data.telefone }),
                             ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
+                            ...(data.cep && { cep: data.cep }),
+                            ...(data.logradouro && { logradouro: data.logradouro }),
+                            ...(data.numero && { numero: data.numero }),
+                            ...(data.complemento && { complemento: data.complemento }),
+                            ...(data.bairro && { bairro: data.bairro }),
+                            ...(data.cidade && { cidade: data.cidade }),
+                            ...(data.estado && { estado: data.estado }),
                           } as any);
                           if (error) { toast.error("Erro ao adicionar: " + error.message); return; }
                           toast.success("Colaborador adicionado!");
@@ -452,6 +459,13 @@ export default function AdminDashboard() {
                                   ...(data.foto_url && { foto_url: data.foto_url }),
                                   ...(data.telefone && { telefone: data.telefone }),
                                   ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
+                                  ...(data.cep && { cep: data.cep }),
+                                  ...(data.logradouro && { logradouro: data.logradouro }),
+                                  ...(data.numero && { numero: data.numero }),
+                                  ...(data.complemento && { complemento: data.complemento }),
+                                  ...(data.bairro && { bairro: data.bairro }),
+                                  ...(data.cidade && { cidade: data.cidade }),
+                                  ...(data.estado && { estado: data.estado }),
                                 } as any).eq("id", editingId!);
                                 if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
                                 const { data: { user } } = await supabase.auth.getUser();
@@ -467,7 +481,7 @@ export default function AdminDashboard() {
                             />
                           </div>
                         ) : (
-                          
+
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <button onClick={() => toggleEmployee(emp)}
