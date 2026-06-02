@@ -51,6 +51,7 @@ import OnboardingTab from "@/components/admin/OnboardingTab";
 import PermissoesTab from "@/components/admin/PermissoesTab";
 import AnomaliaTab from "@/components/admin/AnomaliaTab";
 import MapaCalorTab from "@/components/admin/MapaCalorTab";
+import OrganogramaTab from "@/components/admin/OrganogramaTab";
 
 type Employee = Tables<"employees">;
 
@@ -97,6 +98,7 @@ const tabTitles: Record<AdminTab, string> = {
   "permissoes": "Permissões de Acesso",
   "anomalias": "Detector de Anomalias",
   "mapa-calor": "Mapa de Calor de Frequência",
+  "organograma": "Organograma da Empresa",
 };
 
 export default function AdminDashboard() {
@@ -309,8 +311,8 @@ export default function AdminDashboard() {
               {tab === "banco-horas" && <BancoHorasTab employees={employees} />}
               {tab === "trabalhista-config" && <TrabalhistaConfigTab />}
               {tab === "documentos" && <DocumentosTab employees={employees} />}
-{tab === "uniforms-catalog" || tab === "uniforms-deliveries" || tab === "uniforms-history" ? <UniformsTab employees={employees} /> : null}
-{tab === "tools-catalog" || tab === "tools-loans" || tab === "tools-history" ? <ToolsTab employees={employees} /> : null}
+              {tab === "uniforms-catalog" || tab === "uniforms-deliveries" || tab === "uniforms-history" ? <UniformsTab employees={employees} /> : null}
+              {tab === "tools-catalog" || tab === "tools-loans" || tab === "tools-history" ? <ToolsTab employees={employees} /> : null}
               {tab === "payroll-settings" && <PayrollSettingsTab employees={employees} />}
               {tab === "payroll-closing" && <PayrollClosingTab employees={employees} />}
               {tab === "payslips" && <PayslipsTab />}
@@ -334,6 +336,7 @@ export default function AdminDashboard() {
               {tab === "permissoes" && <PermissoesTab />}
               {tab === "anomalias" && <AnomaliaTab />}
               {tab === "mapa-calor" && <MapaCalorTab />}
+              {tab === "organograma" && <OrganogramaTab />}
               {tab === "employees" && (
                 <div className="space-y-6">
                  {/* Add employee form */}
