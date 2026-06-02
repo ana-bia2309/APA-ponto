@@ -769,10 +769,11 @@ const fetchCalendario = useCallback(async (cpf: string) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
+    const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
     const { data: empData } = await (supabase as any)
       .from("employees")
       .select("id")
-      .filter("cpf", "ilike", `%${cpfDigits}%`)
+      .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
       .single();
 
     if (!empData?.id) return;
@@ -2422,22 +2423,24 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         </div>
 
 {/* Calendário do mês */}
-        {Object.keys(calendarioDias).length > 0 && (
+        {validatedContext && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
               📅 {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
             </p>
             {/* Legenda */}
-            <div className="flex gap-3 mb-3 flex-wrap">
+         <div className="flex gap-2 mb-3 flex-wrap">
               {[
-                { cor: "#22c55e", label: "Trabalhado" },
-                { cor: "#f59e0b", label: "Atestado" },
-                { cor: "#0ea5e9", label: "Férias" },
-                { cor: "#f1f5f9", label: "Falta/Final de semana" },
+                { cor: "#bbf7d0", label: "Trabalhado" },
+                { cor: "#fed7aa", label: "Atestado" },
+                { cor: "#bfdbfe", label: "Férias" },
+                { cor: "#fee2e2", label: "Falta" },
+                { cor: "#e2e8f0", label: "Fim de semana" },
+                { cor: "#fef9c3", label: "Feriado" },
               ].map(l => (
                 <div key={l.label} className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ background: l.cor }} />
-                  <span className="text-[10px] text-gray-400">{l.label}</span>
+                  <div className="w-3 h-3 rounded-sm border border-gray-200" style={{ background: l.cor }} />
+                  <span className="text-[9px] text-gray-400">{l.label}</span>
                 </div>
               ))}
             </div>
@@ -2452,12 +2455,12 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
               const feriados = ["2026-06-04"];
               return (
                 <div>
-                  <div className="grid grid-cols-7 gap-0.5 mb-1">
+                <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {diasSemana.map((d, i) => (
                       <p key={i} className="text-[9px] text-center font-bold text-gray-400">{d}</p>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-0.5">
+                  <div className="grid grid-cols-7 gap-1">
                     {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e-${i}`} />)}
                     {Array.from({ length: diasNoMes }, (_, i) => i + 1).map(dia => {
                       const dStr = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
@@ -2465,30 +2468,32 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                       const isWeekend = dow === 0 || dow === 6;
                       const isFeriado = feriados.includes(dStr);
                       const isHoje = dia === now.getDate();
+                      const isFuturo = dia > now.getDate();
                       const status = calendarioDias[dStr];
-                      const bg = isFeriado ? "#fef3c7"
-                        : status === "trabalhado" ? "#dcfce7"
-                        : status === "atestado" ? "#fef3c7"
-                        : status === "ferias" ? "#dbeafe"
-                        : isWeekend ? "#f8fafc"
-                        : dia < now.getDate() ? "#fff1f2"
-                        : "#f8fafc";
-                      const textColor = isFeriado ? "#b45309"
-                        : status === "trabalhado" ? "#15803d"
-                        : status === "atestado" ? "#b45309"
-                        : status === "ferias" ? "#1e40af"
-                        : isWeekend ? "#94a3b8"
-                        : dia < now.getDate() ? "#dc2626"
-                        : "#94a3b8";
+
+                      let bg = "#f8fafc";
+                      let textColor = "#94a3b8";
+                      let emoji = "";
+
+                      if (isFeriado) { bg = "#fef9c3"; textColor = "#854d0e"; emoji = "🎉"; }
+                      else if (status === "trabalhado") { bg = "#bbf7d0"; textColor = "#15803d"; }
+                      else if (status === "atestado") { bg = "#fed7aa"; textColor = "#c2410c"; emoji = "📋"; }
+                      else if (status === "ferias") { bg = "#bfdbfe"; textColor = "#1e40af"; emoji = "🏖️"; }
+                      else if (isWeekend) { bg = "#e2e8f0"; textColor = "#64748b"; }
+                      else if (!isFuturo && !isWeekend) { bg = "#fee2e2"; textColor = "#dc2626"; }
+
                       return (
                         <div key={dia}
-                          className="w-full aspect-square rounded-sm flex items-center justify-center relative"
+                          className="rounded-lg flex flex-col items-center justify-center relative"
                           style={{
                             background: bg,
-                            border: isHoje ? "2px solid #1e40af" : "none",
-                          }}>
-                          <span className="text-[9px] font-bold" style={{ color: textColor }}>{dia}</span>
-                          {isFeriado && <span className="absolute top-0 right-0 text-[6px]">🎉</span>}
+                            border: isHoje ? "2px solid #1e40af" : "1px solid transparent",
+                            aspectRatio: "1",
+                            padding: "2px",
+                          }}
+                          title={isFeriado ? "Feriado" : status === "trabalhado" ? "Trabalhado" : status === "atestado" ? "Atestado" : status === "ferias" ? "Férias" : isWeekend ? "Final de semana" : !isFuturo ? "Falta" : ""}>
+                          <span className="text-[10px] font-bold leading-none" style={{ color: textColor }}>{dia}</span>
+                          {emoji && <span className="text-[8px] leading-none mt-0.5">{emoji}</span>}
                         </div>
                       );
                     })}
@@ -2498,7 +2503,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             })()}
           </div>
         )}
-        
+
         {/* Widget clima */}
         {weather && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
