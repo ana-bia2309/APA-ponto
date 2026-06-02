@@ -114,6 +114,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
+  const [aniversariantes, setAniversariantes] = useState<{ name: string; dia: number; cargo: string | null }[]>([]);
   const [riscosTrabalhistas, setRiscosTrabalhistas] = useState<{ name: string; alertas: string[] }[]>([]);
   const [previsaoAtrasos, setPrevisaoAtrasos] = useState<{ name: string; probabilidade: number; motivo: string }[]>([]);
   const [comparativo, setComparativo] = useState<{
@@ -294,6 +295,26 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         if (alertas.length > 0) comportSuspeitos.push({ id: emp.id, name: emp.name, alertas });
       });
       setComportamentos(comportSuspeitos);
+
+      // Aniversariantes do mês
+      try {
+        const mesAtual = new Date().getMonth() + 1;
+        const { data: anivData } = await (supabase as any)
+          .from("employees")
+          .select("name, data_nascimento, cargo")
+          .eq("active", true)
+          .not("data_nascimento", "is", null);
+        
+        const anivMes = (anivData || [])
+          .filter((e: any) => parseInt(e.data_nascimento?.slice(5, 7)) === mesAtual)
+          .map((e: any) => ({
+            name: e.name,
+            dia: parseInt(e.data_nascimento.slice(8, 10)),
+            cargo: e.cargo,
+          }))
+          .sort((a: any, b: any) => a.dia - b.dia);
+        setAniversariantes(anivMes);
+      } catch {}
 
       // Detector de risco trabalhista
       try {
@@ -690,6 +711,37 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   </>
 )}
 
+
+{/* Aniversariantes do mês */}
+      {aniversariantes.length > 0 && (
+        <div className="rounded-2xl border border-amber-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+            🎂 Aniversariantes de {new Date().toLocaleDateString("pt-BR", { month: "long" })}
+          </p>
+          <div className="space-y-2">
+            {aniversariantes.map((a, i) => {
+              const hoje = new Date().getDate();
+              const isHoje = a.dia === hoje;
+              const jaPassou = a.dia < hoje;
+              return (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl"
+                  style={{ background: isHoje ? "#fffbeb" : "#f8fafc" }}>
+                  <span className="text-lg">{isHoje ? "🎉" : "🎂"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800">{a.name}</p>
+                    {a.cargo && <p className="text-[10px] text-gray-400">{a.cargo}</p>}
+                  </div>
+                  <p className="text-xs font-black flex-shrink-0"
+                    style={{ color: isHoje ? "#b45309" : jaPassou ? "#94a3b8" : "#1e40af" }}>
+                    {isHoje ? "Hoje! 🥳" : `dia ${a.dia}`}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
 {/* Comparativo mês anterior */}
       {comparativo && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>

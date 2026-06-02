@@ -52,7 +52,7 @@ export default function PanoramaTab() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
       const [empRes, todayRecords, monthRecords] = await Promise.all([
-        (supabase as any).from("employees").select("id, name, active, data_admissao").eq("active", true),
+        (supabase as any).from("employees").select("id, name, active, data_admissao, data_nascimento, cargo").eq("active", true),
         (supabase as any).from("time_records").select("employee_id, record_type, recorded_at")
           .gte("recorded_at", startOfDay).lte("recorded_at", endOfDay),
         (supabase as any).from("time_records").select("employee_id, record_type, recorded_at")
@@ -149,6 +149,46 @@ export default function PanoramaTab() {
           data: f.data,
           dias: Math.ceil((f.date.getTime() - hoje.getTime()) / 86400000),
         }));
+        
+        {/* Aniversariantes do mês */}
+      {data.aniversarianteMes.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+            🎂 Aniversariantes de {new Date().toLocaleDateString("pt-BR", { month: "long" })}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {data.aniversarianteMes.map((a: any, i: number) => {
+              const hoje = new Date();
+              const isHoje = a.dia === hoje.getDate();
+              const jaPassou = a.dia < hoje.getDate();
+              return (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border transition-all"
+                  style={{
+                    background: isHoje ? "#fffbeb" : "white",
+                    borderColor: isHoje ? "#fde68a" : "#f1f5f9",
+                    boxShadow: isHoje ? "0 2px 8px rgba(245,158,11,0.15)" : "none",
+                  }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ background: isHoje ? "#fef3c7" : "#f8fafc" }}>
+                    {isHoje ? "🎉" : "🎂"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 truncate">{a.name}</p>
+                    {a.cargo && <p className="text-[10px] text-gray-400">{a.cargo}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-black" style={{ color: isHoje ? "#b45309" : jaPassou ? "#94a3b8" : "#1e40af" }}>
+                      dia {a.dia}
+                    </p>
+                    {isHoje && <p className="text-[10px] font-bold text-amber-500">Hoje! 🥳</p>}
+                    {jaPassou && <p className="text-[10px] text-gray-300">já passou</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       // Presença por dia da semana (últimos 7 dias)
       const diasSemana = [];
@@ -163,6 +203,21 @@ export default function PanoramaTab() {
         ).size;
         diasSemana.push({ dia: nomes[d.getDay()], presentes, total: totalAtivos });
       }
+// Aniversariantes do mês
+      const mesAtualNum = now.getMonth() + 1;
+      const aniversariantes = employees
+        .filter((e: any) => {
+          if (!e.data_nascimento) return false;
+          const mes = parseInt(e.data_nascimento.slice(5, 7));
+          return mes === mesAtualNum;
+        })
+        .map((e: any) => ({
+          name: e.name,
+          data_nascimento: e.data_nascimento,
+          dia: parseInt(e.data_nascimento.slice(8, 10)),
+          cargo: e.cargo,
+        }))
+        .sort((a: any, b: any) => a.dia - b.dia);
 
       setData({
         totalAtivos,
@@ -172,7 +227,7 @@ export default function PanoramaTab() {
         horasExtrasMes: Math.round(horasExtrasMes * 10) / 10,
         faltasMes,
         mediaHorasDia: Math.round(mediaHorasDia * 10) / 10,
-        aniversarianteMes: [],
+        aniversarianteMes: aniversariantes,
         topPontuais,
         proximosFeriados,
         presencaSemana: diasSemana,
