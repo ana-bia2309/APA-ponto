@@ -2238,6 +2238,35 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           )}
         </div>
 
+{/* Banner sazonal */}
+        {(() => {
+          const mes = new Date().getMonth() + 1;
+          const dia = new Date().getDate();
+          const banners: Record<number, { emoji: string; texto: string; bg: string; text: string }> = {
+            1:  { emoji: "🎆", texto: "Feliz Ano Novo! Que 2026 seja incrível!", bg: "#fffbeb", text: "#b45309" },
+            2:  { emoji: "💝", texto: "Mês do amor e da amizade!", bg: "#fff1f2", text: "#be123c" },
+            3:  { emoji: "🌺", texto: "Bem-vindo ao outono! Boas energias!", bg: "#fdf4ff", text: "#7e22ce" },
+            4:  { emoji: "🐣", texto: "Feliz Páscoa a todos os colaboradores!", bg: "#f0fdf4", text: "#15803d" },
+            5:  { emoji: "👷", texto: "Feliz Dia do Trabalhador! Parabéns a você!", bg: "#eff6ff", text: "#1e40af" },
+            6:  { emoji: "🎊", texto: "Arraiá do APA Ponto! Boas festas juninas!", bg: "#fef9c3", text: "#854d0e" },
+            7:  { emoji: "❄️", texto: "Julho chegou! Ótimo mês para bater metas!", bg: "#eff6ff", text: "#1e40af" },
+            8:  { emoji: "👩", texto: "Feliz Dia dos Pais! Homenagem especial!", bg: "#f0fdf4", text: "#15803d" },
+            9:  { emoji: "🇧🇷", texto: "Independência do Brasil! Viva nossa pátria!", bg: "#dcfce7", text: "#15803d" },
+            10: { emoji: "👧", texto: "Feliz Dia das Crianças! A criança que há em você!", bg: "#fff7ed", text: "#c2410c" },
+            11: { emoji: "🕯️", texto: "Novembro da consciência e reflexão.", bg: "#f1f5f9", text: "#475569" },
+            12: { emoji: "🎄", texto: "Feliz Natal e boas festas a todos!", bg: "#f0fdf4", text: "#15803d" },
+          };
+          const banner = banners[mes];
+          if (!banner) return null;
+          return (
+            <div className="w-full rounded-2xl px-4 py-3 mb-3 flex items-center gap-3"
+              style={{ background: banner.bg, border: `1px solid ${banner.text}20` }}>
+              <span className="text-2xl flex-shrink-0">{banner.emoji}</span>
+              <p className="text-xs font-semibold" style={{ color: banner.text }}>{banner.texto}</p>
+            </div>
+          );
+        })()}
+        
         {/* Logo destacada */}
         <div className="flex flex-col items-center mb-4">
           <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-1" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
