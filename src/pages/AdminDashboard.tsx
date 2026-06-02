@@ -245,7 +245,15 @@ export default function AdminDashboard() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar activeTab={tab} onTabChange={setTab} onLogout={logout} isAdmin={isAdmin} isRh={isRh} />
+        <AdminSidebar
+  activeTab={tab}
+  onTabChange={setTab}
+  onLogout={logout}
+  isAdmin={isAdmin}
+  isRh={isRh}
+  userName={profile?.full_name || user?.email}
+  userRole={isAdmin ? "admin" : isRh ? "rh" : "supervisor"}
+/>
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}

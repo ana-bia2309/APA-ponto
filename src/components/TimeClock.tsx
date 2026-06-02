@@ -2243,7 +2243,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           const mes = new Date().getMonth() + 1;
           const dia = new Date().getDate();
           const banners: Record<number, { emoji: string; texto: string; bg: string; text: string }> = {
-            1:  { emoji: "🎆", texto: "Feliz Ano Novo! Que 2026 seja incrível!", bg: "#fffbeb", text: "#b45309" },
+            1:  { emoji: "🎆", texto: "Feliz Ano Novo! Que 2027 seja incrível!", bg: "#fffbeb", text: "#b45309" },
             2:  { emoji: "💝", texto: "Mês do amor e da amizade!", bg: "#fff1f2", text: "#be123c" },
             3:  { emoji: "🌺", texto: "Bem-vindo ao outono! Boas energias!", bg: "#fdf4ff", text: "#7e22ce" },
             4:  { emoji: "🐣", texto: "Feliz Páscoa a todos os colaboradores!", bg: "#f0fdf4", text: "#15803d" },
@@ -2266,7 +2266,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             </div>
           );
         })()}
-        
+
         {/* Logo destacada */}
         <div className="flex flex-col items-center mb-4">
           <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-1" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
