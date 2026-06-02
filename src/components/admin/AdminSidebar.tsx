@@ -22,7 +22,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes";
+  | "solicitacoes" | "centro-operacoes";
 
 interface Props {
   activeTab: AdminTab;
@@ -36,6 +36,7 @@ const principalItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: Activity },
   { key: "employees" as const, label: "Funcionários", icon: Users },
   { key: "records" as const, label: "Registros", icon: Clock },
+  { key: "centro-operacoes" as const, label: "Centro de Operações", icon: Activity },
 ];
 
 const inteligenciaItems = [
