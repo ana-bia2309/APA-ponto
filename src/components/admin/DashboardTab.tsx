@@ -116,6 +116,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
   const [aniversariantes, setAniversariantes] = useState<{ name: string; dia: number; cargo: string | null }[]>([]);
   const [riscosTrabalhistas, setRiscosTrabalhistas] = useState<{ name: string; alertas: string[] }[]>([]);
+  const [sobrecargaIA, setSobrecargaIA] = useState<{ name: string; score: number; alertas: string[] }[]>([]);
   const [previsaoAtrasos, setPrevisaoAtrasos] = useState<{ name: string; probabilidade: number; motivo: string }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
@@ -365,6 +366,83 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         });
 
         setRiscosTrabalhistas(riscos);
+      } catch {}
+
+      // Detector de sobrecarga IA
+      try {
+        const sobrecarga: { name: string; score: number; alertas: string[] }[] = [];
+
+        employees.forEach(emp => {
+          const alertas: string[] = [];
+          let score = 0;
+          const empMonth = (monthRecords || []).filter((r: any) => r.employee_id === emp.id);
+
+          const porDia: Record<string, any[]> = {};
+          empMonth.forEach((r: any) => {
+            const dia = r.recorded_at.slice(0, 10);
+            if (!porDia[dia]) porDia[dia] = [];
+            porDia[dia].push(r);
+          });
+
+          let totalHorasMes = 0;
+          let diasTrabalhadosMes = 0;
+          let diasComHoraExtra = 0;
+          let diasSemIntervalo = 0;
+          let maxHorasDia = 0;
+
+          Object.values(porDia).forEach(recs => {
+            const entrada = recs.find((r: any) => r.record_type === "entrada");
+            const saida = recs.find((r: any) => r.record_type === "saida");
+            const intervalo = recs.find((r: any) => r.record_type === "intervalo");
+            if (entrada && saida) {
+              const horas = (new Date(saida.recorded_at).getTime() - new Date(entrada.recorded_at).getTime()) / 3600000;
+              totalHorasMes += horas;
+              diasTrabalhadosMes++;
+              if (horas > maxHorasDia) maxHorasDia = horas;
+              if (horas > 9) diasComHoraExtra++;
+              if (!intervalo && horas > 6) diasSemIntervalo++;
+            }
+          });
+
+          const mediaHorasDia = diasTrabalhadosMes > 0 ? totalHorasMes / diasTrabalhadosMes : 0;
+
+          // Critérios de sobrecarga
+          if (totalHorasMes > 200) {
+            score += 35;
+            alertas.push(`⏱️ ${Math.round(totalHorasMes)}h trabalhadas no mês (limite saudável: 180h)`);
+          }
+          if (mediaHorasDia > 9.5) {
+            score += 25;
+            alertas.push(`📊 Média de ${mediaHorasDia.toFixed(1)}h/dia nos últimos 30 dias`);
+          }
+          if (diasComHoraExtra >= 10) {
+            score += 20;
+            alertas.push(`🔴 ${diasComHoraExtra} dias com jornada acima de 9h no mês`);
+          }
+          if (diasSemIntervalo >= 5) {
+            score += 15;
+            alertas.push(`🍽️ ${diasSemIntervalo} dias sem intervalo de almoço`);
+          }
+          if (maxHorasDia > 12) {
+            score += 15;
+            alertas.push(`⚡ Jornada máxima de ${maxHorasDia.toFixed(1)}h em um único dia`);
+          }
+          // Fim de semana trabalhado
+          const finsSemana = Object.keys(porDia).filter(dia => {
+            const dow = new Date(dia + "T12:00:00").getDay();
+            return dow === 0 || dow === 6;
+          });
+          if (finsSemana.length >= 3) {
+            score += 20;
+            alertas.push(`📅 Trabalhou ${finsSemana.length} fins de semana no mês`);
+          }
+
+          if (score >= 35 && alertas.length > 0) {
+            sobrecarga.push({ name: emp.name, score: Math.min(score, 100), alertas });
+          }
+        });
+
+        setSobrecargaIA(sobrecarga.sort((a, b) => b.score - a.score));
       } catch {}
 
       // Comparativo mês anterior
@@ -823,6 +901,45 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
+{/* Detector de sobrecarga IA */}
+      {sobrecargaIA.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-2xl border border-red-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2 text-red-600">
+            🔥 IA — Detector de Sobrecarga
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#fff1f2", color: "#dc2626" }}>
+              {sobrecargaIA.length} em alerta
+            </span>
+          </p>
+          <p className="text-[10px] text-gray-400 mb-3">Baseado nos últimos 30 dias de trabalho</p>
+          <div className="space-y-3">
+            {sobrecargaIA.map((e, i) => (
+              <div key={i} className="rounded-xl p-3" style={{ background: "#fff1f2" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg, #dc2626, #ef4444)" }}>
+                      {e.name.charAt(0)}
+                    </div>
+                    <p className="text-xs font-bold text-red-700">{e.name}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-sm font-black text-red-600">{e.score}%</span>
+                    <div className="w-16 h-1.5 bg-red-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-red-500" style={{ width: `${e.score}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  {e.alertas.map((alerta, ii) => (
+                    <p key={ii} className="text-[11px] text-red-600">{alerta}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
 {/* IA de previsão de atrasos */}
       {previsaoAtrasos.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border border-purple-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.08)" }}>
