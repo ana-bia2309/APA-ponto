@@ -344,6 +344,7 @@ export default function AdminDashboard() {
                             ...(data.tipo_vinculo && { tipo_vinculo: data.tipo_vinculo }),
                             ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
                             ...(data.data_admissao && { data_admissao: data.data_admissao }),
+                            ...(data.data_nascimento && { data_nascimento: data.data_nascimento }),
                             ...(data.observacoes && { observacoes: data.observacoes }),
                             ...(data.foto_url && { foto_url: data.foto_url }),
                             ...(data.telefone && { telefone: data.telefone }),

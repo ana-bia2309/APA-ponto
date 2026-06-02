@@ -13,6 +13,7 @@ interface EmployeeFormData {
   email: string;
   tipo_vinculo: string;
   data_admissao: string;
+  data_nascimento: string;
   punch_mode: "full" | "simple";
   shift: "diurno" | "noturno";
   escala: string;
@@ -32,6 +33,7 @@ interface Props {
 const DEFAULTS: EmployeeFormData = {
   name: "", cpf: "", matricula: "", cargo: "", departamento: "",
   email: "", tipo_vinculo: "CLT", data_admissao: "",
+  data_nascimento: "",
   punch_mode: "full", shift: "diurno", escala: "padrao",
   carga_horaria_semanal: 44, status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
 };
@@ -227,6 +229,11 @@ export default function EmployeeForm({ onSubmit, loading }: Props) {
             <Label className="text-xs text-muted-foreground">Data de admissão</Label>
             <Input className="mt-1" type="date"
               value={form.data_admissao} onChange={e => upd("data_admissao", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Data de nascimento</Label>
+            <Input className="mt-1" type="date"
+              value={form.data_nascimento} onChange={e => upd("data_nascimento", e.target.value)} />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Telefone</Label>
