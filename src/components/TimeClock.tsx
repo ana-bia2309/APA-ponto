@@ -31,6 +31,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Shield } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import logo from "@/assets/logo-APA.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -592,6 +593,12 @@ export default function TimeClock() {
   const weather = useWeather();
   const currentHour = new Date().getHours();
   const { isAdmin } = useAuth();
+  const { isDark, toggle } = useTheme();
+  const bgPrimary = isDark ? "#0f172a" : "#F0F4F8";
+  const bgCard = isDark ? "#1e293b" : "white";
+  const textPrimary = isDark ? "#f1f5f9" : "#1e293b";
+  const textSecondary = isDark ? "#94a3b8" : "#64748b";
+  const borderColor = isDark ? "#334155" : "#e2e8f0";
   const [showEpiAcceptance, setShowEpiAcceptance] = useState(false);
   const [pendingEpiCount, setPendingEpiCount] = useState(0);
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
@@ -2204,22 +2211,32 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   const STEP_LABELS_MAP: Record<string, string> = { entrada: "Entrada", intervalo: "Saída p/ Almoço", retorno: "Retorno do Almoço", saida: "Saída" };
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-3 pb-10 relative" style={{ background: "#F0F4F8" }}>
+    <div className="min-h-screen flex flex-col items-center px-3 pb-10 relative" style={{ background: bgPrimary }}>
       <ConnectionIndicator />
 
       {/* Header institucional */}
       <div className="w-full max-w-md pt-8 pb-4 flex flex-col items-center" style={{ marginTop: "28px" }}>
-        {/* Painel Admin */}
-        {isAdmin && (
+        {/* Botões topo */}
+        <div className="self-end mb-2 flex gap-2">
           <button
-            onClick={() => navigate("/admin")}
-            className="self-end mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
-            style={{ background: "white", color: "#1e40af", borderColor: "#bfdbfe" }}
+            onClick={toggle}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
+            style={{ background: "white", color: "#64748b", borderColor: "#e2e8f0" }}
           >
-            <Shield className="w-3.5 h-3.5" />
-            Painel Admin
+            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            {isDark ? "Claro" : "Escuro"}
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
+              style={{ background: "white", color: "#1e40af", borderColor: "#bfdbfe" }}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Painel Admin
+            </button>
+          )}
+        </div>
 
         {/* Logo destacada */}
         <div className="flex flex-col items-center mb-4">
