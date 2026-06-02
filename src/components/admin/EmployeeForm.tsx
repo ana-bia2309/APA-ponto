@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, RefreshCw, User, Briefcase, Clock } from "lucide-react";
+import { Plus, RefreshCw, User, Briefcase, Clock, X } from "lucide-react";
 
 interface EmployeeFormData {
   name: string;
@@ -28,6 +28,9 @@ interface EmployeeFormData {
 interface Props {
   onSubmit: (data: EmployeeFormData) => void;
   loading?: boolean;
+  initialData?: Partial<EmployeeFormData>;
+  submitLabel?: string;
+  onCancel?: () => void;
 }
 
 const DEFAULTS: EmployeeFormData = {
@@ -146,8 +149,8 @@ function SectionTitle({ icon: Icon, title, subtitle }: { icon: any; title: strin
   );
 }
 
-export default function EmployeeForm({ onSubmit, loading }: Props) {
-  const [form, setForm] = useState<EmployeeFormData>(DEFAULTS);
+export default function EmployeeForm({ onSubmit, loading, initialData, submitLabel, onCancel }: Props) {
+  const [form, setForm] = useState<EmployeeFormData>({ ...DEFAULTS, ...initialData });
 
   const upd = (k: keyof EmployeeFormData, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -289,10 +292,17 @@ export default function EmployeeForm({ onSubmit, loading }: Props) {
         </div>
       </div>
 
-      <Button type="submit" disabled={loading} className="gap-2 rounded-xl px-6 shadow-sm">
-        <Plus className="w-4 h-4" />
-        {loading ? "Adicionando..." : "Adicionar Colaborador"}
-      </Button>
+     <div className="flex gap-2">
+        <Button type="submit" disabled={loading} className="gap-2 rounded-xl px-6 shadow-sm">
+          <Plus className="w-4 h-4" />
+          {loading ? "Salvando..." : submitLabel || "Adicionar Colaborador"}
+        </Button>
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel} className="rounded-xl px-6">
+            <X className="w-4 h-4 mr-1" /> Cancelar
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

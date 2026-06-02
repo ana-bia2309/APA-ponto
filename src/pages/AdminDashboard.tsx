@@ -121,6 +121,7 @@ export default function AdminDashboard() {
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showBusca, setShowBusca] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -406,42 +407,67 @@ export default function AdminDashboard() {
                       
                       return filteredEmployees.length > 0 ? filteredEmployees.map((emp) => (
                       <Card key={emp.id} className="p-4">
-                        {editingId === emp.id ? (
+                       {editingId === emp.id ? (
                           <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
-                              <Input value={editCpf} onChange={(e) => setEditCpf(formatCpf(e.target.value))}
-                                placeholder="CPF" maxLength={14} />
-                              <Input value={editCargo} onChange={(e) => setEditCargo(e.target.value)} placeholder="Cargo" />
-                              <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Matrícula" />
-                              <Input value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)} placeholder="Departamento" />
-                              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" type="email" />
-                              <div className="flex gap-2">
-                                <select value={editPunchMode} onChange={(e) => setEditPunchMode(e.target.value as any)}
-                                  className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                                  <option value="full">4 reg.</option>
-                                  <option value="simple">2 reg.</option>
-                                </select>
-                                <select value={editShift} onChange={(e) => setEditShift(e.target.value as any)}
-                                  className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                                  <option value="diurno">☀ Diurno</option>
-                                  <option value="noturno">🌙 Noturno</option>
-                                </select>
-                                <select value={editEscala} onChange={(e) => setEditEscala(e.target.value)}
-                                  className="h-10 rounded-md border border-input bg-background px-3 text-sm flex-1">
-                                  <option value="padrao">Padrão</option>
-                                  <option value="12x36">12×36</option>
-                                </select>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" /> Salvar</Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                                <X className="w-4 h-4 mr-1" /> Cancelar
-                              </Button>
-                            </div>
+                            <EmployeeForm
+                              loading={false}
+                              initialData={{
+                                name: editName,
+                                cpf: editCpf,
+                                cargo: editCargo,
+                                matricula: editMatricula,
+                                departamento: editDepartamento,
+                                email: editEmail,
+                                punch_mode: editPunchMode,
+                                shift: editShift,
+                                escala: editEscala,
+                                tipo_vinculo: (emp as any).tipo_vinculo || "CLT",
+                                data_admissao: (emp as any).data_admissao || "",
+                                data_nascimento: (emp as any).data_nascimento || "",
+                                carga_horaria_semanal: (emp as any).carga_horaria_semanal || 44,
+                                status: (emp as any).status || "ativo",
+                                observacoes: (emp as any).observacoes || "",
+                                foto_url: (emp as any).foto_url || "",
+                                telefone: (emp as any).telefone || "",
+                                contato_emergencia: (emp as any).contato_emergencia || "",
+                              }}
+                              submitLabel="Salvar alterações"
+                              onSubmit={async (data) => {
+                                const { error } = await supabase.from("employees").update({
+                                  name: data.name.trim(),
+                                  cpf: data.cpf || null,
+                                  cargo: data.cargo || null,
+                                  matricula: data.matricula || null,
+                                  departamento: data.departamento || null,
+                                  email: data.email || null,
+                                  punch_mode: data.punch_mode,
+                                  shift: data.shift,
+                                  escala: data.escala,
+                                  ...(data.status && { status: data.status }),
+                                  ...(data.tipo_vinculo && { tipo_vinculo: data.tipo_vinculo }),
+                                  ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
+                                  ...(data.data_admissao && { data_admissao: data.data_admissao }),
+                                  ...(data.data_nascimento && { data_nascimento: data.data_nascimento }),
+                                  ...(data.observacoes && { observacoes: data.observacoes }),
+                                  ...(data.foto_url && { foto_url: data.foto_url }),
+                                  ...(data.telefone && { telefone: data.telefone }),
+                                  ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
+                                } as any).eq("id", editingId!);
+                                if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
+                                const { data: { user } } = await supabase.auth.getUser();
+                                await supabase.from("audit_logs").insert({
+                                  admin_user_id: user?.id, action: "update_employee", target_type: "employees",
+                                  target_id: editingId, details: { name: data.name.trim() },
+                                } as any);
+                                toast.success("Colaborador atualizado!");
+                                setEditingId(null);
+                                fetchEmployees();
+                              }}
+                              onCancel={() => setEditingId(null)}
+                            />
                           </div>
                         ) : (
+                          
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <button onClick={() => toggleEmployee(emp)}
