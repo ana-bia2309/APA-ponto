@@ -23,7 +23,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes" | "panorama";
+  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding";
 
 interface Props {
   activeTab: AdminTab;
@@ -191,6 +191,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
     { key: "agenda" as const, label: "Agenda", icon: Calendar },
     { key: "solicitacoes" as const, label: "Solicitações", icon: FileText },
     { key: "avisos" as const, label: "Avisos", icon: Activity },
+    { key: "onboarding" as const, label: "Onboarding", icon: CheckCircle2 },
   ];
 
   const gestaoBadges: Record<string, number> = {};
