@@ -102,13 +102,21 @@ export default function UsersTab() {
 
   const handleUpdate = async (userId: string) => {
     try {
-      await callManageUser({
-        action: "update",
-        user_id: userId,
-        full_name: editName.trim(),
-        email: editEmail.trim(),
-        role: editRole,
-      });
+      // Atualiza profiles
+      await (supabase as any)
+        .from("profiles")
+        .update({ full_name: editName.trim(), email: editEmail.trim(), role: editRole })
+        .eq("user_id", userId);
+
+      // Atualiza user_roles
+      const { error } = await (supabase as any)
+        .from("user_roles")
+        .update({ role: editRole })
+        .eq("user_id", userId);
+      if (error) {
+        await (supabase as any).from("user_roles").insert({ user_id: userId, role: editRole });
+      }
+
       toast.success("Usuário atualizado!");
       setEditingId(null);
       fetchUsers();
@@ -116,7 +124,6 @@ export default function UsersTab() {
       toast.error(err.message || "Erro ao atualizar");
     }
   };
-
   const handleToggle = async (u: UserProfile) => {
     try {
       await callManageUser({
@@ -221,9 +228,10 @@ export default function UsersTab() {
                     onChange={(e) => setEditRole(e.target.value)}
                     className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    <option value="usuario">Usuário</option>
-                    <option value="rh">RH</option>
-                    <option value="admin">Admin</option>
+                    <option value="operacional">📋 Operacional</option>
+                    <option value="supervisor">👁️ Supervisor</option>
+                    <option value="rh">👔 RH</option>
+                    <option value="admin">👑 Administrador</option>
                   </select>
                 </div>
                 <div className="flex gap-2">

@@ -23,7 +23,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding";
+  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -117,6 +117,7 @@ const systemItems = [
   { key: "users" as const, label: "Usuários", icon: Users },
   { key: "audit" as const, label: "Auditoria", icon: Shield },
   { key: "debug" as const, label: "Logs", icon: Activity },
+  { key: "permissoes" as const, label: "Permissões", icon: Shield },
 ];
 
 function MenuGroup({ items, activeTab, onTabChange, collapsed, badges, allowedTabs }: {
