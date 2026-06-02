@@ -23,7 +23,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes" | "anomalias" | "mapa-calor" | "organograma";
+  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes" | "anomalias" | "mapa-calor" | "organograma" | "cobertura";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -74,6 +74,7 @@ const pessoasItems = [
   { key: "agenda" as const, label: "Agenda", icon: Calendar },
   { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
   { key: "organograma" as const, label: "Organograma", icon: Users },
+  { key: "cobertura" as const, label: "Cobertura de Ausências", icon: Calendar },
 ];
 
 const relatoriosItems = [
