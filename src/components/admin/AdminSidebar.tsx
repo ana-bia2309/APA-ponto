@@ -23,7 +23,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes" | "anomalias";
+  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes" | "anomalias" | "mapa-calor";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -82,6 +82,7 @@ const relatoriosItems = [
   { key: "aprovacoes-lote" as const, label: "Aprovações em Lote", icon: CheckCircle2 },
   { key: "assistente" as const, label: "Assistente IA", icon: Sparkles },
   { key: "anomalias" as const, label: "Detector de Anomalias", icon: AlertTriangle },
+  { key: "mapa-calor" as const, label: "Mapa de Calor", icon: BarChart2 },
 ];
 
 const patrimonioEpiItems = [

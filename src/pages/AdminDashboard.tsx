@@ -50,6 +50,7 @@ import PanoramaTab from "@/components/admin/PanoramaTab";
 import OnboardingTab from "@/components/admin/OnboardingTab";
 import PermissoesTab from "@/components/admin/PermissoesTab";
 import AnomaliaTab from "@/components/admin/AnomaliaTab";
+import MapaCalorTab from "@/components/admin/MapaCalorTab";
 
 type Employee = Tables<"employees">;
 
@@ -95,6 +96,7 @@ const tabTitles: Record<AdminTab, string> = {
   "onboarding": "Checklist de Onboarding",
   "permissoes": "Permissões de Acesso",
   "anomalias": "Detector de Anomalias",
+  "mapa-calor": "Mapa de Calor de Frequência",
 };
 
 export default function AdminDashboard() {
@@ -331,6 +333,7 @@ export default function AdminDashboard() {
               {tab === "onboarding" && <OnboardingTab />}
               {tab === "permissoes" && <PermissoesTab />}
               {tab === "anomalias" && <AnomaliaTab />}
+              {tab === "mapa-calor" && <MapaCalorTab />}
               {tab === "employees" && (
                 <div className="space-y-6">
                  {/* Add employee form */}
