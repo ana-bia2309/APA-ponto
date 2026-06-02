@@ -46,6 +46,7 @@ import AgendaTab from "@/components/admin/AgendaTab";
 import SolicitacoesTab from "@/components/admin/SolicitacoesTab";
 import AvisosTab from "@/components/admin/AvisosTab";
 import CentroOperacoesTab from "@/components/admin/CentroOperacoesTab";
+import PanoramaTab from "@/components/admin/PanoramaTab";
 
 type Employee = Tables<"employees">;
 
@@ -87,6 +88,7 @@ const tabTitles: Record<AdminTab, string> = {
   "solicitacoes": "Solicitações dos Colaboradores",
   "avisos": "Avisos da Empresa",
   "centro-operacoes": "Centro de Operações",
+  "panorama": "Panorama da Empresa",
 };
 
 export default function AdminDashboard() {
@@ -310,6 +312,7 @@ export default function AdminDashboard() {
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
               {tab === "centro-operacoes" && <CentroOperacoesTab />}
+              {tab === "panorama" && <PanoramaTab />}
               {tab === "employees" && (
                 <div className="space-y-6">
                  {/* Add employee form */}

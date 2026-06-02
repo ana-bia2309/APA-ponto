@@ -3,6 +3,7 @@ import {
   Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
   DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Sparkles, MapPin, FileDown, CheckCircle2,
+  TrendingUp,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -22,7 +23,7 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes";
+  | "solicitacoes" | "centro-operacoes" | "panorama";
 
 interface Props {
   activeTab: AdminTab;
@@ -37,6 +38,7 @@ const principalItems = [
   { key: "employees" as const, label: "Funcionários", icon: Users },
   { key: "records" as const, label: "Registros", icon: Clock },
   { key: "centro-operacoes" as const, label: "Centro de Operações", icon: Activity },
+  { key: "panorama" as const, label: "Panorama", icon: TrendingUp },
 ];
 
 const inteligenciaItems = [
