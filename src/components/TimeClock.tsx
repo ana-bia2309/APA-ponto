@@ -552,6 +552,72 @@ async function syncOfflineQueue(): Promise<SyncOfflineResult> {
 
   return { synced, skipped, failed };
 }
+function MeusSolicitacoes({ employeeId }: { employeeId: string }) {
+  const [solicitacoes, setSolicitacoes] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await (supabase as any)
+        .from("employee_requests")
+        .select("id, tipo, status, observacao, created_at")
+        .eq("employee_id", employeeId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      setSolicitacoes(data || []);
+    };
+    load();
+
+    const channel = (supabase as any)
+      .channel(`solicitacoes-${employeeId}`)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "employee_requests",
+        filter: `employee_id=eq.${employeeId}`
+      }, () => load())
+      .subscribe();
+    return () => { (supabase as any).removeChannel(channel); };
+  }, [employeeId]);
+
+  if (solicitacoes.length === 0) return null;
+
+  const STATUS = {
+    pendente: { icon: "⏳", label: "Pendente",  bg: "#fef3c7", text: "#b45309" },
+    aprovado: { icon: "✅", label: "Aprovado",  bg: "#f0fdf4", text: "#15803d" },
+    recusado: { icon: "❌", label: "Recusado",  bg: "#fff1f2", text: "#be123c" },
+  } as any;
+
+  const TIPO_ICONS: Record<string, string> = {
+    "Férias": "🏖️", "Abono": "📝", "Declaração": "📄", "Ajuste de Ponto": "⏱️",
+  };
+
+  return (
+    <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">📋 Minhas Solicitações</p>
+      <div className="space-y-2">
+        {solicitacoes.map((s: any) => {
+          const st = STATUS[s.status] || STATUS.pendente;
+          return (
+            <div key={s.id} className="flex items-center justify-between p-2.5 rounded-xl"
+              style={{ background: st.bg }}>
+              <div className="flex items-center gap-2">
+                <span className="text-base">{TIPO_ICONS[s.tipo] || "📋"}</span>
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: st.text }}>{s.tipo}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {new Date(s.created_at).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "white", color: st.text }}>
+                {st.icon} {st.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function TimeClock() {
   const [now, setNow] = useState(new Date());
@@ -2670,6 +2736,9 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             </div>
           </div>
         )}
+
+{/* Minhas solicitações */}
+        {selectedEmployee && <MeusSolicitacoes employeeId={selectedEmployee.id} />}
 
         {/* Solicitações rápidas */}
         <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
