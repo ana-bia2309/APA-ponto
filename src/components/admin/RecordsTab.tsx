@@ -11,6 +11,7 @@ import {
   Pencil, Trash2, Plus, Calendar, X, Check
 } from "lucide-react";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
+import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import { groupByEmployeeJourneys } from "@/lib/group-journeys";
 import { PhotoModal } from "@/components/admin/PhotoModal";
 import type { Tables } from "@/integrations/supabase/types";
@@ -81,6 +82,8 @@ export default function RecordsTab({ employees }: Props) {
 
   // Admin correction state
   const [showAddRecord, setShowAddRecord] = useState(false);
+  const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [addEmployeeId, setAddEmployeeId] = useState("");
   const [addStep, setAddStep] = useState("entrada");
   const [addDate, setAddDate] = useState(new Date().toISOString().split("T")[0]);
@@ -413,6 +416,55 @@ export default function RecordsTab({ employees }: Props) {
         <Button variant="outline" size="sm" onClick={() => setShowAddRecord(!showAddRecord)}>
           <Plus className="w-4 h-4 mr-1" /> Correção
         </Button>
+        <div className="flex items-center gap-2 ml-2 border-l pl-2">
+          <Input type="month" value={exportMonth} onChange={e => setExportMonth(e.target.value)} className="w-36 h-8 text-xs" />
+          <select
+            onChange={async (e) => {
+              const empId = e.target.value;
+              if (!empId) return;
+              const emp = employees.find(em => em.id === empId);
+              if (!emp) return;
+              const [year, month] = exportMonth.split("-").map(Number);
+              setExportingId(empId);
+              toast.info("Gerando folha de ponto...");
+              try {
+                await generateMonthlyReport(emp, year, month);
+                toast.success("PDF gerado!");
+              } catch { toast.error("Erro ao gerar PDF"); }
+              setExportingId(null);
+              e.target.value = "";
+            }}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            defaultValue="">
+            <option value="">📄 PDF — Selecione</option>
+            {employees.filter(e => e.active).map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+          <select
+            onChange={async (e) => {
+              const empId = e.target.value;
+              if (!empId) return;
+              const emp = employees.find(em => em.id === empId);
+              if (!emp) return;
+              const [year, month] = exportMonth.split("-").map(Number);
+              setExportingId(empId);
+              toast.info("Gerando Excel...");
+              try {
+                await generateMonthlyExcel(emp, year, month);
+                toast.success("Excel gerado!");
+              } catch { toast.error("Erro ao gerar Excel"); }
+              setExportingId(null);
+              e.target.value = "";
+            }}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-emerald-600"
+            defaultValue="">
+            <option value="">📊 Excel — Selecione</option>
+            {employees.filter(e => e.active).map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Admin manual correction form */}
