@@ -99,8 +99,18 @@ export default function TourGuiado({ onClose, onNavigate }: Props) {
     }, 150);
   };
 
-  const fechar = () => {
+ const fechar = async () => {
     localStorage.setItem("amr_tour_concluido", "true");
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await (supabase as any)
+          .from("profiles")
+          .update({ tour_concluido: true })
+          .eq("user_id", user.id);
+      }
+    } catch {}
     onClose();
   };
 

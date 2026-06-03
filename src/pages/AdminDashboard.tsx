@@ -152,11 +152,28 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-  const tourConcluido = localStorage.getItem("amr_tour_concluido");
-  if (!tourConcluido) {
-    setTimeout(() => setShowTour(true), 1000);
-  }
-}, []);
+    const verificarTour = async () => {
+      const tourLocal = localStorage.getItem("amr_tour_concluido");
+      if (tourLocal) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await (supabase as any)
+          .from("profiles")
+          .select("tour_concluido")
+          .eq("user_id", user.id)
+          .single();
+        if (!profile?.tour_concluido) {
+          setTimeout(() => setShowTour(true), 1500);
+        } else {
+          localStorage.setItem("amr_tour_concluido", "true");
+        }
+      } catch {
+        setTimeout(() => setShowTour(true), 1500);
+      }
+    };
+    verificarTour();
+  }, []);
 
   const fetchEmployees = async () => {
     const { data } = await supabase.from("employees").select("*").order("name");
@@ -586,7 +603,7 @@ export default function AdminDashboard() {
       {showTour && (
   <TourGuiado
     onClose={() => setShowTour(false)}
-    onNavigate={(t) => { setTab(t as any); setShowTour(false); }}
+    onNavigate={(t) => { setTab(t as any); }}
   />
 )}
     {showBusca && (
