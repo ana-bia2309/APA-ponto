@@ -266,6 +266,149 @@ export default function AdminDashboard() {
     return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
+  const handleDownloadFicha = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
+    toast.info("Gerando ficha cadastral...");
+    try {
+      if (format === "excel") {
+        const XLSX = await import("xlsx");
+        const dados = [
+          ["FICHA CADASTRAL — APA Refrigeração e Climatização"],
+          [],
+          ["DADOS PESSOAIS"],
+          ["Nome completo", emp.name],
+          ["CPF", (emp as any).cpf || "—"],
+          ["Matrícula", (emp as any).matricula || "—"],
+          ["E-mail", (emp as any).email || "—"],
+          ["Telefone", (emp as any).telefone || "—"],
+          ["Data de nascimento", (emp as any).data_nascimento ? new Date((emp as any).data_nascimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"],
+          [],
+          ["DADOS PROFISSIONAIS"],
+          ["Cargo", (emp as any).cargo || "—"],
+          ["Departamento", (emp as any).departamento || "—"],
+          ["Tipo de vínculo", (emp as any).tipo_vinculo || "—"],
+          ["Data de admissão", (emp as any).data_admissao ? new Date((emp as any).data_admissao + "T12:00:00").toLocaleDateString("pt-BR") : "—"],
+          ["Status", (emp as any).status || "ativo"],
+          [],
+          ["JORNADA DE TRABALHO"],
+          ["Tipo de jornada", emp.punch_mode === "simple" ? "2 batidas" : "4 batidas"],
+          ["Turno", (emp as any).shift === "noturno" ? "Noturno" : "Diurno"],
+          ["Escala", (emp as any).escala || "Padrão"],
+          ["Carga horária semanal", `${(emp as any).carga_horaria_semanal || 44}h`],
+          [],
+          ["ENDEREÇO"],
+          ["CEP", (emp as any).cep || "—"],
+          ["Logradouro", (emp as any).logradouro || "—"],
+          ["Número", (emp as any).numero || "—"],
+          ["Complemento", (emp as any).complemento || "—"],
+          ["Bairro", (emp as any).bairro || "—"],
+          ["Cidade", (emp as any).cidade || "—"],
+          ["Estado", (emp as any).estado || "—"],
+          [],
+          ["OBSERVAÇÕES"],
+          [(emp as any).observacoes || "—"],
+          [],
+          ["Gerado em", new Date().toLocaleString("pt-BR")],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(dados);
+        ws["!cols"] = [{ wch: 30 }, { wch: 50 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Ficha Cadastral");
+        XLSX.writeFile(wb, `Ficha_${emp.name.replace(/\s+/g, "_")}.xlsx`);
+        toast.success("Ficha cadastral Excel gerada!");
+        return;
+      }
+
+      // PDF
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = pdf.internal.pageSize.getWidth();
+      const M = 15;
+      let y = 0;
+
+      // Header
+      pdf.setFillColor(15, 23, 42);
+      pdf.rect(0, 0, W, 30, "F");
+      pdf.setFontSize(14); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
+      pdf.text("FICHA CADASTRAL", W / 2, 12, { align: "center" });
+      pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(180, 200, 230);
+      pdf.text("APA Refrigeração e Climatização", W / 2, 19, { align: "center" });
+      pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, W / 2, 25, { align: "center" });
+      y = 38;
+
+      const addSection = (titulo: string) => {
+        pdf.setFillColor(240, 244, 248);
+        pdf.rect(M, y, W - M * 2, 7, "F");
+        pdf.setFontSize(8); pdf.setFont("helvetica", "bold"); pdf.setTextColor(30, 64, 175);
+        pdf.text(titulo.toUpperCase(), M + 2, y + 5);
+        y += 10;
+      };
+
+      const addRow = (label: string, value: string) => {
+        pdf.setFontSize(8); pdf.setFont("helvetica", "bold"); pdf.setTextColor(100, 100, 110);
+        pdf.text(label, M + 2, y);
+        pdf.setFont("helvetica", "normal"); pdf.setTextColor(30, 30, 40);
+        pdf.text(value || "—", M + 50, y);
+        y += 6;
+        if (y > 270) { pdf.addPage(); y = 15; }
+      };
+
+      // Dados pessoais
+      addSection("Dados Pessoais");
+      addRow("Nome completo:", emp.name);
+      addRow("CPF:", (emp as any).cpf || "—");
+      addRow("Matrícula:", (emp as any).matricula || "—");
+      addRow("E-mail:", (emp as any).email || "—");
+      addRow("Telefone:", (emp as any).telefone || "—");
+      addRow("Data de nascimento:", (emp as any).data_nascimento ? new Date((emp as any).data_nascimento + "T12:00:00").toLocaleDateString("pt-BR") : "—");
+      addRow("Contato de emergência:", (emp as any).contato_emergencia || "—");
+      y += 3;
+
+      // Dados profissionais
+      addSection("Dados Profissionais");
+      addRow("Cargo:", (emp as any).cargo || "—");
+      addRow("Departamento:", (emp as any).departamento || "—");
+      addRow("Tipo de vínculo:", (emp as any).tipo_vinculo || "—");
+      addRow("Data de admissão:", (emp as any).data_admissao ? new Date((emp as any).data_admissao + "T12:00:00").toLocaleDateString("pt-BR") : "—");
+      addRow("Status:", (emp as any).status || "Ativo");
+      y += 3;
+
+      // Jornada
+      addSection("Jornada de Trabalho");
+      addRow("Tipo de jornada:", emp.punch_mode === "simple" ? "2 batidas" : "4 batidas");
+      addRow("Turno:", (emp as any).shift === "noturno" ? "Noturno" : "Diurno");
+      addRow("Escala:", (emp as any).escala || "Padrão");
+      addRow("Carga horária semanal:", `${(emp as any).carga_horaria_semanal || 44}h semanais`);
+      y += 3;
+
+      // Endereço
+      addSection("Endereço");
+      addRow("CEP:", (emp as any).cep || "—");
+      addRow("Logradouro:", `${(emp as any).logradouro || "—"}${(emp as any).numero ? ", " + (emp as any).numero : ""}${(emp as any).complemento ? " - " + (emp as any).complemento : ""}`);
+      addRow("Bairro:", (emp as any).bairro || "—");
+      addRow("Cidade/Estado:", `${(emp as any).cidade || "—"}${(emp as any).estado ? " - " + (emp as any).estado : ""}`);
+      y += 3;
+
+      // Observações
+      if ((emp as any).observacoes) {
+        addSection("Observações");
+        pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(30, 30, 40);
+        const lines = pdf.splitTextToSize((emp as any).observacoes, W - M * 2 - 4);
+        lines.forEach((line: string) => { pdf.text(line, M + 2, y); y += 5; });
+      }
+
+      // Rodapé
+      pdf.setDrawColor(15, 23, 42); pdf.setLineWidth(0.5);
+      pdf.line(M, 282, W - M, 282);
+      pdf.setFontSize(6.5); pdf.setTextColor(120, 120, 130);
+      pdf.text("APA Ponto — Ficha Cadastral", W / 2, 287, { align: "center" });
+
+      pdf.save(`Ficha_${emp.name.replace(/\s+/g, "_")}.pdf`);
+      toast.success("Ficha cadastral PDF gerada!");
+    } catch (err: any) {
+      toast.error("Erro ao gerar ficha: " + err.message);
+    }
+  };
+  
   const handleDownloadReport = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
     const [year, month] = reportMonth.split("-").map(Number);
     toast.info("Gerando relatório...");
@@ -568,10 +711,10 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(emp, "pdf")} title="PDF">
+                              <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "pdf")} title="Ficha PDF">
                                 <Download className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(emp, "excel")} title="Excel"
+                              <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "excel")} title="Ficha Excel"
                                 className="text-emerald-500 hover:text-emerald-400">
                                 <Download className="w-4 h-4" />
                               </Button>
