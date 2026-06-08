@@ -2292,16 +2292,6 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             {isDark ? "Claro" : "Escuro"}
           </button>
-          {isAdmin && (
-            <button
-              onClick={() => navigate("/admin")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
-              style={{ background: "white", color: "#1e40af", borderColor: "#bfdbfe" }}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              Painel Admin
-            </button>
-          )}
         </div>
 
 {/* Banner sazonal */}
