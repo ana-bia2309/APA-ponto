@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, RefreshCw, User, Briefcase, Clock, X } from "lucide-react";
 
 interface EmployeeFormData {
@@ -107,13 +108,13 @@ function PhotoUpload({ value, onChange }: { value: string; onChange: (url: strin
     try {
       const ext = file.name.split(".").pop();
       const fileName = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await import("@/integrations/supabase/client").then(m =>
-        m.supabase.storage.from("employee-photos").upload(fileName, file, { contentType: file.type })
-      );
+      const { error } = await supabase.storage
+        .from("employee-photos")
+        .upload(fileName, file, { contentType: file.type });
       if (error) throw error;
-      const { data } = await import("@/integrations/supabase/client").then(m =>
-        m.supabase.storage.from("employee-photos").getPublicUrl(fileName)
-      );
+      const { data } = supabase.storage
+        .from("employee-photos")
+        .getPublicUrl(fileName);
       onChange(data.publicUrl);
     } catch (err: any) {
       alert("Erro ao fazer upload: " + err.message);
