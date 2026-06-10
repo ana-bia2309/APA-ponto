@@ -11,7 +11,7 @@ interface Passo {
 const PASSOS: Passo[] = [
   {
     emoji: "👋",
-    titulo: "Bem-vindo ao AMR Ponto!",
+    titulo: "Bem-vindo ao APA Ponto!",
     descricao: "Este é o painel de administração do sistema de ponto da APA Refrigeração. Vamos fazer um tour rápido para você conhecer as principais funcionalidades!",
   },
   {
@@ -71,7 +71,7 @@ const PASSOS: Passo[] = [
   {
     emoji: "🎉",
     titulo: "Tudo Pronto!",
-    descricao: "Você já conhece as principais funcionalidades do AMR Ponto! Se precisar de ajuda, use o Assistente IA na aba Relatórios & IA. Bom trabalho!",
+    descricao: "Você já conhece as principais funcionalidades do APA Ponto! Se precisar de ajuda, use o Assistente IA na aba Relatórios & IA. Bom trabalho!",
   },
 ];
 
