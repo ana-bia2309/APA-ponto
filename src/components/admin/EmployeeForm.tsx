@@ -19,6 +19,8 @@ interface EmployeeFormData {
   shift: "diurno" | "noturno";
   escala: string;
   carga_horaria_semanal: number;
+  hora_entrada: string;
+  hora_saida: string;
   status: string;
   observacoes: string;
   foto_url: string;
@@ -46,7 +48,10 @@ const DEFAULTS: EmployeeFormData = {
   email: "", tipo_vinculo: "CLT", data_admissao: "",
   data_nascimento: "",
   punch_mode: "full", shift: "diurno", escala: "padrao",
-  carga_horaria_semanal: 44, status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
+  carga_horaria_semanal: 44,
+  hora_entrada: "",
+  hora_saida: "",
+  status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
   cep: "",
   logradouro: "",
   numero: "",
@@ -59,9 +64,9 @@ const DEFAULTS: EmployeeFormData = {
 function formatCpf(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0,3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6)}`;
-  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
 function generateMatricula() {
@@ -182,7 +187,7 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
       <div>
         <SectionTitle icon={User} title="Informações Pessoais" subtitle="Dados de identificação do colaborador" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="lg:col-span-3 mb-2">
+          <div className="lg:col-span-3 mb-2">
             <PhotoUpload value={form.foto_url} onChange={v => upd("foto_url", v)} />
           </div>
           <div className="lg:col-span-2">
@@ -301,7 +306,7 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
             <select value={form.estado} onChange={e => upd("estado", e.target.value)}
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">Selecione</option>
-              {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => (
+              {["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"].map(uf => (
                 <option key={uf} value={uf}>{uf}</option>
               ))}
             </select>
@@ -327,7 +332,18 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Turno</Label>
-            <select value={form.shift} onChange={e => upd("shift", e.target.value as any)}
+            <select value={form.shift} onChange={e => {
+              const novoTurno = e.target.value as "diurno" | "noturno";
+              upd("shift", novoTurno);
+              // Sugestão automática de horários por turno
+              if (novoTurno === "diurno") {
+                upd("hora_entrada", "08:00");
+                upd("hora_saida", "17:00");
+              } else {
+                upd("hora_entrada", "19:00");
+                upd("hora_saida", "07:00");
+              }
+            }}
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="diurno">☀️ Diurno</option>
               <option value="noturno">🌙 Noturno</option>
@@ -348,9 +364,50 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
             </select>
           </div>
         </div>
+
+        {/* Horários das Batidas */}
+        <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border">
+          <p className="text-xs font-medium text-muted-foreground mb-3">
+            🕐 Horário de Trabalho
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Entrada
+              </Label>
+              <Input
+                type="time"
+                className="mt-1"
+                value={form.hora_entrada}
+                onChange={e => upd("hora_entrada", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Saída
+              </Label>
+              <Input
+                type="time"
+                className="mt-1"
+                value={form.hora_saida}
+                onChange={e => upd("hora_saida", e.target.value)}
+              />
+            </div>
+          </div>
+
+          {form.hora_entrada && form.hora_saida && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {form.shift === "diurno" ? "☀️" : "🌙"}{" "}
+              {form.hora_entrada} → {form.hora_saida}
+              {" "}• 1h de almoço
+            </p>
+          )}
+        </div>
       </div>
 
-     <div className="flex gap-2">
+      <div className="flex gap-2">
         <Button type="submit" disabled={loading} className="gap-2 rounded-xl px-6 shadow-sm">
           <Plus className="w-4 h-4" />
           {loading ? "Salvando..." : submitLabel || "Adicionar Colaborador"}

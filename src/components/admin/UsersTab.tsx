@@ -255,11 +255,10 @@ export default function UsersTab() {
                     </span>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-muted-foreground">{u.email}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 ${
-                        u.role === "admin"
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 ${u.role === "admin"
                           ? "bg-primary/15 text-primary"
                           : "bg-muted text-muted-foreground"
-                      }`}>
+                        }`}>
                         {u.role === "admin" ? <><Shield className="w-3 h-3" /> Admin</> : u.role === "rh" ? <><Shield className="w-3 h-3" /> RH</> : <><UserIcon className="w-3 h-3" /> Usuário</>}
                       </span>
                     </div>

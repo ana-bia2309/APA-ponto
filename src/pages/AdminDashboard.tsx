@@ -135,6 +135,10 @@ export default function AdminDashboard() {
   const [showBusca, setShowBusca] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<{
+    hora_entrada: string;
+    hora_saida: string;
+  } | null>(null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -187,7 +191,7 @@ export default function AdminDashboard() {
       name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
       cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
       escala: newEscala,
-      } as any);
+    } as any);
     if (error) { toast.error("Erro ao adicionar funcionário"); return; }
     toast.success("Funcionário adicionado!");
     setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno"); setNewEscala("padrao");
@@ -195,7 +199,7 @@ export default function AdminDashboard() {
     fetchEmployees();
   };
 
-  const startEditing = (emp: Employee) => {
+  const startEditing = async (emp: Employee) => {
     setEditingId(emp.id);
     setEditName(emp.name);
     setEditCpf((emp as any).cpf || "");
@@ -206,6 +210,22 @@ export default function AdminDashboard() {
     setEditMatricula((emp as any).matricula || "");
     setEditDepartamento((emp as any).departamento || "");
     setEditEmail((emp as any).email || "");
+
+    // Buscar horários existentes
+    const { data: schedule } = await (supabase as any)
+      .from("employee_schedules")
+      .select("*")
+      .eq("employee_id", emp.id)
+      .single();
+
+    setEditingSchedule(
+      schedule
+        ? {
+          hora_entrada: schedule.hora_entrada || "",
+          hora_saida: schedule.hora_saida || "",
+        }
+        : null
+    );
   };
 
   const saveEdit = async () => {
@@ -214,7 +234,7 @@ export default function AdminDashboard() {
       name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
       cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
       escala: editEscala,
-      } as any).eq("id", editingId);
+    } as any).eq("id", editingId);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
@@ -408,7 +428,7 @@ export default function AdminDashboard() {
       toast.error("Erro ao gerar ficha: " + err.message);
     }
   };
-  
+
   const handleDownloadReport = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
     const [year, month] = reportMonth.split("-").map(Number);
     toast.info("Gerando relatório...");
@@ -426,14 +446,14 @@ export default function AdminDashboard() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AdminSidebar
-  activeTab={tab}
-  onTabChange={setTab}
-  onLogout={logout}
-  isAdmin={isAdmin}
-  isRh={isRh}
-  userName={profile?.full_name || user?.email}
-  userRole={isAdmin ? "admin" : isRh ? "rh" : "supervisor"}
-/>
+          activeTab={tab}
+          onTabChange={setTab}
+          onLogout={logout}
+          isAdmin={isAdmin}
+          isRh={isRh}
+          userName={profile?.full_name || user?.email}
+          userRole={isAdmin ? "admin" : isRh ? "rh" : "supervisor"}
+        />
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
@@ -446,13 +466,13 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowTour(true)} className="gap-1.5" title="Tour guiado">
-  <Sparkles className="w-4 h-4" />
-  <span className="hidden sm:inline">Tour</span>
-</Button>
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Tour</span>
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setShowBusca(true)} className="gap-1.5">
-  <Search className="w-4 h-4" />
-  <span className="hidden sm:inline text-muted-foreground text-xs">Ctrl+K</span>
-</Button>
+                <Search className="w-4 h-4" />
+                <span className="hidden sm:inline text-muted-foreground text-xs">Ctrl+K</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -476,7 +496,7 @@ export default function AdminDashboard() {
               <span className="hidden md:inline text-xs text-muted-foreground ml-2">{profile?.full_name || user?.email}</span>
             </div>
           </header>
-         {/* Content */}
+          {/* Content */}
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
             <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
               {tab === "dashboard" && <DashboardTab onNavigate={(t) => setTab(t as any)} role={role} />}
@@ -516,7 +536,7 @@ export default function AdminDashboard() {
               {tab === "cobertura" && <CoberturaTab />}
               {tab === "employees" && (
                 <div className="space-y-6">
-                 {/* Add employee form */}
+                  {/* Add employee form */}
                   <div>
                     <div className="flex items-center gap-2 mb-4">
                       <h3 className="text-lg font-semibold text-foreground">👥 Funcionários</h3>
@@ -556,6 +576,21 @@ export default function AdminDashboard() {
                             ...(data.estado && { estado: data.estado }),
                           } as any);
                           if (error) { toast.error("Erro ao adicionar: " + error.message); return; }
+
+                          // Salvar horários na employee_schedules
+                          const { data: { user } } = await supabase.auth.getUser();
+                          const { data: profile } = await (supabase as any).from("profiles").select("company_id").eq("user_id", user?.id).single();
+                          const { data: newEmp } = await supabase.from("employees").select("id").eq("name", data.name.trim()).order("created_at", { ascending: false }).limit(1).single();
+                          if (newEmp && (data.hora_entrada || data.hora_saida)) {
+                            await (supabase as any).from("employee_schedules").upsert({
+                              employee_id: newEmp.id,
+                              company_id: profile?.company_id,
+                              turno: data.shift,
+                              hora_entrada: data.hora_entrada || null,
+                              hora_saida: data.hora_saida || null,
+                            }, { onConflict: "employee_id" });
+                          }
+
                           toast.success("Colaborador adicionado!");
                           fetchEmployees();
                         }}
@@ -608,132 +643,163 @@ export default function AdminDashboard() {
                         const matriculaMatch = (emp as any).matricula?.toLowerCase().includes(search);
                         return nameMatch || cpfMatch || matriculaMatch;
                       });
-                      
-                      return filteredEmployees.length > 0 ? filteredEmployees.map((emp) => (
-                      <Card key={emp.id} className="p-4">
-                       {editingId === emp.id ? (
-                          <div className="space-y-3">
-                            <EmployeeForm
-                              loading={false}
-                              initialData={{
-                                name: editName,
-                                cpf: editCpf,
-                                cargo: editCargo,
-                                matricula: editMatricula,
-                                departamento: editDepartamento,
-                                email: editEmail,
-                                punch_mode: editPunchMode,
-                                shift: editShift,
-                                escala: editEscala,
-                                tipo_vinculo: (emp as any).tipo_vinculo || "CLT",
-                                data_admissao: (emp as any).data_admissao || "",
-                                data_nascimento: (emp as any).data_nascimento || "",
-                                carga_horaria_semanal: (emp as any).carga_horaria_semanal || 44,
-                                status: (emp as any).status || "ativo",
-                                observacoes: (emp as any).observacoes || "",
-                                foto_url: (emp as any).foto_url || "",
-                                telefone: (emp as any).telefone || "",
-                                contato_emergencia: (emp as any).contato_emergencia || "",
-                              }}
-                              submitLabel="Salvar alterações"
-                              onSubmit={async (data) => {
-                                const { error } = await supabase.from("employees").update({
-                                  name: data.name.trim(),
-                                  cpf: data.cpf || null,
-                                  cargo: data.cargo || null,
-                                  matricula: data.matricula || null,
-                                  departamento: data.departamento || null,
-                                  email: data.email || null,
-                                  punch_mode: data.punch_mode,
-                                  shift: data.shift,
-                                  escala: data.escala,
-                                  ...(data.status && { status: data.status }),
-                                  ...(data.tipo_vinculo && { tipo_vinculo: data.tipo_vinculo }),
-                                  ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
-                                  ...(data.data_admissao && { data_admissao: data.data_admissao }),
-                                  ...(data.data_nascimento && { data_nascimento: data.data_nascimento }),
-                                  ...(data.observacoes && { observacoes: data.observacoes }),
-                                  ...(data.foto_url && { foto_url: data.foto_url }),
-                                  ...(data.telefone && { telefone: data.telefone }),
-                                  ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
-                                  ...(data.cep && { cep: data.cep }),
-                                  ...(data.logradouro && { logradouro: data.logradouro }),
-                                  ...(data.numero && { numero: data.numero }),
-                                  ...(data.complemento && { complemento: data.complemento }),
-                                  ...(data.bairro && { bairro: data.bairro }),
-                                  ...(data.cidade && { cidade: data.cidade }),
-                                  ...(data.estado && { estado: data.estado }),
-                                } as any).eq("id", editingId!);
-                                if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
-                                const { data: { user } } = await supabase.auth.getUser();
-                                await supabase.from("audit_logs").insert({
-                                  admin_user_id: user?.id, action: "update_employee", target_type: "employees",
-                                  target_id: editingId, details: { name: data.name.trim() },
-                                } as any);
-                                toast.success("Colaborador atualizado!");
-                                setEditingId(null);
-                                fetchEmployees();
-                              }}
-                              onCancel={() => setEditingId(null)}
-                            />
-                          </div>
-                        ) : (
 
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => toggleEmployee(emp)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                                title={emp.active ? "Desativar" : "Ativar"}>
-                                {emp.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
-                              </button>
-                              <div>
-                                <span className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                  {emp.name}
-                                </span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-xs text-muted-foreground">
-                                    {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
+                      return filteredEmployees.length > 0 ? filteredEmployees.map((emp) => (
+                        <Card key={emp.id} className="p-4">
+                          {editingId === emp.id ? (
+                            <div className="space-y-3">
+                              <EmployeeForm
+                                loading={false}
+                                initialData={{
+                                  name: editName,
+                                  cpf: editCpf,
+                                  cargo: editCargo,
+                                  matricula: editMatricula,
+                                  departamento: editDepartamento,
+                                  email: editEmail,
+                                  punch_mode: editPunchMode,
+                                  shift: editShift,
+                                  escala: editEscala,
+                                  hora_entrada: editingSchedule?.hora_entrada || "",
+                                  hora_saida: editingSchedule?.hora_saida || "",
+                                  tipo_vinculo: (emp as any).tipo_vinculo || "CLT",
+                                  data_admissao: (emp as any).data_admissao || "",
+                                  data_nascimento: (emp as any).data_nascimento || "",
+                                  carga_horaria_semanal: (emp as any).carga_horaria_semanal || 44,
+                                  status: (emp as any).status || "ativo",
+                                  observacoes: (emp as any).observacoes || "",
+                                  foto_url: (emp as any).foto_url || "",
+                                  telefone: (emp as any).telefone || "",
+                                  contato_emergencia: (emp as any).contato_emergencia || "",
+                                }}
+                                submitLabel="Salvar alterações"
+                                onSubmit={async (data) => {
+                                  const { error } = await supabase.from("employees").update({
+                                    name: data.name.trim(),
+                                    cpf: data.cpf || null,
+                                    cargo: data.cargo || null,
+                                    matricula: data.matricula || null,
+                                    departamento: data.departamento || null,
+                                    email: data.email || null,
+                                    punch_mode: data.punch_mode,
+                                    shift: data.shift,
+                                    escala: data.escala,
+                                    ...(data.status && { status: data.status }),
+                                    ...(data.tipo_vinculo && { tipo_vinculo: data.tipo_vinculo }),
+                                    ...(data.carga_horaria_semanal && { carga_horaria_semanal: data.carga_horaria_semanal }),
+                                    ...(data.data_admissao && { data_admissao: data.data_admissao }),
+                                    ...(data.data_nascimento && { data_nascimento: data.data_nascimento }),
+                                    ...(data.observacoes && { observacoes: data.observacoes }),
+                                    ...(data.foto_url && { foto_url: data.foto_url }),
+                                    ...(data.telefone && { telefone: data.telefone }),
+                                    ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
+                                    ...(data.cep && { cep: data.cep }),
+                                    ...(data.logradouro && { logradouro: data.logradouro }),
+                                    ...(data.numero && { numero: data.numero }),
+                                    ...(data.complemento && { complemento: data.complemento }),
+                                    ...(data.bairro && { bairro: data.bairro }),
+                                    ...(data.cidade && { cidade: data.cidade }),
+                                    ...(data.estado && { estado: data.estado }),
+                                  } as any).eq("id", editingId!);
+                                  if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
+
+                                  // Atualizar horários na employee_schedules
+                                  const { data: profileData } = await (supabase as any)
+                                    .from("profiles")
+                                    .select("company_id")
+                                    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+                                    .single();
+
+                                  if (data.hora_entrada || data.hora_saida) {
+                                    await (supabase as any).from("employee_schedules").upsert({
+                                      employee_id: editingId,
+                                      company_id: profileData?.company_id,
+                                      turno: data.shift,
+                                      hora_entrada: data.hora_entrada || null,
+                                      hora_saida: data.hora_saida || null,
+                                    }, { onConflict: "employee_id" });
+                                  }
+
+                                  const { data: { user } } = await supabase.auth.getUser();
+
+                                  await supabase.from("audit_logs").insert({
+                                    admin_user_id: user?.id,
+                                    action: "update_employee",
+                                    target_type: "employees",
+                                    target_id: editingId,
+                                    details: { name: data.name.trim() },
+                                  } as any);
+
+                                  toast.success("Colaborador atualizado!");
+
+                                  setEditingId(null);
+                                  setEditingSchedule(null);
+
+                                  fetchEmployees();
+                                }}
+                                onCancel={() => {
+                                  setEditingId(null);
+                                  setEditingSchedule(null);
+                                }}
+                              />
+                            </div>
+                          ) : (
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <button onClick={() => toggleEmployee(emp)}
+                                  className="text-muted-foreground hover:text-foreground transition-colors"
+                                  title={emp.active ? "Desativar" : "Ativar"}>
+                                  {emp.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
+                                </button>
+                                <div>
+                                  <span className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                    {emp.name}
                                   </span>
-                                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                                    {(emp as any).shift === "noturno" ? <><Moon className="w-3 h-3" /> Noturno</> : <><Sun className="w-3 h-3" /> Diurno</>}
-                                  </span>
-                                  {(emp as any).escala && (emp as any).escala !== "padrao" && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground font-medium">
-                                      {(emp as any).escala === "12x36" ? "12×36" : (emp as any).escala}
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs text-muted-foreground">
+                                      {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
                                     </span>
+                                    <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                                      {(emp as any).shift === "noturno" ? <><Moon className="w-3 h-3" /> Noturno</> : <><Sun className="w-3 h-3" /> Diurno</>}
+                                    </span>
+                                    {(emp as any).escala && (emp as any).escala !== "padrao" && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground font-medium">
+                                        {(emp as any).escala === "12x36" ? "12×36" : (emp as any).escala}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {(emp as any).cpf && (
+                                    <p className="text-xs text-muted-foreground">
+                                      CPF: {(emp as any).cpf.replace(/^(\d{3})\.\d{3}\.\d{3}-(\d{2})$/, "$1.***.***-$2").replace(/^(\d{3})\d{6}(\d{2})$/, "$1******$2")}
+                                    </p>
                                   )}
                                 </div>
-                                {(emp as any).cpf && (
-                                  <p className="text-xs text-muted-foreground">
-                                    CPF: {(emp as any).cpf.replace(/^(\d{3})\.\d{3}\.\d{3}-(\d{2})$/, "$1.***.***-$2").replace(/^(\d{3})\d{6}(\d{2})$/, "$1******$2")}
-                                  </p>
-                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "pdf")} title="Ficha PDF">
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "excel")} title="Ficha Excel"
+                                  className="text-emerald-500 hover:text-emerald-400">
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => deleteEmployee(emp.id)}
+                                  className="text-destructive hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "pdf")} title="Ficha PDF">
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDownloadFicha(emp, "excel")} title="Ficha Excel"
-                                className="text-emerald-500 hover:text-emerald-400">
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => deleteEmployee(emp.id)}
-                                className="text-destructive hover:text-destructive">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </Card>
-                    )) : (
-                      <p className="text-center text-muted-foreground py-8">
-                        {employeeSearch ? "Nenhum funcionário encontrado para esta busca" : "Nenhum funcionário cadastrado"}
-                      </p>
-                    );
+                          )}
+                        </Card>
+                      )) : (
+                        <p className="text-center text-muted-foreground py-8">
+                          {employeeSearch ? "Nenhum funcionário encontrado para esta busca" : "Nenhum funcionário cadastrado"}
+                        </p>
+                      );
                     })()}
                   </div>
                 </div>
@@ -744,18 +810,18 @@ export default function AdminDashboard() {
       </div>
 
       {showTour && (
-  <TourGuiado
-    onClose={() => setShowTour(false)}
-    onNavigate={(t) => { setTab(t as any); }}
-  />
-)}
-    {showBusca && (
-  <BuscaGlobal
-    employees={employees}
-    onNavigate={(t) => setTab(t as any)}
-    onClose={() => setShowBusca(false)}
-  />
-)}
-      </SidebarProvider>
+        <TourGuiado
+          onClose={() => setShowTour(false)}
+          onNavigate={(t) => { setTab(t as any); }}
+        />
+      )}
+      {showBusca && (
+        <BuscaGlobal
+          employees={employees}
+          onNavigate={(t) => setTab(t as any)}
+          onClose={() => setShowBusca(false)}
+        />
+      )}
+    </SidebarProvider>
   );
 }
