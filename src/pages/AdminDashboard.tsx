@@ -200,7 +200,6 @@ export default function AdminDashboard() {
   };
 
   const startEditing = async (emp: Employee) => {
-    setEditingId(emp.id);
     setEditName(emp.name);
     setEditCpf((emp as any).cpf || "");
     setEditPunchMode(emp.punch_mode === "simple" ? "simple" : "full");
@@ -214,18 +213,21 @@ export default function AdminDashboard() {
     // Buscar horários existentes
     const { data: schedule } = await (supabase as any)
       .from("employee_schedules")
-      .select("*")
+      .select("hora_entrada, hora_saida")
       .eq("employee_id", emp.id)
-      .single();
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     setEditingSchedule(
       schedule
         ? {
-          hora_entrada: schedule.hora_entrada || "",
-          hora_saida: schedule.hora_saida || "",
+          hora_entrada: (schedule.hora_entrada || "").slice(0, 5),
+          hora_saida: (schedule.hora_saida || "").slice(0, 5),
         }
         : null
     );
+    setEditingId(emp.id);
   };
 
   const saveEdit = async () => {
@@ -582,13 +584,14 @@ export default function AdminDashboard() {
                           const { data: profile } = await (supabase as any).from("profiles").select("company_id").eq("user_id", user?.id).single();
                           const { data: newEmp } = await supabase.from("employees").select("id").eq("name", data.name.trim()).order("created_at", { ascending: false }).limit(1).single();
                           if (newEmp && (data.hora_entrada || data.hora_saida)) {
-                            await (supabase as any).from("employee_schedules").upsert({
+                            const { error: schedError } = await (supabase as any).from("employee_schedules").upsert({
                               employee_id: newEmp.id,
-                              company_id: profile?.company_id,
+                              company_id: profile?.company_id ?? null,
                               turno: data.shift,
                               hora_entrada: data.hora_entrada || null,
                               hora_saida: data.hora_saida || null,
                             }, { onConflict: "employee_id" });
+                            if (schedError) toast.error("Colaborador criado, mas os horários falharam: " + schedError.message);
                           }
 
                           toast.success("Colaborador adicionado!");
@@ -671,6 +674,13 @@ export default function AdminDashboard() {
                                   foto_url: (emp as any).foto_url || "",
                                   telefone: (emp as any).telefone || "",
                                   contato_emergencia: (emp as any).contato_emergencia || "",
+                                  cep: (emp as any).cep || "",
+                                  logradouro: (emp as any).logradouro || "",
+                                  numero: (emp as any).numero || "",
+                                  complemento: (emp as any).complemento || "",
+                                  bairro: (emp as any).bairro || "",
+                                  cidade: (emp as any).cidade || "",
+                                  estado: (emp as any).estado || "",
                                 }}
                                 submitLabel="Salvar alterações"
                                 onSubmit={async (data) => {
@@ -693,31 +703,38 @@ export default function AdminDashboard() {
                                     ...(data.foto_url && { foto_url: data.foto_url }),
                                     ...(data.telefone && { telefone: data.telefone }),
                                     ...(data.contato_emergencia && { contato_emergencia: data.contato_emergencia }),
-                                    ...(data.cep && { cep: data.cep }),
-                                    ...(data.logradouro && { logradouro: data.logradouro }),
-                                    ...(data.numero && { numero: data.numero }),
-                                    ...(data.complemento && { complemento: data.complemento }),
-                                    ...(data.bairro && { bairro: data.bairro }),
-                                    ...(data.cidade && { cidade: data.cidade }),
-                                    ...(data.estado && { estado: data.estado }),
+                                    cep: data.cep || null,
+                                    logradouro: data.logradouro || null,
+                                    numero: data.numero || null,
+                                    complemento: data.complemento || null,
+                                    bairro: data.bairro || null,
+                                    cidade: data.cidade || null,
+                                    estado: data.estado || null,
                                   } as any).eq("id", editingId!);
                                   if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
 
                                   // Atualizar horários na employee_schedules
-                                  const { data: profileData } = await (supabase as any)
-                                    .from("profiles")
-                                    .select("company_id")
-                                    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-                                    .single();
+                                  {
+                                    const { data: { user: schedUser } } = await supabase.auth.getUser();
+                                    const { data: schedProfile } = await (supabase as any)
+                                      .from("profiles")
+                                      .select("company_id")
+                                      .eq("user_id", schedUser?.id)
+                                      .maybeSingle();
 
-                                  if (data.hora_entrada || data.hora_saida) {
-                                    await (supabase as any).from("employee_schedules").upsert({
-                                      employee_id: editingId,
-                                      company_id: profileData?.company_id,
-                                      turno: data.shift,
-                                      hora_entrada: data.hora_entrada || null,
-                                      hora_saida: data.hora_saida || null,
-                                    }, { onConflict: "employee_id" });
+                                    const { error: schedError } = await (supabase as any)
+                                      .from("employee_schedules")
+                                      .upsert({
+                                        employee_id: editingId,
+                                        company_id: schedProfile?.company_id ?? null,
+                                        turno: data.shift,
+                                        hora_entrada: data.hora_entrada || null,
+                                        hora_saida: data.hora_saida || null,
+                                      }, { onConflict: "employee_id" });
+
+                                    if (schedError) {
+                                      toast.error("Funcionário salvo, mas os horários falharam: " + schedError.message);
+                                    }
                                   }
 
                                   const { data: { user } } = await supabase.auth.getUser();

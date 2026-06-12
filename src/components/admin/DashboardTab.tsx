@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertTriangle } from "lucide-react";
@@ -39,7 +39,8 @@ function fmtHoras(h: number) {
 function detectarInconsistencias(
   empRecords: any[],
   now: Date,
-  todayStr: string
+  todayStr: string,
+  isNoturno: boolean = false
 ): Inconsistencia[] {
   const inconsistencias: Inconsistencia[] = [];
   const nowH = now.getHours() + now.getMinutes() / 60;
@@ -49,8 +50,8 @@ function detectarInconsistencias(
   const retorno = empRecords.find(r => r.record_type === "retorno");
   const saida = empRecords.find(r => r.record_type === "saida");
 
-  // 1. Esqueceu retorno do almoço (tem intervalo, não tem retorno, já passa das 14h)
-  if (intervalo && !retorno && !saida && nowH >= 14) {
+  // 1. Esqueceu retorno do almoço — só diurnos (plantonista pausa de madrugada)
+  if (!isNoturno && intervalo && !retorno && !saida && nowH >= 14) {
     const intervaloH = new Date(intervalo.recorded_at).getHours() + new Date(intervalo.recorded_at).getMinutes() / 60;
     const diffMin = Math.round((nowH - intervaloH) * 60);
     inconsistencias.push({
@@ -59,18 +60,19 @@ function detectarInconsistencias(
     });
   }
 
-  // 2. Jornada excedeu 10h
+  // 2. Jornada excedeu o limite — 10h diurno, 12h30 plantão
   if (entrada && saida) {
     const diffH = (new Date(saida.recorded_at).getTime() - new Date(entrada.recorded_at).getTime()) / 3600000;
-    if (diffH > 10) {
+    const limite = isNoturno ? 12.5 : 10;
+    if (diffH > limite) {
       inconsistencias.push({
         tipo: "jornada_longa",
-        mensagem: `Jornada de ${fmtHoras(diffH)} excede o limite de 10h`,
+        mensagem: `Jornada de ${fmtHoras(diffH)} excede o limite de ${isNoturno ? "12h30" : "10h"}`,
       });
     }
   }
 
-  // 3. Ponto duplicado (mesmo tipo mais de uma vez)
+  // 3. Ponto duplicado (vale para todos)
   const tipos = empRecords.map(r => r.record_type);
   const duplicados = tipos.filter((t, i) => tipos.indexOf(t) !== i);
   if (duplicados.length > 0) {
@@ -81,8 +83,8 @@ function detectarInconsistencias(
     });
   }
 
-  // 4. Entrada fora do turno (antes das 05h ou depois das 22h)
-  if (entrada) {
+  // 4. Entrada fora do turno — só diurnos
+  if (!isNoturno && entrada) {
     const entradaH = new Date(entrada.recorded_at).getHours();
     if (entradaH < 5 || entradaH >= 22) {
       inconsistencias.push({
@@ -92,8 +94,8 @@ function detectarInconsistencias(
     }
   }
 
-  // 5. Sem saída e já passou das 20h
-  if (entrada && !saida && nowH >= 20) {
+  // 5. Sem saída após 20h — não se aplica a plantonista (jornada vira a noite)
+  if (!isNoturno && entrada && !saida && nowH >= 20) {
     inconsistencias.push({
       tipo: "sem_saida",
       mensagem: `Não registrou saída (entrada às ${fmtTime(entrada.recorded_at)})`,
@@ -138,13 +140,13 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       const endOfDay = new Date(`${todayStr}T23:59:59-03:00`).toISOString();
 
       const [empRes, recordsRes, bancoRes, justRes] = await Promise.all([
-        supabase.from("employees").select("id, name").eq("active", true).order("name"),
+        supabase.from("employees").select("id, name, shift, escala").eq("active", true).order("name"),
         (supabase as any).from("time_records")
           .select("id, employee_id, record_type, recorded_at")
           .gte("recorded_at", startOfDay)
           .lte("recorded_at", endOfDay)
           .order("recorded_at", { ascending: true }),
-        (supabase as any).from("banco_horas").select("employee_id, tipo, horas"),
+        (supabase as any).rpc("get_saldos_banco_horas"),
         supabase.from("absence_justifications").select("id", { count: "exact", head: true }).eq("status", "pendente"),
       ]);
 
@@ -153,8 +155,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
 
       const bancoMap: Record<string, number> = {};
       (bancoRes.data || []).forEach((e: any) => {
-        if (!bancoMap[e.employee_id]) bancoMap[e.employee_id] = 0;
-        bancoMap[e.employee_id] += e.tipo === "credito" ? e.horas : -e.horas;
+        bancoMap[e.employee_id] = Number(e.saldo) || 0;
       });
 
       const criticos = employees
@@ -169,6 +170,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       let totalHorasExtras = 0;
 
       const statusList: EmployeeStatus[] = employees.map(emp => {
+        const isNoturno = (emp as any).shift === "noturno" || ((emp as any).escala || "").toLowerCase().includes("12x36");
         const empRecords = records.filter((r: any) => r.employee_id === emp.id);
         const entrada = empRecords.find((r: any) => r.record_type === "entrada");
         const intervalo = empRecords.find((r: any) => r.record_type === "intervalo");
@@ -197,12 +199,14 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         if (!isWorkDay) status = "presente";
         else if (saida) status = "presente";
         else if (entrada) {
-          const entradaHora = new Date(entrada.recorded_at);
-          const limite = new Date(`${todayStr}T08:15:00-03:00`);
-          status = entradaHora > limite ? "atrasou" : "incompleto";
+          const limite = new Date(`${todayStr}T${isNoturno ? "19:15" : "08:15"}:00-03:00`);
+          status = new Date(entrada.recorded_at) > limite ? "atrasou" : "incompleto";
+        } else if (isNoturno) {
+          // Plantonista sem registro: folga do 12x36 ou plantão que ainda não começou — não é falta
+          status = "presente";
         }
 
-        const inconsistencias = detectarInconsistencias(empRecords, now, todayStr);
+        const inconsistencias = detectarInconsistencias(empRecords, now, todayStr, isNoturno);
 
         return {
           id: emp.id,
@@ -1185,7 +1189,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
             </thead>
             <tbody>
               {statuses.map((e, i) => (
-                <>
+                <Fragment key={e.id}>
                   <tr key={e.id} className={`border-t border-border/50 ${i % 2 === 0 ? "" : "bg-muted/20"} cursor-pointer hover:bg-muted/40 transition-colors`}
                     onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}>
                     <td className="p-2 font-medium text-foreground">
@@ -1270,7 +1274,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

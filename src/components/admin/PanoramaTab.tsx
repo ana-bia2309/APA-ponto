@@ -5,7 +5,7 @@ import { RefreshCw, TrendingUp, TrendingDown, Users, Clock, Calendar, Award } fr
 interface PanoramaData {
   totalAtivos: number;
   presentesHoje: number;
-  ausентesHoje: number;
+  ausentesHoje: number;
   atrasadosHoje: number;
   horasExtrasMes: number;
   faltasMes: number;
@@ -68,7 +68,7 @@ export default function PanoramaTab() {
       const comEntrada = new Set(todayRecs.filter((r: any) => r.record_type === "entrada").map((r: any) => r.employee_id));
       const comSaida = new Set(todayRecs.filter((r: any) => r.record_type === "saida").map((r: any) => r.employee_id));
       const presentesHoje = comEntrada.size;
-      const ausентesHoje = totalAtivos - presentesHoje;
+      const ausentesHoje = totalAtivos - presentesHoje;
 
       // Atrasados hoje
       const atrasadosHoje = todayRecs.filter((r: any) => {
@@ -149,46 +149,7 @@ export default function PanoramaTab() {
           data: f.data,
           dias: Math.ceil((f.date.getTime() - hoje.getTime()) / 86400000),
         }));
-        
-        {/* Aniversariantes do mês */}
-      {data.aniversarianteMes.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
-            🎂 Aniversariantes de {new Date().toLocaleDateString("pt-BR", { month: "long" })}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {data.aniversarianteMes.map((a: any, i: number) => {
-              const hoje = new Date();
-              const isHoje = a.dia === hoje.getDate();
-              const jaPassou = a.dia < hoje.getDate();
-              return (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border transition-all"
-                  style={{
-                    background: isHoje ? "#fffbeb" : "white",
-                    borderColor: isHoje ? "#fde68a" : "#f1f5f9",
-                    boxShadow: isHoje ? "0 2px 8px rgba(245,158,11,0.15)" : "none",
-                  }}>
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
-                    style={{ background: isHoje ? "#fef3c7" : "#f8fafc" }}>
-                    {isHoje ? "🎉" : "🎂"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 truncate">{a.name}</p>
-                    {a.cargo && <p className="text-[10px] text-gray-400">{a.cargo}</p>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-black" style={{ color: isHoje ? "#b45309" : jaPassou ? "#94a3b8" : "#1e40af" }}>
-                      dia {a.dia}
-                    </p>
-                    {isHoje && <p className="text-[10px] font-bold text-amber-500">Hoje! 🥳</p>}
-                    {jaPassou && <p className="text-[10px] text-gray-300">já passou</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+
 
       // Presença por dia da semana (últimos 7 dias)
       const diasSemana = [];
@@ -203,7 +164,7 @@ export default function PanoramaTab() {
         ).size;
         diasSemana.push({ dia: nomes[d.getDay()], presentes, total: totalAtivos });
       }
-// Aniversariantes do mês
+      // Aniversariantes do mês
       const mesAtualNum = now.getMonth() + 1;
       const aniversariantes = employees
         .filter((e: any) => {
@@ -222,7 +183,7 @@ export default function PanoramaTab() {
       setData({
         totalAtivos,
         presentesHoje,
-        ausентesHoje,
+        ausentesHoje,
         atrasadosHoje,
         horasExtrasMes: Math.round(horasExtrasMes * 10) / 10,
         faltasMes,
@@ -238,7 +199,7 @@ export default function PanoramaTab() {
       setData({
         totalAtivos: 0,
         presentesHoje: 0,
-        ausентesHoje: 0,
+        ausentesHoje: 0,
         atrasadosHoje: 0,
         horasExtrasMes: 0,
         faltasMes: 0,
@@ -289,7 +250,7 @@ export default function PanoramaTab() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Total Ativos", value: data.totalAtivos, icon: Users, color: "#1e40af", bg: "#eff6ff", sub: "colaboradores" },
-          { label: "Presentes Hoje", value: `${data.presentesHoje} (${presencaPct}%)`, icon: TrendingUp, color: "#15803d", bg: "#f0fdf4", sub: `${data.ausентesHoje} ausentes` },
+          { label: "Presentes Hoje", value: `${data.presentesHoje} (${presencaPct}%)`, icon: TrendingUp, color: "#15803d", bg: "#f0fdf4", sub: `${data.ausentesHoje} ausentes` },
           { label: "Atrasados Hoje", value: data.atrasadosHoje, icon: Clock, color: "#b45309", bg: "#fffbeb", sub: "após 08h15" },
           { label: "HE no Mês", value: `+${fmtHoras(data.horasExtrasMes)}`, icon: TrendingUp, color: "#7c3aed", bg: "#f5f3ff", sub: "horas extras" },
         ].map((kpi, i) => (
@@ -384,6 +345,44 @@ export default function PanoramaTab() {
           </div>
         </div>
       </div>
+
+      {/* Aniversariantes do mês */}
+      {data.aniversarianteMes.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+            🎂 Aniversariantes de {new Date().toLocaleDateString("pt-BR", { month: "long" })}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {data.aniversarianteMes.map((a: any, i: number) => {
+              const hojeDia = new Date().getDate();
+              const isHoje = a.dia === hojeDia;
+              const jaPassou = a.dia < hojeDia;
+              return (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border"
+                  style={{
+                    background: isHoje ? "#fffbeb" : "white",
+                    borderColor: isHoje ? "#fde68a" : "#f1f5f9",
+                  }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ background: isHoje ? "#fef3c7" : "#f8fafc" }}>
+                    {isHoje ? "🎉" : "🎂"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 truncate">{a.name}</p>
+                    {a.cargo && <p className="text-[10px] text-gray-400">{a.cargo}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-black" style={{ color: isHoje ? "#b45309" : jaPassou ? "#94a3b8" : "#1e40af" }}>
+                      dia {a.dia}
+                    </p>
+                    {isHoje && <p className="text-[10px] font-bold text-amber-500">Hoje! 🥳</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Saúde organizacional */}
       <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>

@@ -131,7 +131,7 @@ export default function RecordsTab({ employees }: Props) {
       return { start: toSPBoundary(y2Str, "00:00:00"), end: toSPBoundary(todayStr, "12:00:00") };
     }
     if (quickFilter === "week") {
-      const w = new Date(now); w.setDate(w.getDate() - 8);
+      const w = new Date(now); w.setDate(w.getDate() - 15);
       return { start: toSPBoundary(spFormatter.format(w), "00:00:00"), end: toSPBoundary(nextDay(todayStr), "12:00:00") };
     }
     // Custom date — extend end to next day noon
@@ -147,33 +147,22 @@ export default function RecordsTab({ employees }: Props) {
     try {
       const { start, end } = getDateRange();
 
-      const [timeRes, punchRes] = await Promise.all([
-        (supabase as any).from("time_records").select("*, employees(name)")
-          .gte("recorded_at", start).lte("recorded_at", end)
-          .order("recorded_at", { ascending: false }),
-        (supabase as any).from("punch_records").select("employee_id, step, photo_url, address, punched_at")
-          .gte("punched_at", start).lte("punched_at", end),
-      ]);
+     const { data, error: fetchError } = await (supabase as any)
+        .from("time_records")
+        .select("*, employees(name)")
+        .gte("recorded_at", start)
+        .lte("recorded_at", end)
+        .order("recorded_at", { ascending: false });
 
-      if (timeRes.error) throw new Error(timeRes.error.message);
+      if (fetchError) throw new Error(fetchError.message);
 
-      const mapped = (timeRes.data as (TimeRecordRow & { address?: string | null })[]).map((record) => {
+      const mapped = (data as (TimeRecordRow & { address?: string | null; photo_url?: string | null })[]).map((record) => {
         const display = mapTimeRecordToPunchRecord(record);
-        // Use address from time_records if available
         if (record.address) {
           display.address = record.address;
         }
-        if (punchRes.data) {
-          const match = (punchRes.data as any[]).find(
-            (p: any) => p.employee_id === record.employee_id && p.step === record.record_type &&
-              Math.abs(new Date(p.punched_at).getTime() - new Date(record.recorded_at).getTime()) < 60000
-          );
-          if (match) {
-            display.photo_url = match.photo_url || null;
-            if (!display.address && match.address) {
-              display.address = match.address;
-            }
-          }
+        if (record.photo_url && !display.photo_url) {
+          display.photo_url = record.photo_url;
         }
         return display;
       });
@@ -269,7 +258,7 @@ export default function RecordsTab({ employees }: Props) {
 
       if (quickFilter === "week") {
         const start = new Date(now);
-        start.setDate(start.getDate() - 6);
+        start.setDate(start.getDate() - 13);
         return { start: getDateStr(start), end: todayStr };
       }
 
@@ -399,7 +388,7 @@ export default function RecordsTab({ employees }: Props) {
         {([
           { key: "today" as const, label: "Hoje" },
           { key: "yesterday" as const, label: "Ontem" },
-          { key: "week" as const, label: "Semana" },
+          { key: "week" as const, label: "14 dias" },
           { key: "custom" as const, label: "Data" },
         ]).map((f) => (
           <Button key={f.key} variant={quickFilter === f.key ? "default" : "outline"} size="sm"

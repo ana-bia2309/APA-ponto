@@ -858,10 +858,10 @@ const fetchCalendario = useCallback(async (cpf: string) => {
         .gte("recorded_at", startOfMonth)
         .lte("recorded_at", endOfMonth),
       (supabase as any).from("absence_justifications")
-        .select("data_inicio, data_fim, tipo")
+        .select("date, reason, status")
         .eq("employee_id", empData.id)
-        .gte("data_inicio", startOfMonth.slice(0, 10))
-        .lte("data_inicio", endOfMonth.slice(0, 10)),
+        .gte("date", startOfMonth.slice(0, 10))
+        .lte("date", endOfMonth.slice(0, 10)),
     ]);
 
     const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias"> = {};
@@ -874,12 +874,7 @@ const fetchCalendario = useCallback(async (cpf: string) => {
 
     // Atestados e férias
     (justRes.data || []).forEach((j: any) => {
-      const start = new Date(j.data_inicio + "T12:00:00");
-      const end = j.data_fim ? new Date(j.data_fim + "T12:00:00") : start;
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dStr = d.toISOString().slice(0, 10);
-        dias[dStr] = j.tipo === "ferias" ? "ferias" : "atestado";
-      }
+      if (j.date) dias[j.date] = "atestado";
     });
 
     setCalendarioDias(dias);
@@ -1458,27 +1453,17 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           console.log("DEBUG PONTO [photo]: upload resultado:", uploadedPhotoPath);
         }
 
-        // Insert into punch_records to link photo and address
-        const punchRecordPayload: any = {
-          employee_id: employeeId,
-          step: recordType,
-          punched_at: recordedAt,
-          latitude: location?.lat ?? null,
-          longitude: location?.lng ?? null,
-          address: location?.address ?? null,
-          photo_url: uploadedPhotoPath,
-        };
-        const { error: prError } = await supabase.from("punch_records").insert(punchRecordPayload);
-        if (prError) {
-          console.warn("DEBUG PONTO [punch_records]: erro ao salvar:", prError.message);
-        }
-
-        // Also save address to time_records for direct display
-        if (returnedId && location?.address) {
-          (supabase as any).from("time_records")
-            .update({ address: location.address })
-            .eq("id", returnedId)
-            .then(() => {});
+        // Salva foto e endereço direto no time_records
+        if (returnedId && (uploadedPhotoPath || location?.address)) {
+          const { error: updError } = await (supabase as any).from("time_records")
+            .update({
+              photo_url: uploadedPhotoPath ?? null,
+              address: location?.address ?? null,
+            })
+            .eq("id", returnedId);
+          if (updError) {
+            console.warn("DEBUG PONTO [foto/endereço]: erro ao salvar:", updError.message);
+          }
         }
 
         // Refresh records and next step from server
@@ -2433,7 +2418,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                   {(() => { const Icon = STEPS.find(s => s.key === lastRecord.step)?.icon || Check; return <Icon className="w-4 h-4" style={{ color: "#1e40af" }} />; })()}
                 </div>
                 <p className="text-sm font-bold text-gray-800">{STEP_LABELS_MAP[lastRecord.step] || lastRecord.step}</p>
-                <p className="text-lg font-black tabular-nums" style={{ color: "#1e40af" }}>{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" }).replace(":", ":")}{new Date(lastRecord.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="text-lg font-black tabular-nums" style={{ color: "#1e40af" }}>{new Date(lastRecord.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
                 <p className="text-[10px] text-gray-400">Hoje, {new Date(lastRecord.punched_at).toLocaleDateString("pt-BR")}</p>
               </>
             ) : (
