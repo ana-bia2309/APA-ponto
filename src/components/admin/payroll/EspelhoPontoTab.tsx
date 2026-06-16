@@ -104,7 +104,8 @@ function generateEspelhoPDF(
   year: number,
   month: number,
   closing: TimesheetClosing | null,
-  signatureDataUrl?: string | null
+  signatureDataUrl?: string | null,
+  afastamentosDias?: Record<string, string>
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
@@ -176,8 +177,11 @@ function generateEspelhoPDF(
     doc.text(fmtTime(d.retorno), cols[4], y + 4.5);
     doc.text(fmtTime(d.saida), cols[5], y + 4.5);
 
+    const labelAfast = afastamentosDias?.[d.date];
     if (!isWeekend) {
-      if (d.totalMinutes > 0) {
+      if (labelAfast) {
+        doc.setTextColor(194, 65, 12); // laranja
+      } else if (d.totalMinutes > 0) {
         doc.setTextColor(20, 110, 60);
         totalGeral += d.totalMinutes;
         workDays++;
@@ -189,7 +193,7 @@ function generateEspelhoPDF(
       }
     }
 
-    doc.text(isWeekend ? "—" : fmtHours(d.totalMinutes), cols[6], y + 4.5);
+    doc.text(isWeekend ? "—" : labelAfast ? labelAfast : fmtHours(d.totalMinutes), cols[6], y + 4.5);
     y += 6;
     doc.setTextColor(40, 40, 50);
 
@@ -282,6 +286,7 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
   const [loading, setLoading] = useState(false);
   const [closing2, setClosing2] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [afastamentosDias, setAfastamentosDias] = useState<Record<string, string>>({});
 
   const selectedEmployee = employees.find(e => e.id === selectedId);
 
@@ -292,7 +297,10 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
       const start = new Date(year, month - 1, 1).toISOString();
       const end = new Date(year, month, 1).toISOString();
 
-      const [recRes, closingRes] = await Promise.all([
+      const primeiroDia = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+      const ultimoDia = new Date(year, month, 0).toISOString().slice(0, 10);
+
+      const [recRes, closingRes, afastRes] = await Promise.all([
         supabase.from("time_records" as any)
           .select("id, employee_id, record_type, recorded_at, mode")
           .eq("employee_id", selectedId)
@@ -305,10 +313,33 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
           .eq("month", month)
           .eq("year", year)
           .maybeSingle(),
+        (supabase as any).from("afastamentos")
+          .select("tipo, data_inicio, data_fim")
+          .eq("employee_id", selectedId)
+          .lte("data_inicio", ultimoDia)
+          .gte("data_fim", primeiroDia),
       ]);
 
       if (recRes.data) setRecords(recRes.data as any);
       setClosing((closingRes.data as any) || null);
+      // Monta mapa dia → label do afastamento
+      const labels: Record<string, string> = {
+        licenca_medica: "Lic. Médica", licenca_maternidade: "Maternidade",
+        licenca_paternidade: "Paternidade", ferias: "Férias",
+        acidente_trabalho: "Acidente", suspensao: "Suspenso", outro: "Afastado",
+      };
+      const diasAfastados: Record<string, string> = {};
+      (afastRes.data || []).forEach((a: any) => {
+        let d = a.data_inicio < primeiroDia ? primeiroDia : a.data_inicio;
+        const fim = a.data_fim > ultimoDia ? ultimoDia : a.data_fim;
+        while (d <= fim) {
+          diasAfastados[d] = labels[a.tipo] || "Afastado";
+          const dt = new Date(d + "T12:00:00");
+          dt.setDate(dt.getDate() + 1);
+          d = dt.toISOString().slice(0, 10);
+        }
+      });
+      setAfastamentosDias(diasAfastados);
     } catch (err: any) {
       toast.error("Erro ao carregar: " + err.message);
     } finally {
@@ -350,7 +381,7 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
         }
       } catch {}
     }
-    generateEspelhoPDF(selectedEmployee, days, year, month, closing, signatureDataUrl);
+    generateEspelhoPDF(selectedEmployee, days, year, month, closing, signatureDataUrl, afastamentosDias);
     setDownloading(false);
   };
 
@@ -490,9 +521,13 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                     const dow = new Date(day.date + "T12:00:00").getDay();
                     const isWeekend = dow === 0 || dow === 6;
                     const dayNum = parseInt(day.date.split("-")[2]);
-                    let bg = "bg-blue-100 text-blue-600"; // folga/fim de semana
+                    const isAfastado = !isWeekend && !!afastamentosDias[day.date];
+                    let bg = "bg-blue-100 text-blue-600";
                     let title = "Fim de semana";
-                    if (!isWeekend) {
+                    if (isAfastado) {
+                      bg = "bg-orange-100 text-orange-700";
+                      title = afastamentosDias[day.date];
+                    } else if (!isWeekend) {
                       if (day.status === "completo") { bg = "bg-emerald-100 text-emerald-700"; title = `${fmtHours(day.totalMinutes)}`; }
                       else if (day.status === "incompleto") { bg = "bg-amber-100 text-amber-700"; title = "Incompleto"; }
                       else { bg = "bg-rose-100 text-rose-700"; title = "Falta"; }
@@ -507,7 +542,10 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                         {!isWeekend && day.status === "incompleto" && (
                           <p className="text-[9px] leading-tight">inc.</p>
                         )}
-                        {!isWeekend && day.status === "falta" && day.totalMinutes === 0 && !day.entrada && (
+                        {isAfastado && (
+                          <p className="text-[9px] leading-tight truncate">{afastamentosDias[day.date]}</p>
+                        )}
+                        {!isAfastado && !isWeekend && day.status === "falta" && day.totalMinutes === 0 && !day.entrada && (
                           <p className="text-[9px] leading-tight">falta</p>
                         )}
                       </div>
@@ -545,7 +583,12 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                           {isWeekend ? "—" : fmtHours(d.totalMinutes)}
                         </td>
                         <td className="p-2">
-                          {isWeekend ? (
+                          {afastamentosDias[d.date] ? (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+                              style={{ background: "#ffedd5", color: "#c2410c" }}>
+                              {afastamentosDias[d.date]}
+                            </span>
+                          ) : isWeekend ? (
                             <span className="text-xs text-muted-foreground">Fim de semana</span>
                           ) : d.status === "completo" ? (
                             <CheckCircle className="w-4 h-4 text-emerald-500" />
