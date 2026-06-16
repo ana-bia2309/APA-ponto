@@ -46,18 +46,18 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
   const [calcLoading, setCalcLoading] = useState(false);
   const [importando, setImportando] = useState(false);
 
-  const saldo = entries.reduce((acc, e) => {
-    return e.tipo === "credito" ? acc + e.horas : acc - e.horas;
-  }, 0);
+  const totalDif = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
+  const totalTrabalhado = diasCalculo.reduce((a, d) => a + Number(d.horas_trabalhadas), 0);
+  const totalEsperado = diasCalculo.reduce((a, d) => a + Number(d.horas_esperadas), 0);
 
   const load = useCallback(async () => {
     if (!selectedId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("banco_horas" as any)
+    const { data, error } = await (supabase as any)
+      .from("hour_bank")
       .select("*")
       .eq("employee_id", selectedId)
-      .order("data", { ascending: false });
+      .order("updated_at", { ascending: false });
     if (!error && data) setEntries(data as any);
     setLoading(false);
   }, [selectedId]);
@@ -95,7 +95,7 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
     setImportando(true);
     try {
       const tipo = totalDif >= 0 ? "credito" : "debito";
-      const { error } = await supabase.from("banco_horas" as any).insert({
+      const { error } = await (supabase as any).from("hour_bank").insert({
         employee_id: selectedId,
         data: `${calcYear}-${String(calcMonth).padStart(2, "0")}-01`,
         tipo,
@@ -119,7 +119,7 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
     }
     const horas = parseFloat(novasHoras);
     if (isNaN(horas) || horas <= 0) { toast.error("Horas inválidas"); return; }
-    const { error } = await supabase.from("banco_horas" as any).insert({
+    const { error } = await (supabase as any).from("hour_bank").insert({
       employee_id: selectedId, data: novaData, tipo: novoTipo, horas, descricao: novaDescricao,
     });
     if (error) { toast.error("Erro: " + error.message); return; }
@@ -130,7 +130,7 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
 
   const excluir = async (id: string) => {
     if (!confirm("Excluir este lançamento?")) return;
-    await supabase.from("banco_horas" as any).delete().eq("id", id);
+    await (supabase as any).from("hour_bank").delete().eq("id", id);
     load();
   };
 
@@ -141,9 +141,6 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
     return `${h < 0 ? "-" : ""}${String(hh).padStart(2, "0")}h${String(mm).padStart(2, "0")}m`;
   };
 
-  const totalDif = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
-  const totalTrabalhado = diasCalculo.reduce((a, d) => a + Number(d.horas_trabalhadas), 0);
-  const totalEsperado = diasCalculo.reduce((a, d) => a + Number(d.horas_esperadas), 0);
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
 const exportarPDF = () => {
   import("jspdf").then(({ default: jsPDF }) => {
@@ -164,7 +161,7 @@ const exportarPDF = () => {
     doc.setFillColor(245, 247, 250);
     doc.rect(M, y, W - M * 2, 12, "FD");
     doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
-    doc.text(`Saldo atual: ${fmtHoras(saldo)}`, M + 2, y + 5);
+    doc.text(`totalDif atual: ${fmtHoras(totalDif)}`, M + 2, y + 5);
     doc.text(`Créditos: ${fmtHoras(entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0))}`, M + 60, y + 5);
     doc.text(`Débitos: ${fmtHoras(entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0))}`, M + 120, y + 5);
     y += 16;
@@ -213,7 +210,7 @@ const exportarExcel = () => {
       e.descricao,
     ]),
     [],
-    ["Saldo atual", fmtHoras(saldo)],
+    ["totalDif atual", fmtHoras(totalDif)],
   ];
   const csv = rows.map(r => r.join(";")).join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -261,20 +258,20 @@ const exportarExcel = () => {
 
       {selectedId && (
         <>
-          {/* Medidor visual de saldo */}
+          {/* Medidor visual de totalDif */}
           {(() => {
             const creditos = entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0);
             const debitos = entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0);
             const limite = 40;
-            const pct = Math.min(Math.abs(saldo) / limite * 100, 100);
-            const isPositivo = saldo >= 0;
+            const pct = Math.min(Math.abs(totalDif) / limite * 100, 100);
+            const isPositivo = totalDif >= 0;
             return (
               <Card className={`p-5 border-2 ${isPositivo ? "border-emerald-500/30" : "border-rose-500/30"}`}>
                 <div className="flex items-end justify-between mb-3">
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Saldo do banco de horas</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">totalDif do banco de horas</p>
                     <p className={`text-5xl font-bold mt-1 tabular-nums ${isPositivo ? "text-emerald-500" : "text-rose-500"}`}>
-                      {saldo > 0 ? "+" : ""}{fmtHoras(saldo)}
+                      {totalDif > 0 ? "+" : ""}{fmtHoras(totalDif)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">{isPositivo ? "Horas a receber / compensar" : "Horas em débito"}</p>
                   </div>
@@ -316,40 +313,40 @@ const exportarExcel = () => {
             );
           })()}
 
-          {saldo > 40 && (
+          {totalDif > 40 && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <span className="text-amber-500 text-lg">⚠️</span>
               <div>
                 <p className="text-sm font-semibold text-amber-600">Excesso de horas no banco</p>
-                <p className="text-xs text-amber-600">Saldo de {fmtHoras(saldo)} ultrapassa o limite recomendado de 40h.</p>
+                <p className="text-xs text-amber-600">totalDif de {fmtHoras(totalDif)} ultrapassa o limite recomendado de 40h.</p>
               </div>
             </div>
           )}
-          {saldo < -20 && (
+          {totalDif < -20 && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
               <span className="text-rose-500 text-lg">🔴</span>
               <div>
-                <p className="text-sm font-semibold text-rose-600">Saldo negativo elevado</p>
-                <p className="text-xs text-rose-600">Funcionário possui {fmtHoras(Math.abs(saldo))} a compensar.</p>
+                <p className="text-sm font-semibold text-rose-600">totalDif negativo elevado</p>
+                <p className="text-xs text-rose-600">Funcionário possui {fmtHoras(Math.abs(totalDif))} a compensar.</p>
               </div>
             </div>
           )}
 
-          {saldo > 0 && (
+          {totalDif > 0 && (
             <Card className="p-4 space-y-2">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Previsão de compensação</h3>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-muted/40">
                   <p className="text-xs text-muted-foreground">Compensando 2h/dia</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 2)} dias</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 2)} dias</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/40">
                   <p className="text-xs text-muted-foreground">Compensando 4h/dia</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 4)} dias</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 4)} dias</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/40">
                   <p className="text-xs text-muted-foreground">Folga integral (8h)</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(saldo / 8)} dia(s)</p>
+                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 8)} dia(s)</p>
                 </div>
               </div>
             </Card>

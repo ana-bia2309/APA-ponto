@@ -9,6 +9,7 @@ import {
   Plus, Trash2, ToggleLeft, ToggleRight,
   Pencil, Download, X, Check, Sun, Moon, Clock,
   Sparkles,
+  BriefcaseMedical,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -55,6 +56,7 @@ import MapaCalorTab from "@/components/admin/MapaCalorTab";
 import OrganogramaTab from "@/components/admin/OrganogramaTab";
 import CoberturaTab from "@/components/admin/CoberturaTab";
 import TourGuiado from "@/components/admin/TourGuiado";
+import AfastamentosModal from "@/components/admin/AfastamentosModal";
 
 type Employee = Tables<"employees">;
 
@@ -139,6 +141,9 @@ export default function AdminDashboard() {
     hora_entrada: string;
     hora_saida: string;
   } | null>(null);
+  const [afastamentosEmpId, setAfastamentosEmpId] = useState<string | null>(null);
+  const [afastamentosEmpName, setAfastamentosEmpName] = useState<string>("");
+
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -801,6 +806,12 @@ export default function AdminDashboard() {
                                   className="text-emerald-500 hover:text-emerald-400">
                                   <Download className="w-4 h-4" />
                                 </Button>
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setAfastamentosEmpId(emp.id);
+                                  setAfastamentosEmpName(emp.name);
+                                }} title="Afastamentos e trocas">
+                                  <BriefcaseMedical className="w-4 h-4" />
+                                </Button>
                                 <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
                                   <Pencil className="w-4 h-4" />
                                 </Button>
@@ -839,6 +850,14 @@ export default function AdminDashboard() {
           onClose={() => setShowBusca(false)}
         />
       )}
+      {afastamentosEmpId && (
+        <AfastamentosModal
+          employeeId={afastamentosEmpId}
+          employeeName={afastamentosEmpName}
+          onClose={() => { setAfastamentosEmpId(null); setAfastamentosEmpName(""); }}
+        />
+      )}
     </SidebarProvider>
+    
   );
 }
