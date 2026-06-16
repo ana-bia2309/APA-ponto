@@ -434,6 +434,65 @@ export default function AdminDashboard() {
         lines.forEach((line: string) => { pdf.text(line, M + 2, y); y += 5; });
       }
 
+      // Afastamentos
+      try {
+        const { data: afasts } = await (supabase as any)
+          .from("afastamentos")
+          .select("tipo, data_inicio, data_fim, motivo")
+          .eq("employee_id", emp.id)
+          .order("data_inicio", { ascending: false });
+
+        if (afasts && afasts.length > 0) {
+          y += 3;
+          addSection("Histórico de Afastamentos");
+          const tipoLabels: Record<string, string> = {
+            licenca_medica: "Licença Médica", licenca_maternidade: "Licença Maternidade",
+            licenca_paternidade: "Licença Paternidade", ferias: "Férias",
+            acidente_trabalho: "Acidente de Trabalho", suspensao: "Suspensão", outro: "Outro",
+          };
+
+          // Cabeçalho da mini-tabela
+          pdf.setFillColor(230, 235, 245);
+          pdf.rect(M, y, W - M * 2, 6, "F");
+          pdf.setFontSize(7.5); pdf.setFont("helvetica", "bold"); pdf.setTextColor(30, 64, 175);
+          pdf.text("TIPO", M + 2, y + 4);
+          pdf.text("INÍCIO", M + 60, y + 4);
+          pdf.text("FIM", M + 95, y + 4);
+          pdf.text("DIAS", M + 130, y + 4);
+          pdf.text("OBSERVAÇÃO", M + 150, y + 4);
+          y += 7;
+
+          afasts.forEach((a: any, idx: number) => {
+            if (idx % 2 === 0) {
+              pdf.setFillColor(250, 251, 253);
+              pdf.rect(M, y, W - M * 2, 6, "F");
+            }
+            const inicio = new Date(a.data_inicio + "T12:00:00");
+            const fim = new Date(a.data_fim + "T12:00:00");
+            const dias = Math.round((fim.getTime() - inicio.getTime()) / 86400000) + 1;
+            pdf.setFontSize(7.5); pdf.setFont("helvetica", "normal"); pdf.setTextColor(40, 40, 50);
+            pdf.text(tipoLabels[a.tipo] || a.tipo, M + 2, y + 4);
+            pdf.text(inicio.toLocaleDateString("pt-BR"), M + 60, y + 4);
+            pdf.text(fim.toLocaleDateString("pt-BR"), M + 95, y + 4);
+            pdf.text(`${dias}d`, M + 130, y + 4);
+            pdf.text((a.motivo || "—").slice(0, 25), M + 150, y + 4);
+            y += 6;
+            if (y > 270) { pdf.addPage(); y = 15; }
+          });
+
+          // Total de dias
+          const totalDias = afasts.reduce((acc: number, a: any) => {
+            const d1 = new Date(a.data_inicio + "T12:00:00");
+            const d2 = new Date(a.data_fim + "T12:00:00");
+            return acc + Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1;
+          }, 0);
+          y += 2;
+          pdf.setFontSize(7.5); pdf.setFont("helvetica", "bold"); pdf.setTextColor(30, 64, 175);
+          pdf.text(`Total: ${totalDias} dia(s) de afastamento`, M + 2, y);
+          y += 6;
+        }
+      } catch {}
+
       // Rodapé
       pdf.setDrawColor(15, 23, 42); pdf.setLineWidth(0.5);
       pdf.line(M, 282, W - M, 282);

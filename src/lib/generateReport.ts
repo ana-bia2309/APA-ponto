@@ -232,6 +232,33 @@ export async function generateMonthlyReport(
   const byDay = await fetchAndGroupRecords(employee, year, month);
   const holidays = getBrazilianHolidays(year);
 
+  // Buscar afastamentos do período
+  const primeiroDia = `${year}-${String(month).padStart(2, "0")}-01`;
+  const ultimoDia = `${year}-${String(month).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+  const { data: afasts } = await (supabase as any)
+    .from("afastamentos")
+    .select("tipo, data_inicio, data_fim")
+    .eq("employee_id", employee.id)
+    .lte("data_inicio", ultimoDia)
+    .gte("data_fim", primeiroDia);
+
+  const tipoLabels: Record<string, string> = {
+    licenca_medica: "Lic. Médica", licenca_maternidade: "Maternidade",
+    licenca_paternidade: "Paternidade", ferias: "Férias",
+    acidente_trabalho: "Acidente", suspensao: "Suspenso", outro: "Afastado",
+  };
+  const diasAfastados: Record<string, string> = {};
+  (afasts || []).forEach((a: any) => {
+    let d = a.data_inicio < primeiroDia ? primeiroDia : a.data_inicio;
+    const fim = a.data_fim > ultimoDia ? ultimoDia : a.data_fim;
+    while (d <= fim) {
+      diasAfastados[d] = tipoLabels[a.tipo] || "Afastado";
+      const dt = new Date(d + "T12:00:00");
+      dt.setDate(dt.getDate() + 1);
+      d = dt.toISOString().slice(0, 10);
+    }
+  });
+
   const isSimple = employee.punch_mode === "simple";
   const steps = isSimple ? ["entrada", "saida"] : ["entrada", "intervalo", "retorno", "saida"];
   const stepHeaders = isSimple ? ["Entrada", "Saída"] : ["Entrada", "Pausa", "Retorno", "Saída"];
@@ -283,8 +310,7 @@ export async function generateMonthlyReport(
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 200, 230);
-  doc.text("CNPJ: 00.000.000/0001-00  |  Brasília - DF  |  (61) 99999-9999", colLeft, 18);
-  doc.text("apa@refrigeracao.com.br", colLeft, 23);
+  doc.text("Sistema de Registro de Ponto", colLeft, 20);
 
   // Coluna centro — título
   doc.setFontSize(12);
@@ -461,9 +487,11 @@ export async function generateMonthlyReport(
       if (diffMin > 60) obs = "HE";
     }
 
-    let status = hasWork ? "Trabalhado" : isHoliday ? "Feriado" : isWeekend ? "Folga" : "Falta";
+    const dateStr2 = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const labelAfast = diasAfastados[dateStr2];
+    let status = hasWork ? "Trabalhado" : labelAfast ? labelAfast : isHoliday ? "Feriado" : isWeekend ? "Folga" : "Falta";
 
-    rowMeta2.push({ isWeekend, isHoliday, hasWork, status });
+    rowMeta2.push({ isWeekend, isHoliday, hasWork, status, isAfastado: !!labelAfast });
     tableBody.push([
       String(day).padStart(2, "0"),
       weekday,
@@ -539,6 +567,13 @@ export async function generateMonthlyReport(
         if (v === "Falta") { data.cell.styles.fillColor = lightRed; data.cell.styles.textColor = red; data.cell.styles.fontStyle = "bold"; }
         if (v === "Feriado") { data.cell.styles.fillColor = lightAmber; data.cell.styles.textColor = amber; data.cell.styles.fontStyle = "bold"; }
         if (v === "Folga") { data.cell.styles.fillColor = lightGray; data.cell.styles.textColor = gray; data.cell.styles.fontStyle = "bold"; }
+        // Afastamentos — laranja
+        const afastLabels = ["Lic. Médica","Maternidade","Paternidade","Férias","Acidente","Suspenso","Afastado"];
+        if (afastLabels.includes(v)) {
+          data.cell.styles.fillColor = [255, 237, 213];
+          data.cell.styles.textColor = [194, 65, 12];
+          data.cell.styles.fontStyle = "bold";
+        }
       }
       if (data.column.index === diffColIdx) {
         const v = data.cell.raw as string;
