@@ -123,6 +123,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [afastamentosHoje, setAfastamentosHoje] = useState<Set<string>>(new Set());
   const [afastamentoInfo, setAfastamentoInfo] = useState<Record<string, string>>({});
   const [retornandoEmBreve, setRetornandoEmBreve] = useState<{ name: string; tipo: string; dataFim: string; diasRestantes: number }[]>([]);
+  const [trocasPendentes, setTrocasPendentes] = useState<{ id: string; name: string; dataOriginal: string; dataCompensacao: string | null }[]>([]);
+  const [marcandoTroca, setMarcandoTroca] = useState<string | null>(null);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -210,6 +212,26 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       }).sort((a: any, b: any) => a.diasRestantes - b.diasRestantes);
 
       setRetornandoEmBreve(retornandoList);
+
+      // Trocas sem compensação ou ainda não compensadas
+      const { data: trocas } = await (supabase as any)
+        .from("trocas_plantao")
+        .select("id, employee_id, data_original, data_compensacao, status")
+        .eq("status", "registrado")
+        .order("data_original", { ascending: true });
+
+      const trocasList = (trocas || []).map((t: any) => {
+        const emp = (empRes.data || []).find((e: any) => e.id === t.employee_id);
+        return {
+          id: t.id,
+          name: emp?.name || "Funcionário",
+          dataOriginal: new Date(t.data_original + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+          dataCompensacao: t.data_compensacao
+            ? new Date(t.data_compensacao + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+            : null,
+        };
+      });
+      setTrocasPendentes(trocasList);
 
       const bancoMap: Record<string, number> = {};
       (bancoRes.data || []).forEach((e: any) => {
@@ -642,7 +664,15 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => { clearInterval(interval); document.removeEventListener("visibilitychange", handleVisibility); };
   }, [fetch]);
-
+  const marcarTrocaCompensada = async (id: string) => {
+    setMarcandoTroca(id);
+    await (supabase as any)
+      .from("trocas_plantao")
+      .update({ status: "compensado" })
+      .eq("id", id);
+    setTrocasPendentes(prev => prev.filter(t => t.id !== id));
+    setMarcandoTroca(null);
+  };
   const presentes = statuses.filter(e => e.status === "presente" || e.status === "incompleto" || e.status === "atrasou");
   const faltas = statuses.filter(e => e.status === "falta");
   const atrasados = statuses.filter(e => e.status === "atrasou");
@@ -851,6 +881,38 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </>
       )}
 
+{/* Trocas de plantão pendentes */}
+      {trocasPendentes.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-xl border-2 border-violet-400/50 bg-violet-50 dark:bg-violet-950/20 p-3 space-y-2">
+          <p className="font-bold text-violet-700 flex items-center gap-2 text-sm">
+            🔄 Trocas pendentes ({trocasPendentes.length})
+          </p>
+          {trocasPendentes.map((t) => (
+            <div key={t.id}
+              className="flex items-center justify-between bg-white/60 dark:bg-black/20 rounded-lg px-3 py-2 gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-violet-800 truncate">{t.name}</p>
+                <p className="text-[10px] text-violet-600">
+                  Plantão {t.dataOriginal}
+                  {t.dataCompensacao
+                    ? <span className="ml-1 text-emerald-600">· Compensa {t.dataCompensacao}</span>
+                    : <span className="ml-1 text-amber-600">· Sem data de compensação</span>
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => marcarTrocaCompensada(t.id)}
+                disabled={marcandoTroca === t.id}
+                className="flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white transition-all disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+              >
+                {marcandoTroca === t.id ? "..." : "✓ Compensada"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      
       {/* Retornando em breve */}
       {retornandoEmBreve.length > 0 && (
         <div className="rounded-xl border-2 border-amber-400/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
