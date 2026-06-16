@@ -56,7 +56,7 @@ function detectarInconsistencias(
     const diffMin = Math.round((nowH - intervaloH) * 60);
     inconsistencias.push({
       tipo: "esqueceu_retorno",
-      mensagem: `Saiu para almoço há ${diffMin >= 60 ? Math.floor(diffMin/60) + "h" + String(diffMin%60).padStart(2,"0") + "m" : diffMin + "min"} e não retornou`,
+      mensagem: `Saiu para almoço há ${diffMin >= 60 ? Math.floor(diffMin / 60) + "h" + String(diffMin % 60).padStart(2, "0") + "m" : diffMin + "min"} e não retornou`,
     });
   }
 
@@ -115,11 +115,14 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [atestadosPendentes, setAtestadosPendentes] = useState(0);
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [comportamentos, setComportamentos] = useState<{id: string; name: string; alertas: string[]}[]>([]);
+  const [comportamentos, setComportamentos] = useState<{ id: string; name: string; alertas: string[] }[]>([]);
   const [aniversariantes, setAniversariantes] = useState<{ name: string; dia: number; cargo: string | null }[]>([]);
   const [riscosTrabalhistas, setRiscosTrabalhistas] = useState<{ name: string; alertas: string[] }[]>([]);
   const [sobrecargaIA, setSobrecargaIA] = useState<{ name: string; score: number; alertas: string[] }[]>([]);
   const [previsaoAtrasos, setPrevisaoAtrasos] = useState<{ name: string; probabilidade: number; motivo: string }[]>([]);
+  const [afastamentosHoje, setAfastamentosHoje] = useState<Set<string>>(new Set());
+  const [afastamentoInfo, setAfastamentoInfo] = useState<Record<string, string>>({});
+  const [retornandoEmBreve, setRetornandoEmBreve] = useState<{ name: string; tipo: string; dataFim: string; diasRestantes: number }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -139,7 +142,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       const startOfDay = new Date(`${todayStr}T00:00:00-03:00`).toISOString();
       const endOfDay = new Date(`${todayStr}T23:59:59-03:00`).toISOString();
 
-      const [empRes, recordsRes, bancoRes, justRes] = await Promise.all([
+      const todayForAfastamento = new Date().toISOString().slice(0, 10);
+      const [empRes, recordsRes, bancoRes, justRes, afastRes] = await Promise.all([
         supabase.from("employees").select("id, name, shift, escala").eq("active", true).order("name"),
         (supabase as any).from("time_records")
           .select("id, employee_id, record_type, recorded_at")
@@ -148,10 +152,64 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           .order("recorded_at", { ascending: true }),
         (supabase as any).rpc("get_saldos_banco_horas"),
         supabase.from("absence_justifications").select("id", { count: "exact", head: true }).eq("status", "pendente"),
+        (supabase as any).from("afastamentos").select("employee_id, tipo, data_inicio, data_fim")
+          .lte("data_inicio", todayForAfastamento)
+          .gte("data_fim", todayForAfastamento),
       ]);
 
       const employees = empRes.data || [];
       const records = recordsRes.data || [];
+      const afastSet = new Set<string>(
+        (afastRes.data || []).map((a: any) => a.employee_id)
+      );
+      const afastInfo: Record<string, string> = {};
+      (afastRes.data || []).forEach((a: any) => {
+        const labels: Record<string, string> = {
+          licenca_medica: "Licença Médica",
+          licenca_maternidade: "Lic. Maternidade",
+          licenca_paternidade: "Lic. Paternidade",
+          ferias: "Férias",
+          acidente_trabalho: "Acidente de Trabalho",
+          suspensao: "Suspenso",
+          outro: "Afastado",
+        };
+        afastInfo[a.employee_id] = labels[a.tipo] || "Afastado";
+      });
+      setAfastamentosHoje(afastSet);
+      setAfastamentoInfo(afastInfo);
+
+      // Afastamentos terminando nos próximos 2 dias
+      const em2dias = new Date();
+      em2dias.setDate(em2dias.getDate() + 2);
+      const em2diasStr = em2dias.toISOString().slice(0, 10);
+
+      const { data: retornando } = await (supabase as any)
+        .from("afastamentos")
+        .select("employee_id, tipo, data_fim")
+        .gte("data_fim", todayForAfastamento)
+        .lte("data_fim", em2diasStr);
+
+      const labels: Record<string, string> = {
+        licenca_medica: "Licença Médica", licenca_maternidade: "Maternidade",
+        licenca_paternidade: "Paternidade", ferias: "Férias",
+        acidente_trabalho: "Acidente", suspensao: "Suspensão", outro: "Afastado",
+      };
+
+      const retornandoList = (retornando || []).map((a: any) => {
+        const emp = (empRes.data || []).find((e: any) => e.id === a.employee_id);
+        const dataFim = new Date(a.data_fim + "T12:00:00");
+        const hoje2 = new Date();
+        hoje2.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.ceil((dataFim.getTime() - hoje2.getTime()) / 86400000);
+        return {
+          name: emp?.name || "Funcionário",
+          tipo: labels[a.tipo] || "Afastado",
+          dataFim: dataFim.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+          diasRestantes,
+        };
+      }).sort((a: any, b: any) => a.diasRestantes - b.diasRestantes);
+
+      setRetornandoEmBreve(retornandoList);
 
       const bancoMap: Record<string, number> = {};
       (bancoRes.data || []).forEach((e: any) => {
@@ -196,13 +254,13 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         if (saida && horasHoje > 8) totalHorasExtras += horasHoje - 8;
 
         let status: EmployeeStatus["status"] = "falta";
-        if (!isWorkDay) status = "presente";
+        if (afastSet.has(emp.id)) status = "presente";
+        else if (!isWorkDay) status = "presente";
         else if (saida) status = "presente";
         else if (entrada) {
           const limite = new Date(`${todayStr}T${isNoturno ? "19:15" : "08:15"}:00-03:00`);
           status = new Date(entrada.recorded_at) > limite ? "atrasou" : "incompleto";
         } else if (isNoturno) {
-          // Plantonista sem registro: folga do 12x36 ou plantão que ainda não começou — não é falta
           status = "presente";
         }
 
@@ -220,7 +278,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           records: timelineRecords,
           inconsistencias,
         };
-   }).filter(e => isWorkDay || e.status !== "falta");
+      }).filter(e => isWorkDay || e.status !== "falta");
 
       setHoraExtraTotal(Math.round(totalHorasExtras * 10) / 10);
 
@@ -238,7 +296,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         .select("employee_id")
         .gte("created_at", now30.toISOString());
 
-      const comportSuspeitos: {id: string; name: string; alertas: string[]}[] = [];
+      const comportSuspeitos: { id: string; name: string; alertas: string[] }[] = [];
 
       employees.forEach(emp => {
         const alertas: string[] = [];
@@ -293,7 +351,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           const maxFreq = Math.max(...Object.values(freq));
           if (maxFreq >= 5) {
             const minuto = Number(Object.keys(freq).find(k => freq[Number(k)] === maxFreq));
-            alertas.push(`🤖 Saída sempre às ${String(Math.floor(minuto/60)).padStart(2,"0")}:${String(minuto%60).padStart(2,"0")} (${maxFreq}x)`);
+            alertas.push(`🤖 Saída sempre às ${String(Math.floor(minuto / 60)).padStart(2, "0")}:${String(minuto % 60).padStart(2, "0")} (${maxFreq}x)`);
           }
         }
 
@@ -309,7 +367,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           .select("name, data_nascimento, cargo")
           .eq("active", true)
           .not("data_nascimento", "is", null);
-        
+
         const anivMes = (anivData || [])
           .filter((e: any) => parseInt(e.data_nascimento?.slice(5, 7)) === mesAtual)
           .map((e: any) => ({
@@ -319,7 +377,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           }))
           .sort((a: any, b: any) => a.dia - b.dia);
         setAniversariantes(anivMes);
-      } catch {}
+      } catch { }
 
       // Detector de risco trabalhista
       try {
@@ -370,7 +428,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         });
 
         setRiscosTrabalhistas(riscos);
-      } catch {}
+      } catch { }
 
       // Detector de sobrecarga IA
       try {
@@ -447,7 +505,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         });
 
         setSobrecargaIA(sobrecarga.sort((a, b) => b.score - a.score));
-      } catch {}
+      } catch { }
 
       // Comparativo mês anterior
       try {
@@ -492,8 +550,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           horasExtrasMes: horaExtraTotal,
           horasExtrasMesAnterior: 0,
         });
-      } catch {}
-// IA de previsão de atrasos
+      } catch { }
+      // IA de previsão de atrasos
       try {
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
@@ -529,7 +587,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           const totalMesmoDia = diasComEntrada.filter(([dia]) => new Date(dia + "T12:00:00").getDay() === diaSemanaAmanha);
           if (totalMesmoDia.length >= 2 && mesmoDia.length / totalMesmoDia.length > 0.5) {
             score += 30;
-            const nomes = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+            const nomes = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
             motivos.push(`Costuma atrasar às ${nomes[diaSemanaAmanha]}feiras`);
           }
 
@@ -564,7 +622,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         });
 
         setPrevisaoAtrasos(previsoes.sort((a, b) => b.probabilidade - a.probabilidade).slice(0, 5));
-      } catch {}
+      } catch { }
 
       setStatuses(statusList);
       setLastUpdated(new Date());
@@ -614,7 +672,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
     </div>
   );
 
- return (
+  return (
     <div className="space-y-4 text-sm">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
@@ -645,7 +703,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
-     {/* Visão em tempo real */}
+      {/* Visão em tempo real */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
           <div className="flex items-center justify-between mb-1">
@@ -745,56 +803,78 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
-{(role === "admin" || !role) && (
-  <>
-    {/* COMPORTAMENTO SUSPEITO */}
-    {comportamentos.length > 0 && (
-      <div className="rounded-xl border-2 border-purple-500/50 bg-purple-500/5 p-3 space-y-2">
-        <p className="font-bold text-purple-600 flex items-center gap-2">
-          🔍 Comportamento atípico detectado ({comportamentos.length} funcionário{comportamentos.length > 1 ? "s" : ""})
-        </p>
-        {comportamentos.map(e => (
-          <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1">
-            <p className="text-xs font-semibold text-foreground">{e.name}</p>
-            {e.alertas.map((alerta, i) => (
-              <p key={i} className="text-xs text-purple-700">{alerta}</p>
-            ))}
-          </div>
-        ))}
-      </div>
-    )}
+      {(role === "admin" || !role) && (
+        <>
+          {/* COMPORTAMENTO SUSPEITO */}
+          {comportamentos.length > 0 && (
+            <div className="rounded-xl border-2 border-purple-500/50 bg-purple-500/5 p-3 space-y-2">
+              <p className="font-bold text-purple-600 flex items-center gap-2">
+                🔍 Comportamento atípico detectado ({comportamentos.length} funcionário{comportamentos.length > 1 ? "s" : ""})
+              </p>
+              {comportamentos.map(e => (
+                <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1">
+                  <p className="text-xs font-semibold text-foreground">{e.name}</p>
+                  {e.alertas.map((alerta, i) => (
+                    <p key={i} className="text-xs text-purple-700">{alerta}</p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
 
-    {/* INCONSISTÊNCIAS — destaque máximo */}
-    {comInconsistencias.length > 0 && (
-      <div className="rounded-xl border-2 border-orange-500/50 bg-orange-500/5 p-3 space-y-2">
-        <p className="font-bold text-orange-600 flex items-center gap-2">
-          ⚠️ Inconsistências detectadas ({comInconsistencias.length} funcionário{comInconsistencias.length > 1 ? "s" : ""})
-        </p>
-        {comInconsistencias.map(e => (
-          <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">{e.name}</p>
-            {e.inconsistencias.map((inc, ii) => (
-              <div key={ii} className="flex items-center justify-between gap-2">
-                <span className="text-xs text-orange-700 flex items-center gap-1.5">
-                  {inconsistenciaIcon[inc.tipo]} {inc.mensagem}
-                </span>
-                <button
-                  onClick={() => onNavigate?.("records")}
-                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors whitespace-nowrap"
-                >
-                  Corrigir →
-                </button>
+          {/* INCONSISTÊNCIAS — destaque máximo */}
+          {comInconsistencias.length > 0 && (
+            <div className="rounded-xl border-2 border-orange-500/50 bg-orange-500/5 p-3 space-y-2">
+              <p className="font-bold text-orange-600 flex items-center gap-2">
+                ⚠️ Inconsistências detectadas ({comInconsistencias.length} funcionário{comInconsistencias.length > 1 ? "s" : ""})
+              </p>
+              {comInconsistencias.map(e => (
+                <div key={e.id} className="bg-white/50 dark:bg-black/20 rounded-lg p-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground">{e.name}</p>
+                  {e.inconsistencias.map((inc, ii) => (
+                    <div key={ii} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-orange-700 flex items-center gap-1.5">
+                        {inconsistenciaIcon[inc.tipo]} {inc.mensagem}
+                      </span>
+                      <button
+                        onClick={() => onNavigate?.("records")}
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors whitespace-nowrap"
+                      >
+                        Corrigir →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Retornando em breve */}
+      {retornandoEmBreve.length > 0 && (
+        <div className="rounded-xl border-2 border-amber-400/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+          <p className="font-bold text-amber-700 flex items-center gap-2 text-sm">
+            🔔 Retorno em breve ({retornandoEmBreve.length} funcionário{retornandoEmBreve.length > 1 ? "s" : ""})
+          </p>
+          {retornandoEmBreve.map((r, i) => (
+            <div key={i} className="flex items-center justify-between bg-white/60 dark:bg-black/20 rounded-lg px-3 py-2">
+              <div>
+                <p className="text-xs font-bold text-amber-800">{r.name}</p>
+                <p className="text-[10px] text-amber-600">{r.tipo}</p>
               </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    )}
-  </>
-)}
+              <div className="text-right">
+                <p className="text-xs font-black text-amber-700">
+                  {r.diasRestantes === 0 ? "Retorna hoje" : r.diasRestantes === 1 ? "Retorna amanhã" : `Retorna em ${r.diasRestantes} dias`}
+                </p>
+                <p className="text-[10px] text-amber-500">até {r.dataFim}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-
-{/* Aniversariantes do mês */}
+      {/* Aniversariantes do mês */}
       {aniversariantes.length > 0 && (
         <div className="rounded-2xl border border-amber-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
@@ -823,8 +903,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </div>
         </div>
       )}
-      
-{/* Comparativo mês anterior */}
+
+      {/* Comparativo mês anterior */}
       {comparativo && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border border-gray-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
@@ -882,7 +962,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </p>
         </div>
       )}
-{/* Detector de risco trabalhista */}
+      {/* Detector de risco trabalhista */}
       {riscosTrabalhistas.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border-2 border-red-200 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(220,38,38,0.08)" }}>
           <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "#dc2626" }}>
@@ -905,7 +985,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
-{/* Detector de sobrecarga IA */}
+      {/* Detector de sobrecarga IA */}
       {sobrecargaIA.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border border-red-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
           <p className="text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2 text-red-600">
@@ -943,8 +1023,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </div>
         </div>
       )}
-      
-{/* IA de previsão de atrasos */}
+
+      {/* IA de previsão de atrasos */}
       {previsaoAtrasos.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-2xl border border-purple-100 bg-white p-4" style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.08)" }}>
           <p className="text-xs font-bold uppercase tracking-widest text-purple-600 mb-1 flex items-center gap-2">
@@ -982,8 +1062,8 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           </div>
         </div>
       )}
-      
-{/* Próximos feriados */}
+
+      {/* Próximos feriados */}
       {(() => {
         const feriados = [
           { data: "2026-06-04", nome: "Corpus Christi", tipo: "Nacional" },
@@ -1202,7 +1282,9 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
                       </div>
                     </td>
                     <td className="p-2 text-muted-foreground">
-                      {e.lastType ? `${STEP_LABELS[e.lastType]} ${e.lastTime ? fmtTime(e.lastTime) : ""}` : "—"}
+                      {afastamentosHoje.has(e.id)
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 font-medium">{afastamentoInfo[e.id] || "Afastado"}</span>
+                        : e.lastType ? `${STEP_LABELS[e.lastType]} ${e.lastTime ? fmtTime(e.lastTime) : ""}` : "—"}
                     </td>
                     {role !== "usuario" && (
                       <td className="p-2 text-center tabular-nums">

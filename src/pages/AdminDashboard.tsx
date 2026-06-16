@@ -57,6 +57,7 @@ import OrganogramaTab from "@/components/admin/OrganogramaTab";
 import CoberturaTab from "@/components/admin/CoberturaTab";
 import TourGuiado from "@/components/admin/TourGuiado";
 import AfastamentosModal from "@/components/admin/AfastamentosModal";
+import CalendarioAusenciasTab from "@/components/admin/CalendarioAusenciasTab";
 
 type Employee = Tables<"employees">;
 
@@ -105,6 +106,7 @@ const tabTitles: Record<AdminTab, string> = {
   "mapa-calor": "Mapa de Calor de Frequência",
   "organograma": "Organograma da Empresa",
   "cobertura": "Planejamento de Cobertura",
+  "calendario-ausencias": "Calendário de Ausências",
 };
 
 export default function AdminDashboard() {
@@ -143,6 +145,7 @@ export default function AdminDashboard() {
   } | null>(null);
   const [afastamentosEmpId, setAfastamentosEmpId] = useState<string | null>(null);
   const [afastamentosEmpName, setAfastamentosEmpName] = useState<string>("");
+  const [afastamentosAtivos, setAfastamentosAtivos] = useState<{ employee_id: string; tipo: string }[]>([]);
 
 
   useEffect(() => {
@@ -187,6 +190,14 @@ export default function AdminDashboard() {
   const fetchEmployees = async () => {
     const { data } = await supabase.from("employees").select("*").order("name");
     if (data) setEmployees(data);
+    // Busca afastamentos ativos hoje para exibir badge
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { data: afasts } = await (supabase as any)
+      .from("afastamentos")
+      .select("employee_id, tipo")
+      .lte("data_inicio", hoje)
+      .gte("data_fim", hoje);
+    if (afasts) setAfastamentosAtivos(afasts);
   };
 
   const addEmployee = async (e: React.FormEvent) => {
@@ -541,6 +552,7 @@ export default function AdminDashboard() {
               {tab === "mapa-calor" && <MapaCalorTab />}
               {tab === "organograma" && <OrganogramaTab />}
               {tab === "cobertura" && <CoberturaTab />}
+              {tab === "calendario-ausencias" && <CalendarioAusenciasTab employees={employees} />}
               {tab === "employees" && (
                 <div className="space-y-6">
                   {/* Add employee form */}
@@ -775,9 +787,31 @@ export default function AdminDashboard() {
                                   {emp.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
                                 </button>
                                 <div>
-                                  <span className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                    {emp.name}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`font-medium ${!emp.active ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                      {emp.name}
+                                    </span>
+                                    {(() => {
+                                      const afast = afastamentosAtivos.find(a => a.employee_id === emp.id);
+                                      if (!afast) return null;
+                                      const badges: Record<string, { emoji: string; label: string; bg: string; cor: string }> = {
+                                        licenca_medica: { emoji: "🏥", label: "Lic. Médica", bg: "#fef3c7", cor: "#b45309" },
+                                        licenca_maternidade: { emoji: "🤱", label: "Maternidade", bg: "#fce7f3", cor: "#9d174d" },
+                                        licenca_paternidade: { emoji: "👨‍👶", label: "Paternidade", bg: "#dbeafe", cor: "#1e40af" },
+                                        ferias: { emoji: "🏖️", label: "Férias", bg: "#d1fae5", cor: "#065f46" },
+                                        acidente_trabalho: { emoji: "⚠️", label: "Acidente", bg: "#fee2e2", cor: "#991b1b" },
+                                        suspensao: { emoji: "🚫", label: "Suspenso", bg: "#f3f4f6", cor: "#374151" },
+                                        outro: { emoji: "📋", label: "Afastado", bg: "#ede9fe", cor: "#5b21b6" },
+                                      };
+                                      const b = badges[afast.tipo] || badges.outro;
+                                      return (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                          style={{ background: b.bg, color: b.cor }}>
+                                          {b.emoji} {b.label}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-muted-foreground">
                                       {emp.punch_mode === "simple" ? "2 reg." : "4 reg."}
@@ -858,6 +892,6 @@ export default function AdminDashboard() {
         />
       )}
     </SidebarProvider>
-    
+
   );
 }

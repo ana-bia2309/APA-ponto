@@ -23,7 +23,8 @@ export type AdminTab =
   | "documentos" | "payroll-closing" | "payslips" | "assistente" | "audit" | "debug"
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
-  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes" | "anomalias" | "mapa-calor" | "organograma" | "cobertura";
+  | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes"
+  | "anomalias" | "mapa-calor" | "organograma" | "cobertura" | "calendario-ausencias";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -38,16 +39,15 @@ interface Props {
   userEmail?: string;
 }
 
-// Permissões por perfil
 const PERMISSIONS: Record<UserRole, AdminTab[]> = {
-  admin: [], // vazio = acesso total
+  admin: [],
   rh: [
     "dashboard", "employees", "records", "justifications", "documentos",
     "solicitacoes", "avisos", "onboarding", "agenda", "aprovacoes-lote",
     "exportacoes", "analises", "historico", "assistente", "mapa-localizacao",
     "payroll-dashboard", "espelho-ponto", "banco-horas", "payslips",
     "payroll-closing", "payroll-settings", "trabalhista-config", "simulador",
-    "centro-operacoes", "panorama",
+    "centro-operacoes", "panorama", "calendario-ausencias",
   ],
   supervisor: [
     "dashboard", "records", "employees", "centro-operacoes", "panorama",
@@ -56,7 +56,6 @@ const PERMISSIONS: Record<UserRole, AdminTab[]> = {
   operacional: ["dashboard", "records"],
 };
 
-// Items por grupo
 const principalItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: Activity },
   { key: "centro-operacoes" as const, label: "Centro de Operações", icon: Shield },
@@ -75,6 +74,7 @@ const pessoasItems = [
   { key: "mapa-localizacao" as const, label: "Mapa de Localização", icon: MapPin },
   { key: "organograma" as const, label: "Organograma", icon: Users },
   { key: "cobertura" as const, label: "Cobertura de Ausências", icon: Calendar },
+  { key: "calendario-ausencias" as const, label: "Calendário de Ausências", icon: Calendar },
 ];
 
 const relatoriosItems = [
@@ -225,8 +225,12 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
 
   const allowedTabs = userRole === "admin" ? undefined : PERMISSIONS[userRole];
 
-  const isPessoasActive = ["justifications","documentos","aprovacoes-lote","solicitacoes","agenda","avisos","onboarding","mapa-localizacao"].includes(activeTab);
-  const isRelatoriosActive = ["analises","historico","exportacoes","assistente","aprovacoes-lote"].includes(activeTab);
+  const isPessoasActive = [
+    "justifications","documentos","aprovacoes-lote","solicitacoes",
+    "agenda","avisos","onboarding","mapa-localizacao","calendario-ausencias",
+    "cobertura","organograma",
+  ].includes(activeTab);
+  const isRelatoriosActive = ["analises","historico","exportacoes","assistente","aprovacoes-lote","anomalias","mapa-calor"].includes(activeTab);
   const isPatrimonioActive = activeTab.startsWith("epi-") || activeTab.startsWith("uniforms-") || activeTab.startsWith("tools-");
   const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto"].includes(activeTab);
 
