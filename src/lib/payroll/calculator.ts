@@ -437,3 +437,213 @@ export function calcular13Salario(
   };
 }
 
+export type TipoRescisao = "sem_justa_causa" | "pedido_demissao" | "justa_causa" | "acordo_mutuo";
+
+export type RescisaoResult = {
+  saldo_salario: string;
+  aviso_previo_dias: number;
+  aviso_previo_valor: string;
+  aviso_previo_tipo: "indenizado" | "descontado" | "nenhum";
+  ferias_vencidas_dias: number;
+  ferias_vencidas_valor: string;
+  ferias_proporcionais_dias: number;
+  ferias_proporcionais_valor: string;
+  decimo_terceiro_proporcional: string;
+  multa_fgts_percentual: number;
+  multa_fgts_valor: string;
+  fgts_liberado_percentual: number;
+  fgts_liberado_valor: string;
+  total_proventos: string;
+  total_descontos: string;
+  liquido: string;
+  items: PayrollItem[];
+};
+
+/**
+ * Calcula os dias de aviso prévio com base no tempo de empresa.
+ * 30 dias base + 3 dias por ano completo trabalhado, máximo 90 dias (Lei 12.506/2011).
+ */
+export function calcularDiasAvisoPrevio(anosCompletos: number): number {
+  const dias = 30 + anosCompletos * 3;
+  return Math.min(dias, 90);
+}
+
+/**
+ * Calcula as verbas rescisórias com base no tipo de rescisão.
+ */
+export function calcularRescisao(params: {
+  tipo: TipoRescisao;
+  salarioBase: string | number;
+  dataAdmissao: string; // YYYY-MM-DD
+  dataRescisao: string; // YYYY-MM-DD
+  cumpriuAvisoPrevio: boolean; // se o funcionário/empresa cumpriu o aviso trabalhando
+  feriasVencidasDias: number; // dias de férias vencidas não gozadas (vem do get_saldo_ferias)
+  mesesTrabalhadosAnoAtual: number; // para 13º e férias proporcionais
+  saldoFgts: string | number;
+  dependentesIrrf: number;
+}): RescisaoResult {
+  const items: PayrollItem[] = [];
+  const salario = D(params.salarioBase);
+  const admissao = new Date(params.dataAdmissao + "T12:00:00");
+  const rescisao = new Date(params.dataRescisao + "T12:00:00");
+
+  const anosCompletos = Math.floor(
+    (rescisao.getTime() - admissao.getTime()) / (365.25 * 86400000),
+  );
+
+  // 1. Saldo de salário (dias trabalhados no mês da rescisão)
+  const diasNoMes = new Date(rescisao.getFullYear(), rescisao.getMonth() + 1, 0).getDate();
+  const diaRescisao = rescisao.getDate();
+  const valorDia = salario.div(30);
+  const saldoSalario = valorDia.mul(diaRescisao);
+  items.push({
+    kind: "provento", code: "300", description: "Saldo de Salário",
+    reference: `${diaRescisao} dia(s)`, amount: round2(saldoSalario),
+  });
+
+  // 2. Aviso prévio
+  const diasAviso = calcularDiasAvisoPrevio(anosCompletos);
+  let avisoPrevioValor = D(0);
+  let avisoPrevioTipo: "indenizado" | "descontado" | "nenhum" = "nenhum";
+
+  if (params.tipo === "sem_justa_causa") {
+    if (!params.cumpriuAvisoPrevio) {
+      avisoPrevioValor = valorDia.mul(diasAviso);
+      avisoPrevioTipo = "indenizado";
+      items.push({
+        kind: "provento", code: "301", description: "Aviso Prévio Indenizado",
+        reference: `${diasAviso} dia(s)`, amount: round2(avisoPrevioValor),
+      });
+    }
+  } else if (params.tipo === "pedido_demissao") {
+    if (!params.cumpriuAvisoPrevio) {
+      avisoPrevioValor = valorDia.mul(30); // desconto é sempre 30 dias, sem o adicional
+      avisoPrevioTipo = "descontado";
+      items.push({
+        kind: "desconto", code: "302", description: "Aviso Prévio Não Cumprido (desconto)",
+        reference: "30 dia(s)", amount: round2(avisoPrevioValor),
+      });
+    }
+  } else if (params.tipo === "acordo_mutuo") {
+    if (!params.cumpriuAvisoPrevio) {
+      avisoPrevioValor = valorDia.mul(diasAviso).div(2); // 50% do valor
+      avisoPrevioTipo = "indenizado";
+      items.push({
+        kind: "provento", code: "301", description: "Aviso Prévio Indenizado (50% — Acordo)",
+        reference: `${diasAviso} dia(s)`, amount: round2(avisoPrevioValor),
+      });
+    }
+  }
+  // justa_causa: sem aviso prévio
+
+  // 3. Férias vencidas (todos os tipos exceto sem direito específico têm direito se já venceram)
+  let feriasVencidasValor = D(0);
+  if (params.feriasVencidasDias > 0) {
+    const valorFeriasVencidas = salario.div(30).mul(params.feriasVencidasDias);
+    const tercoFeriasVencidas = valorFeriasVencidas.div(3);
+    feriasVencidasValor = valorFeriasVencidas.plus(tercoFeriasVencidas);
+    items.push({
+      kind: "provento", code: "303", description: "Férias Vencidas + 1/3",
+      reference: `${params.feriasVencidasDias} dia(s)`, amount: round2(feriasVencidasValor),
+    });
+  }
+
+  // 4. Férias proporcionais — não há em justa causa
+  let feriasProporcionaisValor = D(0);
+  let feriasProporcionaisDias = 0;
+  if (params.tipo !== "justa_causa") {
+    feriasProporcionaisDias = Math.round((params.mesesTrabalhadosAnoAtual / 12) * 30);
+    const valorFeriasProp = salario.div(30).mul(feriasProporcionaisDias);
+    const tercoFeriasProp = valorFeriasProp.div(3);
+    feriasProporcionaisValor = valorFeriasProp.plus(tercoFeriasProp);
+    items.push({
+      kind: "provento", code: "304", description: "Férias Proporcionais + 1/3",
+      reference: `${params.mesesTrabalhadosAnoAtual}/12 avos`, amount: round2(feriasProporcionaisValor),
+    });
+  }
+
+  // 5. 13º proporcional — não há em justa causa
+  let decimoTerceiro = D(0);
+  if (params.tipo !== "justa_causa") {
+    decimoTerceiro = salario.div(12).mul(params.mesesTrabalhadosAnoAtual);
+    items.push({
+      kind: "provento", code: "305", description: "13º Salário Proporcional",
+      reference: `${params.mesesTrabalhadosAnoAtual}/12 avos`, amount: round2(decimoTerceiro),
+    });
+  }
+
+  // 6. Multa de FGTS e liberação
+  let multaFgtsPercentual = 0;
+  let fgtsLiberadoPercentual = 0;
+  const saldoFgts = D(params.saldoFgts);
+
+  if (params.tipo === "sem_justa_causa") {
+    multaFgtsPercentual = 40;
+    fgtsLiberadoPercentual = 100;
+  } else if (params.tipo === "acordo_mutuo") {
+    multaFgtsPercentual = 20;
+    fgtsLiberadoPercentual = 80;
+  }
+  // pedido_demissao e justa_causa: 0% multa, 0% liberado
+
+  const multaFgtsValor = saldoFgts.mul(multaFgtsPercentual).div(100);
+  const fgtsLiberadoValor = saldoFgts.mul(fgtsLiberadoPercentual).div(100);
+
+  if (multaFgtsValor.gt(0)) {
+    items.push({
+      kind: "provento", code: "306", description: `Multa FGTS (${multaFgtsPercentual}%)`,
+      reference: "Sobre saldo FGTS", amount: round2(multaFgtsValor),
+    });
+  }
+  items.push({
+    kind: "informativo", code: "950", description: "FGTS Liberado para Saque",
+    reference: `${fgtsLiberadoPercentual}%`, amount: round2(fgtsLiberadoValor),
+  });
+
+  // 7. INSS e IRRF sobre saldo de salário + 13º (férias e aviso prévio indenizado são isentos)
+  const baseTributavel = saldoSalario.plus(decimoTerceiro);
+  const { inss } = calcINSS(baseTributavel.toString());
+  const { irrf } = calcIRRF(baseTributavel.toString(), inss, params.dependentesIrrf);
+
+  if (D(inss).gt(0)) {
+    items.push({
+      kind: "desconto", code: "400", description: "INSS",
+      reference: "Sobre saldo + 13º", amount: inss,
+    });
+  }
+  if (D(irrf).gt(0)) {
+    items.push({
+      kind: "desconto", code: "401", description: "IRRF",
+      reference: "Sobre saldo + 13º", amount: irrf,
+    });
+  }
+
+  // Totais
+  const totalProventos = items
+    .filter(i => i.kind === "provento")
+    .reduce((acc, i) => acc.plus(i.amount), D(0));
+  const totalDescontos = items
+    .filter(i => i.kind === "desconto")
+    .reduce((acc, i) => acc.plus(i.amount), D(0));
+  const liquido = totalProventos.minus(totalDescontos);
+
+  return {
+    saldo_salario: round2(saldoSalario),
+    aviso_previo_dias: diasAviso,
+    aviso_previo_valor: round2(avisoPrevioValor),
+    aviso_previo_tipo: avisoPrevioTipo,
+    ferias_vencidas_dias: params.feriasVencidasDias,
+    ferias_vencidas_valor: round2(feriasVencidasValor),
+    ferias_proporcionais_dias: feriasProporcionaisDias,
+    ferias_proporcionais_valor: round2(feriasProporcionaisValor),
+    decimo_terceiro_proporcional: round2(decimoTerceiro),
+    multa_fgts_percentual: multaFgtsPercentual,
+    multa_fgts_valor: round2(multaFgtsValor),
+    fgts_liberado_percentual: fgtsLiberadoPercentual,
+    fgts_liberado_valor: round2(fgtsLiberadoValor),
+    total_proventos: round2(totalProventos),
+    total_descontos: round2(totalDescontos),
+    liquido: round2(liquido),
+    items,
+  };
+}
