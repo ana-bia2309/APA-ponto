@@ -680,6 +680,7 @@ const [showToolAcceptance, setShowToolAcceptance] = useState(false);
 const [showTimesheetSign, setShowTimesheetSign] = useState(false);
 const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
 const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
+const [avisosConfirmados, setAvisosConfirmados] = useState<Record<string, string>>({});
 const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
 const [solicitacaoTexto, setSolicitacaoTexto] = useState("");
 const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
@@ -896,7 +897,7 @@ const fetchTimesheetSummary = useCallback(async (cpf: string) => {
   } catch {}
 }, []);
 
-const fetchAvisos = useCallback(async () => {
+const fetchAvisos = useCallback(async (employeeId?: string) => {
   if (!navigator.onLine) return;
   try {
     const { data } = await (supabase as any)
@@ -906,8 +907,35 @@ const fetchAvisos = useCallback(async () => {
       .order("created_at", { ascending: false })
       .limit(3);
     if (data) setAvisos(data);
+
+    const empId = employeeId || selectedEmployee?.id;
+    if (empId && data && data.length > 0) {
+      const { data: confirmacoes } = await (supabase as any)
+        .from("aviso_confirmacoes")
+        .select("aviso_id, confirmado_em")
+        .eq("employee_id", empId)
+        .in("aviso_id", data.map((a: any) => a.id));
+      const map: Record<string, string> = {};
+      (confirmacoes || []).forEach((c: any) => { map[c.aviso_id] = c.confirmado_em; });
+      setAvisosConfirmados(map);
+    }
   } catch {}
-}, []);
+}, [selectedEmployee]);
+
+const confirmarLeituraAviso = async (avisoId: string) => {
+  if (!selectedEmployee) return;
+  try {
+    const { error } = await (supabase as any).from("aviso_confirmacoes").insert({
+      aviso_id: avisoId,
+      employee_id: selectedEmployee.id,
+    });
+    if (error && !error.message.includes("duplicate")) throw error;
+    setAvisosConfirmados(prev => ({ ...prev, [avisoId]: new Date().toISOString() }));
+    toast.success("Leitura confirmada!");
+  } catch (e: any) {
+    toast.error("Erro ao confirmar: " + e.message);
+  }
+};
 
 const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
@@ -2858,7 +2886,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">📢 Avisos da Empresa</p>
             <div className="space-y-2">
-              {avisos.map((aviso) => {
+              {avisos.map((aviso: any) => {
                 const cores: Record<string, { bg: string; text: string; icon: string }> = {
                   info: { bg: "#eff6ff", text: "#1e40af", icon: "ℹ️" },
                   alerta: { bg: "#fff7ed", text: "#c2410c", icon: "⚠️" },
@@ -2866,12 +2894,26 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                   evento: { bg: "#f0fdf4", text: "#15803d", icon: "📅" },
                 };
                 const c = cores[aviso.tipo] || cores.info;
+                const confirmado = avisosConfirmados[aviso.id];
                 return (
                   <div key={aviso.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: c.bg }}>
                     <span className="text-base flex-shrink-0">{c.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold" style={{ color: c.text }}>{aviso.titulo}</p>
                       <p className="text-[10px] text-gray-500 mt-0.5">{aviso.mensagem}</p>
+                      {confirmado ? (
+                        <p className="text-[10px] font-semibold text-emerald-600 mt-1.5 flex items-center gap-1">
+                          ✓ Lido em {new Date(confirmado).toLocaleDateString("pt-BR")}
+                        </p>
+                      ) : (
+                        <button
+                          onClick={() => confirmarLeituraAviso(aviso.id)}
+                          className="mt-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full text-white transition-all"
+                          style={{ background: c.text }}
+                        >
+                          Confirmar leitura
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

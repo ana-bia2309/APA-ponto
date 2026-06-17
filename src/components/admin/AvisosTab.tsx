@@ -12,6 +12,12 @@ interface Aviso {
   created_at: string;
 }
 
+interface ConfirmacaoInfo {
+  totalFuncionarios: number;
+  confirmados: number;
+  pendentes: string[]; // nomes
+}
+
 const TIPOS = [
   { value: "info", label: "Informativo", icon: "ℹ️", bg: "#eff6ff", text: "#1e40af" },
   { value: "alerta", label: "Alerta", icon: "⚠️", bg: "#fff7ed", text: "#c2410c" },
@@ -27,6 +33,8 @@ export default function AvisosTab() {
   const [mensagem, setMensagem] = useState("");
   const [tipo, setTipo] = useState("info");
   const [salvando, setSalvando] = useState(false);
+  const [confirmacoes, setConfirmacoes] = useState<Record<string, ConfirmacaoInfo>>({});
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +45,37 @@ export default function AvisosTab() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       setAvisos(data || []);
+
+      // Busca confirmações de cada aviso
+      if (data && data.length > 0) {
+        const { data: employees } = await supabase
+          .from("employees")
+          .select("id, name")
+          .eq("active", true);
+
+        const { data: todasConfirmacoes } = await (supabase as any)
+          .from("aviso_confirmacoes")
+          .select("aviso_id, employee_id")
+          .in("aviso_id", data.map((a: any) => a.id));
+
+        const info: Record<string, ConfirmacaoInfo> = {};
+        data.forEach((aviso: any) => {
+          const confirmadosIds = new Set(
+            (todasConfirmacoes || [])
+              .filter((c: any) => c.aviso_id === aviso.id)
+              .map((c: any) => c.employee_id)
+          );
+          const pendentes = (employees || [])
+            .filter((e: any) => !confirmadosIds.has(e.id))
+            .map((e: any) => e.name);
+          info[aviso.id] = {
+            totalFuncionarios: (employees || []).length,
+            confirmados: confirmadosIds.size,
+            pendentes,
+          };
+        });
+        setConfirmacoes(info);
+      }
     } catch (e: any) {
       toast.error("Erro ao carregar avisos: " + e.message);
     } finally {
@@ -183,6 +222,29 @@ export default function AvisosTab() {
                     </div>
                     <p className="text-xs text-gray-500">{aviso.mensagem}</p>
                     <p className="text-[10px] text-gray-300 mt-1">{new Date(aviso.created_at).toLocaleString("pt-BR")}</p>
+
+                    {confirmacoes[aviso.id] && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setExpandidoId(expandidoId === aviso.id ? null : aviso.id)}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors"
+                          style={{
+                            background: confirmacoes[aviso.id].confirmados === confirmacoes[aviso.id].totalFuncionarios
+                              ? "#d1fae5" : "#fef3c7",
+                            color: confirmacoes[aviso.id].confirmados === confirmacoes[aviso.id].totalFuncionarios
+                              ? "#065f46" : "#92400e",
+                          }}
+                        >
+                          ✓ {confirmacoes[aviso.id].confirmados}/{confirmacoes[aviso.id].totalFuncionarios} confirmaram
+                        </button>
+                        {expandidoId === aviso.id && confirmacoes[aviso.id].pendentes.length > 0 && (
+                          <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-100">
+                            <p className="text-[10px] font-bold text-amber-700 mb-1">Ainda não confirmaram:</p>
+                            <p className="text-[10px] text-amber-600">{confirmacoes[aviso.id].pendentes.join(", ")}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

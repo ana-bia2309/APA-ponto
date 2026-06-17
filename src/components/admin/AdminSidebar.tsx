@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Wallet,
   Sparkles, MapPin, FileDown, CheckCircle2, TrendingUp, Building2, Brain,
 } from "lucide-react";
 import {
@@ -25,7 +25,7 @@ export type AdminTab =
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
   | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes"
   | "anomalias" | "mapa-calor" | "organograma" | "cobertura" | "calendario-ausencias"
-  | "decimo-terceiro" | "rescisao";
+  | "decimo-terceiro" | "rescisao" | "adiantamentos";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -48,7 +48,7 @@ const PERMISSIONS: Record<UserRole, AdminTab[]> = {
     "exportacoes", "analises", "historico", "assistente", "mapa-localizacao",
     "payroll-dashboard", "espelho-ponto", "banco-horas", "payslips",
     "payroll-closing", "payroll-settings", "trabalhista-config", "simulador",
-    "decimo-terceiro", "rescisao",
+    "decimo-terceiro", "rescisao", "adiantamentos",
     "centro-operacoes", "panorama", "calendario-ausencias",
   ],
   supervisor: [
@@ -116,6 +116,7 @@ const payrollItems = [
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
   { key: "decimo-terceiro" as const, label: "13º Salário", icon: Receipt },
   { key: "rescisao" as const, label: "Rescisão", icon: FileText },
+  { key: "adiantamentos" as const, label: "Adiantamentos", icon: Wallet },
   { key: "payroll-settings" as const, label: "Parâmetros", icon: SettingsIcon },
   { key: "trabalhista-config" as const, label: "Regras CLT", icon: FileText },
   { key: "simulador" as const, label: "Simulador", icon: Calculator },
@@ -236,7 +237,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
   ].includes(activeTab);
   const isRelatoriosActive = ["analises","historico","exportacoes","assistente","aprovacoes-lote","anomalias","mapa-calor"].includes(activeTab);
   const isPatrimonioActive = activeTab.startsWith("epi-") || activeTab.startsWith("uniforms-") || activeTab.startsWith("tools-");
-  const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto","decimo-terceiro","rescisao"].includes(activeTab);
+  const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto","decimo-terceiro","rescisao","adiantamentos"].includes(activeTab);
 
   const pessoasBadges: Record<string, number> = {};
   if (solicitacoesPendentes > 0) pessoasBadges["solicitacoes"] = solicitacoesPendentes;

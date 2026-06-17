@@ -69,6 +69,24 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       .from("payroll_custom_items").select("*")
       .eq("employee_id", emp.id).eq("active", true);
 
+    // Busca parcelas de adiantamento pendentes para este funcionário neste mês/ano
+    const { data: adiantamentosDoFuncionario } = await (supabase as any)
+      .from("adiantamentos")
+      .select("id")
+      .eq("employee_id", emp.id);
+
+    const idsAdiantamentos = (adiantamentosDoFuncionario || []).map((a: any) => a.id);
+
+    let parcelasPendentes: any[] = [];
+    if (idsAdiantamentos.length > 0) {
+      const { data } = await (supabase as any)
+        .from("adiantamento_parcelas")
+        .select("id, valor, numero_parcela")
+        .eq("ano", year).eq("mes", month).eq("descontada", false)
+        .in("adiantamento_id", idsAdiantamentos);
+      parcelasPendentes = data || [];
+    }
+
     const diasUteis = getDiasUteisNoMes(year, month);
     const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria: 8, diasUteisPrevistos: diasUteis });
     work.dias_uteis_mes = diasUteis;
@@ -78,7 +96,13 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     const customItems = (customs || []).map((c: any) => ({
       kind: c.kind, code: "C", description: c.description, amount: String(c.amount),
     }));
-    const result = calculatePayroll(settings as any, { ...work, custom_items: customItems });
+    const parcelasItems = (parcelasPendentes || []).map((p: any) => ({
+      kind: "desconto" as const, code: "ADT", description: `Adiantamento — parcela ${p.numero_parcela}`,
+      amount: String(p.valor),
+    }));
+    const result = calculatePayroll(settings as any, { ...work, custom_items: [...customItems, ...parcelasItems] });
+
+    const totalAdiantamentos = parcelasPendentes.reduce((acc, p) => acc + Number(p.valor), 0);
 
     const payload = {
       period_id: pid, employee_id: emp.id,
@@ -94,7 +118,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       horas_noturnas: work.horas_noturnas,
       faltas_dias: work.faltas_dias,
       atrasos_minutos: work.atrasos_minutos,
-      snapshot: { settings, work, calculated_at: new Date().toISOString() },
+      snapshot: { settings, work, calculated_at: new Date().toISOString(), total_adiantamentos: totalAdiantamentos },
     };
     const { data: ps, error } = await supabase
       .from("payslips")
@@ -108,6 +132,15 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       amount: Number(it.amount), sort_order: idx,
     }));
     if (itemRows.length) await supabase.from("payroll_items").insert(itemRows);
+
+    // Marca as parcelas de adiantamento deste mês como descontadas
+    if (parcelasPendentes && parcelasPendentes.length > 0) {
+      await (supabase as any)
+        .from("adiantamento_parcelas")
+        .update({ descontada: true, payslip_id: ps.id })
+        .in("id", parcelasPendentes.map((p: any) => p.id));
+    }
+
     return true;
   };
 
@@ -301,6 +334,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
               <th className="p-3">Funcionário</th>
               <th className="p-3 text-right">Proventos</th>
               <th className="p-3 text-right">Descontos</th>
+              <th className="p-3 text-right">Adiantamento</th>
               <th className="p-3 text-right">Líquido</th>
               <th className="p-3 text-right">FGTS</th>
               <th className="p-3 text-right">Ação</th>
@@ -314,6 +348,11 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
                   <td className="p-3">{emp.name}</td>
                   <td className="p-3 text-right text-emerald-400">{ps ? fmt(ps.total_proventos) : "—"}</td>
                   <td className="p-3 text-right text-rose-400">{ps ? fmt(ps.total_descontos) : "—"}</td>
+                  <td className="p-3 text-right">
+                    {ps && Number(ps.snapshot?.total_adiantamentos || 0) > 0 ? (
+                      <span className="text-amber-500 font-medium">{fmt(ps.snapshot.total_adiantamentos)}</span>
+                    ) : "—"}
+                  </td>
                   <td className="p-3 text-right font-bold">{ps ? fmt(ps.liquido) : "—"}</td>
                   <td className="p-3 text-right text-muted-foreground">{ps ? fmt(ps.fgts_mes) : "—"}</td>
                   <td className="p-3 text-right">

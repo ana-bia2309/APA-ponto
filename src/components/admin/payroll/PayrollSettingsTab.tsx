@@ -39,6 +39,17 @@ export default function PayrollSettingsTab({ employees }: { employees: Employee[
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasExisting, setHasExisting] = useState(false);
+  const [historico, setHistorico] = useState<any[]>([]);
+
+  const loadHistorico = async () => {
+    if (!selectedId) return;
+    const { data } = await (supabase as any)
+      .from("historico_salarial")
+      .select("*")
+      .eq("employee_id", selectedId)
+      .order("alterado_em", { ascending: false });
+    setHistorico(data || []);
+  };
 
 useEffect(() => {
     if (employees.length && !selectedId) setSelectedId("");
@@ -57,21 +68,54 @@ useEffect(() => {
         setSettings({ ...DEFAULTS, employee_id: selectedId });
         setHasExisting(false);
       }
+      loadHistorico();
     })();
   }, [selectedId]);
 
   const save = async () => {
     if (!settings) return;
     setLoading(true);
+
+    // Verifica se o salário mudou em relação ao que já estava salvo
+    const { data: existente } = await supabase
+      .from("payroll_settings" as any)
+      .select("salario_base")
+      .eq("employee_id", selectedId)
+      .maybeSingle();
+
+    const salarioAnterior = existente ? Number((existente as any).salario_base) : null;
+    const salarioMudou = salarioAnterior !== null && salarioAnterior !== Number(settings.salario_base);
+    const primeiroCadastro = salarioAnterior === null && Number(settings.salario_base) > 0;
+
     const payload = { ...settings, employee_id: selectedId };
     const { error } = await supabase
       .from("payroll_settings" as any)
       .upsert(payload, { onConflict: "employee_id" });
     setLoading(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+
+    if (salarioMudou || primeiroCadastro) {
+      const motivo = window.prompt(
+        primeiroCadastro
+          ? "Motivo do cadastro do salário (opcional):"
+          : `Motivo do reajuste de ${fmt(salarioAnterior!)} para ${fmt(settings.salario_base)} (opcional):`
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      await (supabase as any).from("historico_salarial").insert({
+        employee_id: selectedId,
+        salario_anterior: salarioAnterior,
+        salario_novo: settings.salario_base,
+        motivo: motivo?.trim() || null,
+        alterado_por: user?.email || null,
+      });
+      loadHistorico();
+    }
+
     setHasExisting(true);
     toast.success("Configuração salarial salva!");
   };
+
+  const fmt = (v: any) => "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   const clear = async () => {
     if (!confirm("Limpar configuração salarial deste funcionário?")) return;
@@ -175,6 +219,32 @@ return (
                 <Trash2 className="w-4 h-4" /> Limpar Configuração
               </Button>
             )}
+          </div>
+        </Card>
+      )}
+
+      {selectedId && historico.length > 0 && (
+        <Card className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Histórico de Reajustes Salariais
+          </h3>
+          <div className="space-y-2">
+            {historico.map((h) => (
+              <div key={h.id} className="flex items-start justify-between p-3 rounded-lg border border-border bg-muted/20">
+                <div>
+                  <p className="text-sm font-medium">
+                    {h.salario_anterior !== null
+                      ? <>{fmt(h.salario_anterior)} → <span className="font-bold text-emerald-600">{fmt(h.salario_novo)}</span></>
+                      : <>Cadastro inicial: <span className="font-bold">{fmt(h.salario_novo)}</span></>}
+                  </p>
+                  {h.motivo && <p className="text-xs text-muted-foreground mt-0.5">{h.motivo}</p>}
+                  {h.alterado_por && <p className="text-[10px] text-muted-foreground mt-0.5">por {h.alterado_por}</p>}
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {new Date(h.alterado_em).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+            ))}
           </div>
         </Card>
       )}
