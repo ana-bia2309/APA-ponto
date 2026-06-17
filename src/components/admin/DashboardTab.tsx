@@ -124,6 +124,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [afastamentoInfo, setAfastamentoInfo] = useState<Record<string, string>>({});
   const [retornandoEmBreve, setRetornandoEmBreve] = useState<{ name: string; tipo: string; dataFim: string; diasRestantes: number }[]>([]);
   const [trocasPendentes, setTrocasPendentes] = useState<{ id: string; name: string; dataOriginal: string; dataCompensacao: string | null }[]>([]);
+  const [decimoTerceiroAlerta, setDecimoTerceiroAlerta] = useState<{ parcela: "primeira" | "segunda"; dias: number; pendentes: number } | null>(null);
   const [marcandoTroca, setMarcandoTroca] = useState<string | null>(null);
   const [feriasVencidas, setFeriasVencidas] = useState<{ name: string; diasDisponiveis: number }[]>([]);
   const [comparativo, setComparativo] = useState<{
@@ -249,6 +250,37 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           })
         );
         setFeriasVencidas(vencidas);
+      } catch { }
+
+      // Alerta de 13º salário — só nos últimos 15 dias antes de cada parcela
+      try {
+        const hoje = new Date();
+        const anoAtual = hoje.getFullYear();
+        const data30Nov = new Date(anoAtual, 10, 30);
+        const data20Dez = new Date(anoAtual, 11, 20);
+        const diasPara1a = Math.ceil((data30Nov.getTime() - hoje.getTime()) / 86400000);
+        const diasPara2a = Math.ceil((data20Dez.getTime() - hoje.getTime()) / 86400000);
+
+        let parcela: "primeira" | "segunda" | null = null;
+        let dias = 0;
+        if (diasPara1a >= 0 && diasPara1a <= 15) { parcela = "primeira"; dias = diasPara1a; }
+        else if (diasPara2a >= 0 && diasPara2a <= 15) { parcela = "segunda"; dias = diasPara2a; }
+
+        if (parcela) {
+          const { data: registros } = await (supabase as any)
+            .from("decimo_terceiro")
+            .select("primeira_paga, segunda_paga")
+            .eq("ano", anoAtual);
+          const campo = parcela === "primeira" ? "primeira_paga" : "segunda_paga";
+          const pendentes = (registros || []).filter((r: any) => !r[campo]).length;
+          if (pendentes > 0) {
+            setDecimoTerceiroAlerta({ parcela, dias, pendentes });
+          } else {
+            setDecimoTerceiroAlerta(null);
+          }
+        } else {
+          setDecimoTerceiroAlerta(null);
+        }
       } catch { }
 
       const bancoMap: Record<string, number> = {};
@@ -897,6 +929,25 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
             </div>
           )}
         </>
+      )}
+
+      {/* Alerta de 13º salário */}
+      {decimoTerceiroAlerta && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-xl border-2 border-blue-400/50 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-1">
+          <p className="font-bold text-blue-700 flex items-center gap-2 text-sm">
+            🎁 {decimoTerceiroAlerta.parcela === "primeira" ? "1ª" : "2ª"} parcela do 13º — vence em {decimoTerceiroAlerta.dias === 0 ? "hoje" : `${decimoTerceiroAlerta.dias} dia(s)`}
+          </p>
+          <p className="text-xs text-blue-600">
+            {decimoTerceiroAlerta.pendentes} funcionário{decimoTerceiroAlerta.pendentes > 1 ? "s" : ""} ainda sem pagamento registrado
+          </p>
+          <button
+            onClick={() => onNavigate?.("decimo-terceiro")}
+            className="text-[11px] font-semibold px-3 py-1 rounded-full text-white transition-all"
+            style={{ background: "#2563eb" }}
+          >
+            Ver 13º Salário →
+          </button>
+        </div>
       )}
 
       {/* Férias vencidas */}
