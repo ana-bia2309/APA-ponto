@@ -39,6 +39,18 @@ const PASSOS: Passo[] = [
     destaque: "employees",
   },
   {
+    emoji: "🩺",
+    titulo: "Exames Periódicos (ASO)",
+    descricao: "Cada funcionário tem um botão de estetoscópio para controlar a periodicidade do ASO. O sistema avisa automaticamente quando um exame está vencendo ou venceu.",
+    destaque: "employees",
+  },
+  {
+    emoji: "🎂",
+    titulo: "Aniversários e Avisos com Confirmação",
+    descricao: "No dia do aniversário de alguém, um card especial aparece no Dashboard. Os avisos da empresa agora também podem exigir confirmação de leitura de cada colaborador.",
+    destaque: "dashboard",
+  },
+  {
     emoji: "🕐",
     titulo: "Registros de Ponto",
     descricao: "Visualize, corrija e exporte os registros de ponto. É possível fazer ajustes manuais com justificativa.",
@@ -51,6 +63,18 @@ const PASSOS: Passo[] = [
     destaque: "justifications",
   },
   {
+    emoji: "✍️",
+    titulo: "Documentos para Assinatura",
+    descricao: "Crie termos, políticas e comunicados de texto livre, escolha quem precisa assinar, e acompanhe em tempo real quem já confirmou — com assinatura digital desenhada.",
+    destaque: "documentos-assinatura",
+  },
+  {
+    emoji: "📮",
+    titulo: "Ouvidoria",
+    descricao: "Canal 100% anônimo para reclamações, denúncias, elogios e sugestões. Filtre por categoria, responda usando o protocolo, e exclua mensagens quando precisar.",
+    destaque: "ouvidoria",
+  },
+  {
     emoji: "🤖",
     titulo: "Inteligência Artificial",
     descricao: "O sistema possui detector de anomalias, previsão de atrasos, detector de sobrecarga e mapa de calor — tudo baseado nos dados históricos.",
@@ -59,8 +83,20 @@ const PASSOS: Passo[] = [
   {
     emoji: "💰",
     titulo: "Folha de Pagamento",
-    descricao: "Gerencie banco de horas, espelhos de ponto, holerites e fechamento mensal. Configure os parâmetros da folha conforme a CLT.",
+    descricao: "Gerencie banco de horas, espelhos de ponto, holerites e fechamento mensal. Configure os parâmetros da folha conforme a CLT, já atualizada com a legislação 2026.",
     destaque: "payroll-dashboard",
+  },
+  {
+    emoji: "🎁",
+    titulo: "13º Salário e Rescisão",
+    descricao: "Calcule automaticamente o 13º salário (1ª e 2ª parcelas) e gere rescisões completas com aviso prévio, multa de FGTS e verbas proporcionais — tudo com PDF de conferência.",
+    destaque: "decimo-terceiro",
+  },
+  {
+    emoji: "💳",
+    titulo: "Adiantamentos e Histórico Salarial",
+    descricao: "Controle vales e adiantamentos parcelados, descontados automaticamente no fechamento da folha. Acompanhe também o histórico completo de reajustes de cada colaborador.",
+    destaque: "adiantamentos",
   },
   {
     emoji: "🔐",

@@ -27,6 +27,7 @@ import {
   Droplets,
   Wind,
   Moon,
+  HelpCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +50,7 @@ import ToolAcceptance from "@/components/ToolAcceptance";
 import TimesheetSign from "@/components/TimesheetSign";
 import DocumentoSign from "@/components/DocumentoSign";
 import Ouvidoria from "@/components/Ouvidoria";
+import AjudaColaborador from "@/components/AjudaColaborador";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -684,6 +686,7 @@ const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
 const [showDocumentoSign, setShowDocumentoSign] = useState(false);
 const [pendingDocumentoCount, setPendingDocumentoCount] = useState(0);
 const [showOuvidoria, setShowOuvidoria] = useState(false);
+const [showAjuda, setShowAjuda] = useState(false);
 
 const fetchPendingDocumentoCount = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
@@ -1710,6 +1713,10 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   if (showOuvidoria) {
     return <Ouvidoria onClose={() => setShowOuvidoria(false)} />;
   }
+
+  if (showAjuda) {
+    return <AjudaColaborador onClose={() => setShowAjuda(false)} />;
+  }
   if (showPayslipSign && selectedEmployee && validatedContext) {
     return (
       <PayslipSign
@@ -2516,6 +2523,14 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       <div className="w-full max-w-md pt-8 pb-4 flex flex-col items-center" style={{ marginTop: "28px" }}>
         {/* Botões topo */}
         <div className="self-end mb-2 flex gap-2">
+          <button
+            onClick={() => setShowAjuda(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
+            style={{ background: "white", color: "#64748b", borderColor: "#e2e8f0" }}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            Ajuda
+          </button>
           <button
             onClick={toggle}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:shadow-md"
