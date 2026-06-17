@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { SkeletonDashboard } from "@/components/ui/skeleton-card";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Users, TrendingUp, TrendingDown, Wallet, Clock, Calendar, RefreshCw } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Wallet, Clock, Calendar, RefreshCw, Sparkles } from "lucide-react";
+import { summarizeWorkFromRecords, calculatePayroll } from "@/lib/payroll/calculator";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -23,6 +24,12 @@ export default function PayrollDashboardTab() {
   const [evolucao, setEvolucao] = useState<any[]>([]);
   const [extrasData, setExtrasData] = useState<any[]>([]);
   const [payslipDetails, setPayslipDetails] = useState<any[]>([]);
+  const [projecao, setProjecao] = useState<{
+    confirmadoAteHoje: number;
+    projecaoMesCompleto: number;
+    funcionariosProjetados: number;
+  } | null>(null);
+  const [loadingProjecao, setLoadingProjecao] = useState(true);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -102,7 +109,79 @@ export default function PayrollDashboardTab() {
     }
   }, [year, month]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadProjecao = useCallback(async () => {
+    setLoadingProjecao(true);
+    try {
+      const { data: employees } = await supabase.from("employees").select("*").eq("active", true);
+      if (!employees) { setProjecao(null); return; }
+
+      const diaHoje = now.getDate();
+      const diasNoMes = new Date(year, month, 0).getDate();
+      const diasRestantes = diasNoMes - diaHoje;
+
+      const startIso = new Date(year, month - 1, 1).toISOString();
+      const endIso = now.toISOString();
+
+      let confirmadoTotal = 0;
+      let projecaoTotal = 0;
+      let contados = 0;
+
+      for (const emp of employees) {
+        const { data: settings } = await supabase
+          .from("payroll_settings").select("*")
+          .eq("employee_id", emp.id).maybeSingle();
+        if (!settings) continue;
+
+        const { data: records } = await supabase
+          .from("time_records").select("record_type, recorded_at")
+          .eq("employee_id", emp.id)
+          .gte("recorded_at", startIso)
+          .lte("recorded_at", endIso)
+          .order("recorded_at");
+
+        const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria: 8, diasUteisPrevistos: diaHoje });
+        work.dias_uteis_mes = diaHoje;
+        work.dias_trabalhados = diaHoje - parseInt(work.faltas_dias as string || "0");
+
+        const result = calculatePayroll(settings as any, work);
+        confirmadoTotal += Number(result.liquido);
+
+        // Projeção: estende horas extras proporcionalmente para os dias restantes
+        const mediaExtras50PorDia = diaHoje > 0 ? Number(work.horas_extras_50) / diaHoje : 0;
+        const mediaExtras100PorDia = diaHoje > 0 ? Number(work.horas_extras_100) / diaHoje : 0;
+        const workProjetado = {
+          ...work,
+          horas_extras_50: (Number(work.horas_extras_50) + mediaExtras50PorDia * diasRestantes).toFixed(2),
+          horas_extras_100: (Number(work.horas_extras_100) + mediaExtras100PorDia * diasRestantes).toFixed(2),
+          dias_uteis_mes: diasNoMes,
+          dias_trabalhados: diasNoMes,
+          faltas_dias: "0",
+        };
+        const resultProjetado = calculatePayroll(settings as any, workProjetado);
+
+        // Provisão mensal de férias (1/12 do salário + 1/3) e 13º (1/12 do salário)
+        const salario = Number((settings as any).salario_base || 0);
+        const provisaoFerias = (salario / 12) * (4 / 3); // 1/12 do salário com adicional de 1/3
+        const provisao13 = salario / 12;
+
+        projecaoTotal += Number(resultProjetado.liquido) + provisaoFerias + provisao13;
+        contados++;
+      }
+
+      setProjecao({
+        confirmadoAteHoje: confirmadoTotal,
+        projecaoMesCompleto: projecaoTotal,
+        funcionariosProjetados: contados,
+      });
+    } catch (e) {
+      console.error("Erro na projeção:", e);
+      setProjecao(null);
+    } finally {
+      setLoadingProjecao(false);
+    }
+  }, [year, month]);
+
+  useEffect(() => { load(); loadProjecao(); }, [load, loadProjecao]);
 
  const cards = [
     { label: "Total da folha", value: fmt(summary.totalFolha), icon: Wallet, color: "text-blue-500" },
@@ -127,6 +206,35 @@ export default function PayrollDashboardTab() {
           Atualizar
         </Button>
       </div>
+
+      {/* Projeção de custo do mês */}
+      <Card className="p-5 border-2 border-blue-400/40 bg-blue-500/5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-blue-700 flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> Projeção de Custo — {MONTHS[month - 1]}/{year}
+          </h3>
+          {loadingProjecao && <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />}
+        </div>
+        {projecao ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Confirmado até hoje (dia {now.getDate()})</p>
+              <p className="text-2xl font-bold text-foreground">{fmt(projecao.confirmadoAteHoje)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Projeção para o mês completo</p>
+              <p className="text-2xl font-black text-blue-600">{fmt(projecao.projecaoMesCompleto)}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {loadingProjecao ? "Calculando projeção..." : "Sem dados suficientes — cadastre salários em Parâmetros da Folha."}
+          </p>
+        )}
+        <p className="text-[11px] text-muted-foreground mt-3">
+          💡 A projeção estende a média de horas extras para os dias restantes e inclui provisão mensal de férias (1/3) e 13º salário (1/12 cada). Não substitui o fechamento oficial da folha.
+        </p>
+      </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {cards.map((card) => (

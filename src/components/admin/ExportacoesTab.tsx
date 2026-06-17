@@ -210,12 +210,11 @@ function IntegracaoContabil({ employees, addHistorico }: {
       let payslips: any[] = [];
       if (period) {
         const { data: ps } = await (supabase as any)
-          .from("payslips").select("*, employees(name, cpf, cargo, matricula, departamento)")
+          .from("payslips").select("*, employees(name, cpf, cargo, matricula, departamento, data_admissao)")
           .eq("period_id", period.id);
         payslips = ps || [];
       }
 
-      // Se não tiver payslips, gera a partir dos funcionários ativos
       if (payslips.length === 0) {
         toast.info("Nenhuma folha calculada para este período. Calcule a folha primeiro em Folha de Pagamento → Fechamento.");
         setLoading(false);
@@ -223,31 +222,43 @@ function IntegracaoContabil({ employees, addHistorico }: {
       }
 
       const competencia = `${String(mes).padStart(2,"0")}/${ano}`;
-      const agora = new Date().toLocaleString("pt-BR");
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
 
-      // Cabeçalho do arquivo
-      const linhas: string[] = [
-        `;;ARQUIVO DE INTEGRAÇÃO CONTÁBIL — APA PONTO`,
-        `;;Competência: ${competencia}`,
-        `;;Gerado em: ${agora}`,
-        `;;`,
-        `MATRICULA;NOME;CPF;CARGO;DEPARTAMENTO;SALARIO_BASE;HORAS_TRABALHADAS;HORAS_EXTRAS_50;HORAS_EXTRAS_100;HORAS_NOTURNAS;FALTAS_DIAS;TOTAL_PROVENTOS;INSS;IRRF;DESCONTO_VT;TOTAL_DESCONTOS;LIQUIDO;FGTS`,
+      // Busca afastamentos do período para somar dias por funcionário
+      const inicioMes = new Date(ano, mes - 1, 1).toISOString().slice(0, 10);
+      const fimMes = new Date(ano, mes, 0).toISOString().slice(0, 10);
+      const { data: afasts } = await (supabase as any)
+        .from("afastamentos")
+        .select("employee_id, data_inicio, data_fim")
+        .lte("data_inicio", fimMes)
+        .gte("data_fim", inicioMes);
+
+      const diasAfastadoPorFuncionario: Record<string, number> = {};
+      (afasts || []).forEach((a: any) => {
+        const ini = a.data_inicio < inicioMes ? inicioMes : a.data_inicio;
+        const fim = a.data_fim > fimMes ? fimMes : a.data_fim;
+        const dias = Math.round((new Date(fim + "T12:00:00").getTime() - new Date(ini + "T12:00:00").getTime()) / 86400000) + 1;
+        diasAfastadoPorFuncionario[a.employee_id] = (diasAfastadoPorFuncionario[a.employee_id] || 0) + dias;
+      });
+
+      // ─── ABA RESUMO ───
+      const resumoRows = [
+        ["INTEGRAÇÃO CONTÁBIL — APA REFRIGERAÇÃO E CLIMATIZAÇÃO"],
+        [`Competência: ${competencia}`],
+        [`Gerado em: ${new Date().toLocaleString("pt-BR")}`],
+        [],
+        ["Matrícula", "Nome", "CPF", "Cargo", "Departamento", "Salário Base", "Horas Trabalhadas",
+         "Horas Extras 50%", "Horas Extras 100%", "Horas Noturnas", "Faltas (dias)", "Afastamento (dias)",
+         "Total Proventos", "INSS", "IRRF", "Total Descontos", "Líquido", "FGTS"],
       ];
 
       payslips.forEach((ps: any) => {
         const emp = Array.isArray(ps.employees) ? ps.employees[0] : ps.employees;
-        const cpfFormatado = (emp?.cpf || "").replace(/\D/g, "");
-
-        // Busca INSS e IRRF do snapshot
-        const snapshot = ps.snapshot || {};
-        const inss = snapshot?.calculated?.inss || 0;
-        const irrf = snapshot?.calculated?.irrf || 0;
-        const vt = snapshot?.calculated?.vt || 0;
-
-        linhas.push([
+        resumoRows.push([
           emp?.matricula || "",
           emp?.name || "",
-          cpfFormatado,
+          (emp?.cpf || "").replace(/\D/g, ""),
           emp?.cargo || "",
           emp?.departamento || "",
           Number(ps.snapshot?.settings?.salario_base || 0).toFixed(2),
@@ -256,17 +267,16 @@ function IntegracaoContabil({ employees, addHistorico }: {
           Number(ps.horas_extras_100 || 0).toFixed(2),
           Number(ps.horas_noturnas || 0).toFixed(2),
           Number(ps.faltas_dias || 0).toFixed(0),
+          String(diasAfastadoPorFuncionario[ps.employee_id] || 0),
           Number(ps.total_proventos || 0).toFixed(2),
           Number(ps.base_inss || 0).toFixed(2),
           Number(ps.base_irrf || 0).toFixed(2),
-          Number(vt).toFixed(2),
           Number(ps.total_descontos || 0).toFixed(2),
           Number(ps.liquido || 0).toFixed(2),
           Number(ps.fgts_mes || 0).toFixed(2),
-        ].join(";"));
+        ] as any);
       });
 
-      // Totais
       const totais = payslips.reduce((acc: any, ps: any) => ({
         proventos: acc.proventos + Number(ps.total_proventos || 0),
         descontos: acc.descontos + Number(ps.total_descontos || 0),
@@ -274,23 +284,86 @@ function IntegracaoContabil({ employees, addHistorico }: {
         fgts: acc.fgts + Number(ps.fgts_mes || 0),
       }), { proventos: 0, descontos: 0, liquido: 0, fgts: 0 });
 
-      linhas.push(`;;`);
-      linhas.push(`;;TOTAIS`);
-      linhas.push(`;;Total proventos: R$ ${totais.proventos.toFixed(2)}`);
-      linhas.push(`;;Total descontos: R$ ${totais.descontos.toFixed(2)}`);
-      linhas.push(`;;Total líquido: R$ ${totais.liquido.toFixed(2)}`);
-      linhas.push(`;;Total FGTS: R$ ${totais.fgts.toFixed(2)}`);
-      linhas.push(`;;Funcionários: ${payslips.length}`);
+      resumoRows.push([]);
+      resumoRows.push(["TOTAIS", "", "", "", "", "", "", "", "", "", "", "",
+        totais.proventos.toFixed(2), "", "", totais.descontos.toFixed(2), totais.liquido.toFixed(2), totais.fgts.toFixed(2)] as any);
 
-      const csv = linhas.join("\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `contabil_${String(mes).padStart(2,"0")}_${ano}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      addHistorico(`Integração Contábil — ${MONTH_NAMES[mes-1]}/${ano}`);
+      const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
+      wsResumo["!cols"] = [
+        { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 13 }, { wch: 12 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+        { wch: 13 }, { wch: 11 }, { wch: 11 }, { wch: 13 }, { wch: 13 }, { wch: 11 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+
+      // ─── UMA ABA POR FUNCIONÁRIO (detalhamento dia a dia) ───
+      const diasNoMes = new Date(ano, mes, 0).getDate();
+      const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+
+      for (const ps of payslips) {
+        const emp = Array.isArray(ps.employees) ? ps.employees[0] : ps.employees;
+        if (!emp) continue;
+
+        const startIso = new Date(ano, mes - 1, 1).toISOString();
+        const endIso = new Date(ano, mes, 0, 23, 59, 59).toISOString();
+        const { data: records } = await (supabase as any)
+          .from("time_records")
+          .select("record_type, recorded_at")
+          .eq("employee_id", ps.employee_id)
+          .gte("recorded_at", startIso)
+          .lte("recorded_at", endIso)
+          .order("recorded_at");
+
+        const byDay: Record<number, Record<string, string>> = {};
+        (records || []).forEach((r: any) => {
+          const d = new Date(r.recorded_at);
+          const day = d.getDate();
+          if (!byDay[day]) byDay[day] = {};
+          byDay[day][r.record_type] = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        });
+
+        const empAfasts = (afasts || []).filter((a: any) => a.employee_id === ps.employee_id);
+
+        const detalheRows: any[] = [
+          [emp.name],
+          [`Competência: ${competencia}`],
+          [],
+          ["Dia", "Dia da Semana", "Entrada", "Intervalo", "Retorno", "Saída", "Status"],
+        ];
+
+        for (let dia = 1; dia <= diasNoMes; dia++) {
+          const dateStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+          const date = new Date(ano, mes - 1, dia);
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const dayData = byDay[dia];
+          const afastado = empAfasts.find((a: any) => dateStr >= a.data_inicio && dateStr <= a.data_fim);
+
+          let status = "—";
+          if (afastado) status = "Afastamento";
+          else if (dayData && Object.keys(dayData).length > 0) status = "Trabalhado";
+          else if (isWeekend) status = "Folga";
+          else status = "Falta";
+
+          detalheRows.push([
+            String(dia).padStart(2, "0"),
+            WEEKDAYS[date.getDay()],
+            dayData?.entrada || "—",
+            dayData?.intervalo || "—",
+            dayData?.retorno || "—",
+            dayData?.saida || "—",
+            status,
+          ]);
+        }
+
+        const wsDetalhe = XLSX.utils.aoa_to_sheet(detalheRows);
+        wsDetalhe["!cols"] = [{ wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+        // Nome da aba limitado a 31 caracteres (limite do Excel) e sem caracteres inválidos
+        const sheetName = emp.name.replace(/[\\/?*[\]:]/g, "").slice(0, 31);
+        XLSX.utils.book_append_sheet(wb, wsDetalhe, sheetName);
+      }
+
+      XLSX.writeFile(wb, `Integracao_Contabil_${String(mes).padStart(2,"0")}_${ano}.xlsx`);
+      addHistorico(`Integração Contábil (Excel) — ${MONTH_NAMES[mes-1]}/${ano}`);
       toast.success(`Arquivo contábil gerado! ${payslips.length} funcionário(s).`);
     } catch (err: any) {
       toast.error("Erro: " + err.message);
@@ -304,7 +377,7 @@ function IntegracaoContabil({ employees, addHistorico }: {
       </p>
       <Card className="p-4 space-y-3">
         <p className="text-xs text-muted-foreground">
-          Exporta os dados da folha em CSV padrão compatível com qualquer software contábil (Domínio, Alterdata, TOTVS, etc).
+          Exporta um Excel com aba de resumo (todos os funcionários) e uma aba detalhada dia a dia para cada funcionário.
         </p>
         <div className="flex gap-3 flex-wrap items-end">
           <div>
@@ -327,8 +400,10 @@ function IntegracaoContabil({ employees, addHistorico }: {
           </Button>
         </div>
         <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
-          <p className="font-medium text-foreground">Campos exportados:</p>
-          <p>Matrícula · Nome · CPF · Cargo · Departamento · Salário base · Horas trabalhadas · Horas extras · Horas noturnas · Faltas · Proventos · INSS · IRRF · VT · Descontos · Líquido · FGTS</p>
+          <p className="font-medium text-foreground">Aba "Resumo":</p>
+          <p>Matrícula · Nome · CPF · Cargo · Departamento · Salário base · Horas trabalhadas · Horas extras · Horas noturnas · Faltas · Afastamentos · Proventos · INSS · IRRF · Descontos · Líquido · FGTS</p>
+          <p className="font-medium text-foreground pt-1">Uma aba por funcionário:</p>
+          <p>Detalhamento dia a dia com entrada, intervalo, retorno, saída e status (trabalhado/falta/afastamento/folga)</p>
         </div>
       </Card>
     </div>
