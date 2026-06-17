@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
-  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Wallet,
+  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Wallet, FileSignature,
   Sparkles, MapPin, FileDown, CheckCircle2, TrendingUp, Building2, Brain,
 } from "lucide-react";
 import {
@@ -25,7 +25,7 @@ export type AdminTab =
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
   | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes"
   | "anomalias" | "mapa-calor" | "organograma" | "cobertura" | "calendario-ausencias"
-  | "decimo-terceiro" | "rescisao" | "adiantamentos";
+  | "decimo-terceiro" | "rescisao" | "adiantamentos" | "documentos-assinatura";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -44,7 +44,7 @@ const PERMISSIONS: Record<UserRole, AdminTab[]> = {
   admin: [],
   rh: [
     "dashboard", "employees", "records", "justifications", "documentos",
-    "solicitacoes", "avisos", "onboarding", "agenda", "aprovacoes-lote",
+    "solicitacoes", "avisos", "documentos-assinatura", "onboarding", "agenda", "aprovacoes-lote",
     "exportacoes", "analises", "historico", "assistente", "mapa-localizacao",
     "payroll-dashboard", "espelho-ponto", "banco-horas", "payslips",
     "payroll-closing", "payroll-settings", "trabalhista-config", "simulador",
@@ -70,6 +70,7 @@ const pessoasItems = [
   { key: "justifications" as const, label: "Atestados", icon: FileText },
   { key: "solicitacoes" as const, label: "Solicitações", icon: CheckCircle2 },
   { key: "avisos" as const, label: "Avisos", icon: AlertTriangle },
+  { key: "documentos-assinatura" as const, label: "Documentos p/ Assinatura", icon: FileSignature },
   { key: "onboarding" as const, label: "Onboarding", icon: Users },
   { key: "documentos" as const, label: "Documentos", icon: FolderOpen },
   { key: "agenda" as const, label: "Agenda", icon: Calendar },
@@ -233,7 +234,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
   const isPessoasActive = [
     "justifications","documentos","aprovacoes-lote","solicitacoes",
     "agenda","avisos","onboarding","mapa-localizacao","calendario-ausencias",
-    "cobertura","organograma",
+    "cobertura","organograma","documentos-assinatura",
   ].includes(activeTab);
   const isRelatoriosActive = ["analises","historico","exportacoes","assistente","aprovacoes-lote","anomalias","mapa-calor"].includes(activeTab);
   const isPatrimonioActive = activeTab.startsWith("epi-") || activeTab.startsWith("uniforms-") || activeTab.startsWith("tools-");

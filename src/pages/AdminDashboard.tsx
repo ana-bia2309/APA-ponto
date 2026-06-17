@@ -9,7 +9,7 @@ import {
   Plus, Trash2, ToggleLeft, ToggleRight,
   Pencil, Download, X, Check, Sun, Moon, Clock,
   Sparkles,
-  BriefcaseMedical, Palmtree,
+  BriefcaseMedical, Palmtree, Stethoscope,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -39,6 +39,7 @@ import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
 import DecimoTerceiroTab from "@/components/admin/payroll/DecimoTerceiroTab";
 import RescisaoTab from "@/components/admin/payroll/RescisaoTab";
 import AdiantamentosTab from "@/components/admin/payroll/AdiantamentosTab";
+import DocumentosAssinaturaTab from "@/components/admin/DocumentosAssinaturaTab";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
@@ -62,6 +63,7 @@ import TourGuiado from "@/components/admin/TourGuiado";
 import AfastamentosModal from "@/components/admin/AfastamentosModal";
 import CalendarioAusenciasTab from "@/components/admin/CalendarioAusenciasTab";
 import FeriasModal from "@/components/admin/FeriasModal";
+import ExamesModal from "@/components/admin/ExamesModal";
 
 type Employee = Tables<"employees">;
 
@@ -98,6 +100,7 @@ const tabTitles: Record<AdminTab, string> = {
   "decimo-terceiro": "Folha — 13º Salário",
   "rescisao": "Folha — Rescisão",
   "adiantamentos": "Folha — Adiantamentos",
+  "documentos-assinatura": "Documentos para Assinatura",
   "exportacoes": "Relatórios",
   "aprovacoes-lote": "Aprovações em Lote",
   "analises": "Análises",
@@ -156,6 +159,9 @@ export default function AdminDashboard() {
   const [feriasEmpId, setFeriasEmpId] = useState<string | null>(null);
   const [feriasEmpName, setFeriasEmpName] = useState<string>("");
   const [saldosFerias, setSaldosFerias] = useState<Record<string, { dias_disponiveis: number; vencido: boolean }>>({});
+  const [examesEmpId, setExamesEmpId] = useState<string | null>(null);
+  const [examesEmpName, setExamesEmpName] = useState<string>("");
+  const [statusAso, setStatusAso] = useState<Record<string, { vencido: boolean; dias_para_vencer: number | null; nunca_fez: boolean }>>({});
 
 
   useEffect(() => {
@@ -212,6 +218,7 @@ export default function AdminDashboard() {
     // Busca saldo de férias de cada funcionário ativo
     if (data) {
       const saldos: Record<string, { dias_disponiveis: number; vencido: boolean }> = {};
+      const asos: Record<string, { vencido: boolean; dias_para_vencer: number | null; nunca_fez: boolean }> = {};
       await Promise.all(
         data.filter((e: any) => e.active).map(async (emp: any) => {
           const { data: saldoData } = await (supabase as any).rpc("get_saldo_ferias", { p_employee_id: emp.id });
@@ -221,9 +228,18 @@ export default function AdminDashboard() {
               vencido: saldoData[0].vencido,
             };
           }
+          const { data: asoData } = await (supabase as any).rpc("get_status_aso", { p_employee_id: emp.id });
+          if (asoData && asoData.length > 0) {
+            asos[emp.id] = {
+              vencido: asoData[0].vencido,
+              dias_para_vencer: asoData[0].dias_para_vencer,
+              nunca_fez: asoData[0].nunca_fez,
+            };
+          }
         })
       );
       setSaldosFerias(saldos);
+      setStatusAso(asos);
     }
   };
 
@@ -630,6 +646,7 @@ export default function AdminDashboard() {
               {tab === "decimo-terceiro" && <DecimoTerceiroTab employees={employees} />}
               {tab === "rescisao" && <RescisaoTab employees={employees} />}
               {tab === "adiantamentos" && <AdiantamentosTab employees={employees} />}
+              {tab === "documentos-assinatura" && <DocumentosAssinaturaTab employees={employees} />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
@@ -926,6 +943,35 @@ export default function AdminDashboard() {
                                         </span>
                                       );
                                     })()}
+                                    {(() => {
+                                      const aso = statusAso[emp.id];
+                                      if (!aso) return null;
+                                      if (aso.nunca_fez) {
+                                        return (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            style={{ background: "#fee2e2", color: "#991b1b" }}>
+                                            🩺 Sem ASO
+                                          </span>
+                                        );
+                                      }
+                                      if (aso.vencido) {
+                                        return (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            style={{ background: "#fee2e2", color: "#991b1b" }}>
+                                            🩺 ASO vencido
+                                          </span>
+                                        );
+                                      }
+                                      if ((aso.dias_para_vencer ?? 999) <= 30) {
+                                        return (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            style={{ background: "#fef3c7", color: "#b45309" }}>
+                                            🩺 ASO {aso.dias_para_vencer}d
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-muted-foreground">
@@ -966,6 +1012,12 @@ export default function AdminDashboard() {
                                   setFeriasEmpName(emp.name);
                                 }} title="Gestão de férias">
                                   <Palmtree className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setExamesEmpId(emp.id);
+                                  setExamesEmpName(emp.name);
+                                }} title="Exames periódicos (ASO)">
+                                  <Stethoscope className="w-4 h-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
                                   <Pencil className="w-4 h-4" />
@@ -1018,6 +1070,14 @@ export default function AdminDashboard() {
           employeeId={feriasEmpId}
           employeeName={feriasEmpName}
           onClose={() => { setFeriasEmpId(null); setFeriasEmpName(""); }}
+        />
+      )}
+
+      {examesEmpId && (
+        <ExamesModal
+          employeeId={examesEmpId}
+          employeeName={examesEmpName}
+          onClose={() => { setExamesEmpId(null); setExamesEmpName(""); }}
         />
       )}
     </SidebarProvider>

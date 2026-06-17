@@ -127,6 +127,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [decimoTerceiroAlerta, setDecimoTerceiroAlerta] = useState<{ parcela: "primeira" | "segunda"; dias: number; pendentes: number } | null>(null);
   const [marcandoTroca, setMarcandoTroca] = useState<string | null>(null);
   const [feriasVencidas, setFeriasVencidas] = useState<{ name: string; diasDisponiveis: number }[]>([]);
+  const [asosAtencao, setAsosAtencao] = useState<{ name: string; vencido: boolean; diasParaVencer: number | null }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -250,6 +251,23 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           })
         );
         setFeriasVencidas(vencidas);
+      } catch { }
+
+      // ASO vencido ou próximo do vencimento (30 dias)
+      try {
+        const asosLista: { name: string; vencido: boolean; diasParaVencer: number | null }[] = [];
+        await Promise.all(
+          employees.map(async (emp: any) => {
+            const { data: asoData } = await (supabase as any).rpc("get_status_aso", { p_employee_id: emp.id });
+            if (asoData && asoData.length > 0) {
+              const a = asoData[0];
+              if (a.vencido || (a.dias_para_vencer !== null && a.dias_para_vencer <= 30)) {
+                asosLista.push({ name: emp.name, vencido: a.vencido, diasParaVencer: a.dias_para_vencer });
+              }
+            }
+          })
+        );
+        setAsosAtencao(asosLista.sort((a, b) => (a.diasParaVencer ?? -999) - (b.diasParaVencer ?? -999)));
       } catch { }
 
       // Alerta de 13º salário — só nos últimos 15 dias antes de cada parcela
@@ -968,6 +986,26 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </div>
       )}
 
+      {/* ASO vencido ou próximo do vencimento */}
+      {asosAtencao.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+          <p className="font-bold text-amber-700 flex items-center gap-2 text-sm">
+            🩺 Exames Periódicos — atenção ({asosAtencao.length} funcionário{asosAtencao.length > 1 ? "s" : ""})
+          </p>
+          <div className="space-y-1.5">
+            {asosAtencao.map((a, i) => (
+              <div key={i} className="flex items-center justify-between bg-white/60 dark:bg-black/20 rounded-lg px-3 py-2">
+                <p className="text-xs font-bold text-amber-800">{a.name}</p>
+                <span className={`text-xs font-black ${a.vencido ? "text-rose-600" : "text-amber-600"}`}>
+                  {a.vencido ? "Vencido" : `Vence em ${a.diasParaVencer}d`}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-500">⚖️ NR-7 exige exame médico ocupacional em dia para todos os funcionários ativos</p>
+        </div>
+      )}
+
       {/* Trocas de plantão pendentes */}
       {trocasPendentes.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-xl border-2 border-violet-400/50 bg-violet-50 dark:bg-violet-950/20 p-3 space-y-2">
@@ -1022,6 +1060,39 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           ))}
         </div>
       )}
+
+      {/* Aniversariante de hoje — destaque especial */}
+      {(() => {
+        const hoje = new Date().getDate();
+        const aniversariantesHoje = aniversariantes.filter(a => a.dia === hoje);
+        if (aniversariantesHoje.length === 0) return null;
+        return (
+          <div className="rounded-2xl p-5 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", boxShadow: "0 4px 20px rgba(217,119,6,0.25)" }}>
+            <div className="absolute top-2 right-3 text-2xl animate-bounce">🎉</div>
+            <div className="absolute top-8 right-10 text-lg">🎈</div>
+            <div className="absolute bottom-2 left-3 text-lg">🎊</div>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-2">
+              🎂 Aniversário hoje!
+            </p>
+            <div className="space-y-2">
+              {aniversariantesHoje.map((a, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-black text-white flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}>
+                    {a.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-amber-900">{a.name}</p>
+                    {a.cargo && <p className="text-xs text-amber-700">{a.cargo}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-amber-800 mt-3 font-medium">🥳 Não esqueça de parabenizar!</p>
+          </div>
+        );
+      })()}
 
       {/* Aniversariantes do mês */}
       {aniversariantes.length > 0 && (

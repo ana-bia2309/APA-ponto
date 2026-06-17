@@ -47,6 +47,7 @@ import PayslipSign from "@/components/PayslipSign";
 import UniformAcceptance from "@/components/UniformAcceptance";
 import ToolAcceptance from "@/components/ToolAcceptance";
 import TimesheetSign from "@/components/TimesheetSign";
+import DocumentoSign from "@/components/DocumentoSign";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -679,6 +680,17 @@ const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at:
 const [showToolAcceptance, setShowToolAcceptance] = useState(false);
 const [showTimesheetSign, setShowTimesheetSign] = useState(false);
 const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
+const [showDocumentoSign, setShowDocumentoSign] = useState(false);
+const [pendingDocumentoCount, setPendingDocumentoCount] = useState(0);
+
+const fetchPendingDocumentoCount = useCallback(async (cpf: string) => {
+  const cpfDigits = normalizeCpf(cpf);
+  if (!cpfDigits || !navigator.onLine) { setPendingDocumentoCount(0); return; }
+  try {
+    const { data } = await (supabase as any).rpc("get_pending_documentos_by_cpf", { p_cpf: cpfDigits });
+    setPendingDocumentoCount(Array.isArray(data) ? data.length : 0);
+  } catch {}
+}, []);
 const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
 const [avisosConfirmados, setAvisosConfirmados] = useState<Record<string, string>>({});
 const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
@@ -688,6 +700,26 @@ const [historyTab, setHistoryTab] = useState<"pontos" | "banco" | "ferias" | "af
 const [feriasSaldo, setFeriasSaldo] = useState<any>(null);
 const [feriasHistorico, setFeriasHistorico] = useState<any[]>([]);
 const [afastamentosHistorico, setAfastamentosHistorico] = useState<any[]>([]);
+const [aniversarioHoje, setAniversarioHoje] = useState(false);
+
+const verificarAniversario = useCallback(async (employeeId: string) => {
+  if (!navigator.onLine) return;
+  try {
+    const { data } = await (supabase as any)
+      .from("employees")
+      .select("data_nascimento")
+      .eq("id", employeeId)
+      .maybeSingle();
+    if (data?.data_nascimento) {
+      const hoje = new Date();
+      const mesHoje = hoje.getMonth() + 1;
+      const diaHoje = hoje.getDate();
+      const mesNasc = parseInt(data.data_nascimento.slice(5, 7));
+      const diaNasc = parseInt(data.data_nascimento.slice(8, 10));
+      setAniversarioHoje(mesNasc === mesHoje && diaNasc === diaHoje);
+    }
+  } catch {}
+}, []);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -1002,6 +1034,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           fetchPendingPayslipCount(validatedContext.cpf_normalized),
           fetchPendingUniformCount(validatedContext.cpf_normalized),
           fetchPendingToolCount(validatedContext.cpf_normalized),
+          fetchPendingDocumentoCount(validatedContext.cpf_normalized),
         ]);
       }
       setIsSyncing(false);
@@ -1077,6 +1110,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     void fetchPendingPayslipCount(validatedContext.cpf_normalized);
     void fetchPendingUniformCount(validatedContext.cpf_normalized);
     void fetchPendingToolCount(validatedContext.cpf_normalized);
+    void fetchPendingDocumentoCount(validatedContext.cpf_normalized);
   void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
     void fetchTimesheetSummary(validatedContext.cpf_normalized);
     void fetchCalendario(validatedContext.cpf_normalized);
@@ -1130,6 +1164,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   useEffect(() => {
     if (selectedEmployee) {
       fetchTodayRecords(selectedEmployee.id);
+      verificarAniversario(selectedEmployee.id);
       // Always fetch server-driven next step when employee changes
       if (validatedContext?.cpf_normalized) {
         fetchNextStep(validatedContext.cpf_normalized);
@@ -1656,6 +1691,16 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         employeeName={selectedEmployee.name}
         onClose={() => setShowTimesheetSign(false)}
         onSigned={() => fetchPendingTimesheetCount(validatedContext.cpf_normalized)}
+      />
+    );
+  }
+  if (showDocumentoSign && selectedEmployee && validatedContext) {
+    return (
+      <DocumentoSign
+        cpf={validatedContext.cpf_normalized}
+        employeeName={selectedEmployee.name}
+        onClose={() => setShowDocumentoSign(false)}
+        onSigned={() => fetchPendingDocumentoCount(validatedContext.cpf_normalized)}
       />
     );
   }
@@ -2475,6 +2520,18 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </button>
         </div>
 
+{/* Aniversário do funcionário */}
+        {aniversarioHoje && (
+          <div className="w-full rounded-2xl px-5 py-4 mb-3 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", boxShadow: "0 4px 16px rgba(217,119,6,0.25)" }}>
+            <div className="absolute top-2 right-3 text-xl">🎈</div>
+            <p className="text-sm font-black text-amber-900 flex items-center gap-2">
+              🎂 Feliz Aniversário, {selectedEmployee.name.split(" ")[0]}!
+            </p>
+            <p className="text-xs text-amber-700 mt-1">Toda a equipe APA deseja um dia incrível! 🥳</p>
+          </div>
+        )}
+
 {/* Banner sazonal */}
         {(() => {
           const mes = new Date().getMonth() + 1;
@@ -2877,6 +2934,21 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                 <p className="text-xs text-blue-500">Seu espelho foi fechado e aguarda assinatura.</p>
               </div>
               <button onClick={() => setShowTimesheetSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#1e40af", color: "white" }}>Assinar</button>
+            </div>
+          </div>
+        )}
+
+        {pendingDocumentoCount > 0 && (
+          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#f0f9ff", borderColor: "#bae6fd" }}>
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e0f2fe" }}>
+                <FileText className="w-5 h-5 text-sky-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-sky-800">{pendingDocumentoCount === 1 ? "Documento para assinar" : `${pendingDocumentoCount} documentos pendentes`}</p>
+                <p className="text-xs text-sky-500">Leia e assine para confirmar.</p>
+              </div>
+              <button onClick={() => setShowDocumentoSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#0284c7", color: "white" }}>Assinar</button>
             </div>
           </div>
         )}
