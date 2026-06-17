@@ -683,6 +683,10 @@ const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: str
 const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
 const [solicitacaoTexto, setSolicitacaoTexto] = useState("");
 const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
+const [historyTab, setHistoryTab] = useState<"pontos" | "banco" | "ferias" | "afastamentos">("pontos");
+const [feriasSaldo, setFeriasSaldo] = useState<any>(null);
+const [feriasHistorico, setFeriasHistorico] = useState<any[]>([]);
+const [afastamentosHistorico, setAfastamentosHistorico] = useState<any[]>([]);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -1778,6 +1782,22 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       .gte("recorded_at", thirtyDaysAgo.toISOString())
       .order("recorded_at", { ascending: false });
     if (data) setHistoryRecords((data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord));
+
+    // Busca saldo e histórico de férias
+    try {
+      const [saldoRes, feriasRes, afastRes] = await Promise.all([
+        (supabase as any).rpc("get_saldo_ferias", { p_employee_id: selectedEmployee.id }),
+        (supabase as any).from("ferias").select("*").eq("employee_id", selectedEmployee.id).order("created_at", { ascending: false }),
+        (supabase as any).from("afastamentos").select("*").eq("employee_id", selectedEmployee.id).order("data_inicio", { ascending: false }),
+      ]);
+      if (saldoRes.data && saldoRes.data.length > 0) setFeriasSaldo(saldoRes.data[0]);
+      if (feriasRes.data) setFeriasHistorico(feriasRes.data);
+      if (afastRes.data) setAfastamentosHistorico(afastRes.data);
+    } catch (e) {
+      console.error("Erro ao buscar férias/afastamentos", e);
+    }
+
+    setHistoryTab("pontos");
     setShowHistory(true);
   };
 
@@ -2010,40 +2030,188 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
 
           <p className="text-xs text-gray-400 mb-4">{selectedEmployee.name} • Últimos 30 dias</p>
 
-          {journeys.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-              <p className="text-gray-400">Nenhum registro encontrado.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {journeys.map((journey, ji) => (
-                <div key={ji} className="bg-white p-4 rounded-2xl border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <p className="text-sm font-bold text-gray-700 capitalize">{journey.label}</p>
-                    {!journey.complete && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#fff7ed", color: "#c2410c" }}>Aberta</span>
-                    )}
-                    {journey.complete && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#f0fdf4", color: "#15803d" }}>Completa</span>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {journey.records.map((rec) => (
-                      <div key={rec.id} className="flex items-center justify-between">
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: "#eff6ff", color: "#1e40af" }}>
-                          {STEP_LABELS[rec.step] || rec.step}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {(rec as any).address && <MapPin className="w-3 h-3 text-emerald-500" />}
-                          <span className="tabular-nums text-sm font-semibold text-gray-700">
-                            {formatTime(rec.punched_at)}
+          {/* Sub-abas */}
+          <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+            {[
+              { key: "pontos", label: "🕐 Pontos" },
+              { key: "banco", label: "🏦 Banco de Horas" },
+              { key: "ferias", label: "🏖️ Férias" },
+              { key: "afastamentos", label: "🏥 Afastamentos" },
+            ].map((t) => (
+              <button key={t.key}
+                onClick={() => setHistoryTab(t.key as any)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                  historyTab === t.key ? "text-white" : "text-gray-500 bg-white"
+                }`}
+                style={historyTab === t.key ? { background: "linear-gradient(135deg, #1e40af, #0ea5e9)" } : { border: "1px solid #e2e8f0" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── ABA PONTOS ── */}
+          {historyTab === "pontos" && (
+            journeys.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                <p className="text-gray-400">Nenhum registro encontrado.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {journeys.map((journey, ji) => (
+                  <div key={ji} className="bg-white p-4 rounded-2xl border border-gray-100" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-sm font-bold text-gray-700 capitalize">{journey.label}</p>
+                      {!journey.complete && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#fff7ed", color: "#c2410c" }}>Aberta</span>
+                      )}
+                      {journey.complete && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "#f0fdf4", color: "#15803d" }}>Completa</span>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {journey.records.map((rec) => (
+                        <div key={rec.id} className="flex items-center justify-between">
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: "#eff6ff", color: "#1e40af" }}>
+                            {STEP_LABELS[rec.step] || rec.step}
                           </span>
+                          <div className="flex items-center gap-2">
+                            {(rec as any).address && <MapPin className="w-3 h-3 text-emerald-500" />}
+                            <span className="tabular-nums text-sm font-semibold text-gray-700">
+                              {formatTime(rec.punched_at)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ── ABA BANCO DE HORAS ── */}
+          {historyTab === "banco" && (
+            <div className="space-y-3">
+              {timesheetSummary ? (
+                <div className="bg-white rounded-2xl p-5" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+                    {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
+                  </p>
+                  <p className="text-4xl font-black tabular-nums mb-1"
+                    style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }}>
+                    {timesheetSummary.diferenca >= 0 ? "+" : ""}{Math.floor(Math.abs(timesheetSummary.diferenca))}h{String(Math.round((Math.abs(timesheetSummary.diferenca) % 1) * 60)).padStart(2, "0")}
+                  </p>
+                  <p className="text-xs font-medium mb-4" style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }}>
+                    {timesheetSummary.diferenca >= 0 ? "Saldo positivo este mês" : "Saldo negativo este mês"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+                    <div>
+                      <p className="text-[10px] text-gray-400">Horas trabalhadas</p>
+                      <p className="text-sm font-bold text-gray-700">{timesheetSummary.horas_trabalhadas?.toFixed(1)}h</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400">Horas esperadas</p>
+                      <p className="text-sm font-bold text-gray-700">{timesheetSummary.horas_esperadas?.toFixed(1)}h</p>
+                    </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <p className="text-gray-400">Sem dados de banco de horas.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── ABA FÉRIAS ── */}
+          {historyTab === "ferias" && (
+            <div className="space-y-3">
+              {feriasSaldo ? (
+                <>
+                  <div className={`rounded-2xl p-5 border-2 ${feriasSaldo.vencido ? "border-rose-300 bg-rose-50" : "border-emerald-300 bg-emerald-50"}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
+                      Período {new Date(feriasSaldo.periodo_inicio + "T12:00:00").toLocaleDateString("pt-BR")} → {new Date(feriasSaldo.periodo_fim + "T12:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                    <p className={`text-4xl font-black ${feriasSaldo.vencido ? "text-rose-600" : "text-emerald-600"}`}>
+                      {feriasSaldo.dias_disponiveis}
+                    </p>
+                    <p className="text-xs text-gray-500">dia(s) disponível(is) de {feriasSaldo.dias_direito}</p>
+                    {feriasSaldo.vencido && (
+                      <p className="text-xs font-bold text-rose-600 mt-2">⚠️ Período vencido — fale com o RH</p>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 grid grid-cols-2 gap-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-blue-600">{feriasSaldo.dias_descanso_usados}d</p>
+                      <p className="text-[10px] text-gray-400">Descanso usado</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-amber-600">{feriasSaldo.dias_abono_usados}d</p>
+                      <p className="text-[10px] text-gray-400">Abono vendido</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <p className="text-gray-400">Sem dados de férias cadastrados.</p>
+                </div>
+              )}
+
+              {feriasHistorico.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 space-y-2" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Histórico</p>
+                  {feriasHistorico.map((f: any) => (
+                    <div key={f.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <span>{f.tipo === "descanso" ? "🏖️" : "💰"}</span>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-700">{f.tipo === "descanso" ? "Descanso" : "Abono"} — {f.dias}d</p>
+                          {f.data_inicio && (
+                            <p className="text-[10px] text-gray-400">{new Date(f.data_inicio + "T12:00:00").toLocaleDateString("pt-BR")} → {new Date(f.data_fim + "T12:00:00").toLocaleDateString("pt-BR")}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── ABA AFASTAMENTOS ── */}
+          {historyTab === "afastamentos" && (
+            <div className="space-y-3">
+              {afastamentosHistorico.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <p className="text-gray-400">Nenhum afastamento registrado.</p>
+                </div>
+              ) : (
+                afastamentosHistorico.map((a: any) => {
+                  const labels: Record<string, string> = {
+                    licenca_medica: "Licença Médica", licenca_maternidade: "Lic. Maternidade",
+                    licenca_paternidade: "Lic. Paternidade", ferias: "Férias",
+                    acidente_trabalho: "Acidente de Trabalho", suspensao: "Suspensão", outro: "Afastado",
+                  };
+                  const hoje = new Date().toISOString().slice(0, 10);
+                  const ativo = a.data_inicio <= hoje && a.data_fim >= hoje;
+                  return (
+                    <div key={a.id} className="bg-white rounded-2xl p-4 flex items-center gap-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: ativo ? "#dbeafe" : "#f1f5f9" }}>
+                        🏥
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-gray-700">{labels[a.tipo] || a.tipo}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(a.data_inicio + "T12:00:00").toLocaleDateString("pt-BR")} → {new Date(a.data_fim + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      {ativo && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1e40af" }}>Ativo</span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>
