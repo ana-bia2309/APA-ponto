@@ -9,7 +9,7 @@ import {
   Plus, Trash2, ToggleLeft, ToggleRight,
   Pencil, Download, X, Check, Sun, Moon, Clock,
   Sparkles,
-  BriefcaseMedical,
+  BriefcaseMedical, Palmtree,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
@@ -58,6 +58,7 @@ import CoberturaTab from "@/components/admin/CoberturaTab";
 import TourGuiado from "@/components/admin/TourGuiado";
 import AfastamentosModal from "@/components/admin/AfastamentosModal";
 import CalendarioAusenciasTab from "@/components/admin/CalendarioAusenciasTab";
+import FeriasModal from "@/components/admin/FeriasModal";
 
 type Employee = Tables<"employees">;
 
@@ -146,6 +147,9 @@ export default function AdminDashboard() {
   const [afastamentosEmpId, setAfastamentosEmpId] = useState<string | null>(null);
   const [afastamentosEmpName, setAfastamentosEmpName] = useState<string>("");
   const [afastamentosAtivos, setAfastamentosAtivos] = useState<{ employee_id: string; tipo: string }[]>([]);
+  const [feriasEmpId, setFeriasEmpId] = useState<string | null>(null);
+  const [feriasEmpName, setFeriasEmpName] = useState<string>("");
+  const [saldosFerias, setSaldosFerias] = useState<Record<string, { dias_disponiveis: number; vencido: boolean }>>({});
 
 
   useEffect(() => {
@@ -198,6 +202,23 @@ export default function AdminDashboard() {
       .lte("data_inicio", hoje)
       .gte("data_fim", hoje);
     if (afasts) setAfastamentosAtivos(afasts);
+
+    // Busca saldo de férias de cada funcionário ativo
+    if (data) {
+      const saldos: Record<string, { dias_disponiveis: number; vencido: boolean }> = {};
+      await Promise.all(
+        data.filter((e: any) => e.active).map(async (emp: any) => {
+          const { data: saldoData } = await (supabase as any).rpc("get_saldo_ferias", { p_employee_id: emp.id });
+          if (saldoData && saldoData.length > 0) {
+            saldos[emp.id] = {
+              dias_disponiveis: saldoData[0].dias_disponiveis,
+              vencido: saldoData[0].vencido,
+            };
+          }
+        })
+      );
+      setSaldosFerias(saldos);
+    }
   };
 
   const addEmployee = async (e: React.FormEvent) => {
@@ -491,7 +512,7 @@ export default function AdminDashboard() {
           pdf.text(`Total: ${totalDias} dia(s) de afastamento`, M + 2, y);
           y += 6;
         }
-      } catch {}
+      } catch { }
 
       // Rodapé
       pdf.setDrawColor(15, 23, 42); pdf.setLineWidth(0.5);
@@ -870,6 +891,32 @@ export default function AdminDashboard() {
                                         </span>
                                       );
                                     })()}
+                                    {(() => {
+                                      const sf = saldosFerias[emp.id];
+                                      if (!sf) return null;
+                                      if (sf.vencido) {
+                                        return (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            style={{ background: "#fee2e2", color: "#991b1b" }}>
+                                            🌴 Férias vencidas
+                                          </span>
+                                        );
+                                      }
+                                      if (sf.dias_disponiveis <= 5) {
+                                        return (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            style={{ background: "#fef3c7", color: "#b45309" }}>
+                                            🌴 {sf.dias_disponiveis}d de férias
+                                          </span>
+                                        );
+                                      }
+                                      return (
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1"
+                                          style={{ background: "#d1fae5", color: "#065f46" }}>
+                                          🌴 {sf.dias_disponiveis}d disponíveis
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-muted-foreground">
@@ -904,6 +951,12 @@ export default function AdminDashboard() {
                                   setAfastamentosEmpName(emp.name);
                                 }} title="Afastamentos e trocas">
                                   <BriefcaseMedical className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setFeriasEmpId(emp.id);
+                                  setFeriasEmpName(emp.name);
+                                }} title="Gestão de férias">
+                                  <Palmtree className="w-4 h-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => startEditing(emp)} title="Editar">
                                   <Pencil className="w-4 h-4" />
@@ -948,6 +1001,14 @@ export default function AdminDashboard() {
           employeeId={afastamentosEmpId}
           employeeName={afastamentosEmpName}
           onClose={() => { setAfastamentosEmpId(null); setAfastamentosEmpName(""); }}
+        />
+      )}
+
+      {feriasEmpId && (
+        <FeriasModal
+          employeeId={feriasEmpId}
+          employeeName={feriasEmpName}
+          onClose={() => { setFeriasEmpId(null); setFeriasEmpName(""); }}
         />
       )}
     </SidebarProvider>

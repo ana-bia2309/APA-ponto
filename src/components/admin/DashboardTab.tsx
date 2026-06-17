@@ -125,6 +125,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [retornandoEmBreve, setRetornandoEmBreve] = useState<{ name: string; tipo: string; dataFim: string; diasRestantes: number }[]>([]);
   const [trocasPendentes, setTrocasPendentes] = useState<{ id: string; name: string; dataOriginal: string; dataCompensacao: string | null }[]>([]);
   const [marcandoTroca, setMarcandoTroca] = useState<string | null>(null);
+  const [feriasVencidas, setFeriasVencidas] = useState<{ name: string; diasDisponiveis: number }[]>([]);
   const [comparativo, setComparativo] = useState<{
     presencaMes: number; presencaMesAnterior: number;
     atrasosMes: number; atrasosMesAnterior: number;
@@ -232,6 +233,23 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         };
       });
       setTrocasPendentes(trocasList);
+
+      // Férias vencidas ou próximas do vencimento
+      try {
+        const vencidas: { name: string; diasDisponiveis: number }[] = [];
+        await Promise.all(
+          employees.map(async (emp: any) => {
+            const { data: saldoData } = await (supabase as any).rpc("get_saldo_ferias", { p_employee_id: emp.id });
+            if (saldoData && saldoData.length > 0) {
+              const s = saldoData[0];
+              if (s.vencido && s.dias_disponiveis > 0) {
+                vencidas.push({ name: emp.name, diasDisponiveis: s.dias_disponiveis });
+              }
+            }
+          })
+        );
+        setFeriasVencidas(vencidas);
+      } catch { }
 
       const bancoMap: Record<string, number> = {};
       (bancoRes.data || []).forEach((e: any) => {
@@ -881,7 +899,25 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         </>
       )}
 
-{/* Trocas de plantão pendentes */}
+      {/* Férias vencidas */}
+      {feriasVencidas.length > 0 && (role === "admin" || role === "rh" || !role) && (
+        <div className="rounded-xl border-2 border-rose-500/50 bg-rose-50 dark:bg-rose-950/20 p-3 space-y-2">
+          <p className="font-bold text-rose-700 flex items-center gap-2 text-sm">
+            🌴 Férias vencidas ({feriasVencidas.length} funcionário{feriasVencidas.length > 1 ? "s" : ""})
+          </p>
+          <div className="space-y-1.5">
+            {feriasVencidas.map((f, i) => (
+              <div key={i} className="flex items-center justify-between bg-white/60 dark:bg-black/20 rounded-lg px-3 py-2">
+                <p className="text-xs font-bold text-rose-800">{f.name}</p>
+                <span className="text-xs font-black text-rose-600">{f.diasDisponiveis}d acumulado(s)</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-rose-500">⚖️ Período aquisitivo encerrado sem férias programadas — risco de pagamento em dobro (CLT Art. 137)</p>
+        </div>
+      )}
+
+      {/* Trocas de plantão pendentes */}
       {trocasPendentes.length > 0 && (role === "admin" || role === "rh" || !role) && (
         <div className="rounded-xl border-2 border-violet-400/50 bg-violet-50 dark:bg-violet-950/20 p-3 space-y-2">
           <p className="font-bold text-violet-700 flex items-center gap-2 text-sm">
@@ -912,7 +948,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
           ))}
         </div>
       )}
-      
+
       {/* Retornando em breve */}
       {retornandoEmBreve.length > 0 && (
         <div className="rounded-xl border-2 border-amber-400/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
