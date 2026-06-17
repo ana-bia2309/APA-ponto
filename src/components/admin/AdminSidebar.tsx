@@ -24,7 +24,8 @@ export type AdminTab =
   | "simulador" | "espelho-ponto" | "mapa-localizacao" | "exportacoes"
   | "aprovacoes-lote" | "analises" | "historico" | "agenda" | "users" | "avisos"
   | "solicitacoes" | "centro-operacoes" | "panorama" | "onboarding" | "permissoes"
-  | "anomalias" | "mapa-calor" | "organograma" | "cobertura" | "calendario-ausencias";
+  | "anomalias" | "mapa-calor" | "organograma" | "cobertura" | "calendario-ausencias"
+  | "decimo-terceiro";
 
 export type UserRole = "admin" | "rh" | "supervisor" | "operacional";
 
@@ -47,6 +48,7 @@ const PERMISSIONS: Record<UserRole, AdminTab[]> = {
     "exportacoes", "analises", "historico", "assistente", "mapa-localizacao",
     "payroll-dashboard", "espelho-ponto", "banco-horas", "payslips",
     "payroll-closing", "payroll-settings", "trabalhista-config", "simulador",
+    "decimo-terceiro",
     "centro-operacoes", "panorama", "calendario-ausencias",
   ],
   supervisor: [
@@ -112,6 +114,7 @@ const payrollItems = [
   { key: "banco-horas" as const, label: "Banco de Horas", icon: Clock },
   { key: "payslips" as const, label: "Holerites", icon: Receipt },
   { key: "payroll-closing" as const, label: "Fechamento", icon: Calculator },
+  { key: "decimo-terceiro" as const, label: "13º Salário", icon: Receipt },
   { key: "payroll-settings" as const, label: "Parâmetros", icon: SettingsIcon },
   { key: "trabalhista-config" as const, label: "Regras CLT", icon: FileText },
   { key: "simulador" as const, label: "Simulador", icon: Calculator },
@@ -232,7 +235,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
   ].includes(activeTab);
   const isRelatoriosActive = ["analises","historico","exportacoes","assistente","aprovacoes-lote","anomalias","mapa-calor"].includes(activeTab);
   const isPatrimonioActive = activeTab.startsWith("epi-") || activeTab.startsWith("uniforms-") || activeTab.startsWith("tools-");
-  const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto"].includes(activeTab);
+  const isPayrollActive = activeTab.startsWith("payroll") || ["payslips","banco-horas","trabalhista-config","simulador","espelho-ponto","decimo-terceiro"].includes(activeTab);
 
   const pessoasBadges: Record<string, number> = {};
   if (solicitacoesPendentes > 0) pessoasBadges["solicitacoes"] = solicitacoesPendentes;

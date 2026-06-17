@@ -329,7 +329,7 @@ export function summarizeWorkFromRecords(
 ): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"|"dias_uteis_mes"|"dias_trabalhados"> {
   const cargaDiaria = opts.cargaHorariaDiaria ?? 8;
 
-  // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada")
+  // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada") 
   const sorted = [...records]
     .map((r) => ({ t: r.record_type, at: new Date(r.recorded_at) }))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -390,4 +390,50 @@ export function summarizeWorkFromRecords(
     faltas_dias: faltas.toFixed(0),
     atrasos_minutos: 0,
   };
+
+return {
+    horas_trabalhadas: (totalMin / 60).toFixed(2),
+    horas_extras_50: (extras50Min / 60).toFixed(2),
+    horas_extras_100: (extras100Min / 60).toFixed(2),
+    horas_noturnas: (noturnasMin / 60).toFixed(2),
+    faltas_dias: faltas.toFixed(0),
+    atrasos_minutos: 0,
+  };
 }
+
+/**
+ * Calcula o 13º salário de um funcionário com base no salário e meses trabalhados no ano.
+ * 1ª parcela: metade do valor total, sem desconto de INSS/IRRF.
+ * 2ª parcela: o restante, com INSS e IRRF descontados sobre o valor da parcela.
+ */
+export function calcular13Salario(
+  salarioBase: string | number,
+  mesesTrabalhados: number,
+  dependentesIrrf: number,
+): {
+  valor_total: string;
+  primeira_parcela: string;
+  segunda_parcela_bruta: string;
+  inss: string;
+  irrf: string;
+  segunda_parcela_liquida: string;
+} {
+  const valorTotal = D(salarioBase).div(12).mul(mesesTrabalhados);
+  const primeiraParcela = valorTotal.div(2);
+  const segundaParcelaBruta = valorTotal.minus(primeiraParcela);
+
+  const { inss } = calcINSS(segundaParcelaBruta.toString());
+  const { irrf } = calcIRRF(segundaParcelaBruta.toString(), inss, dependentesIrrf);
+
+  const segundaParcelaLiquida = segundaParcelaBruta.minus(inss).minus(D(irrf));
+
+  return {
+    valor_total: round2(valorTotal),
+    primeira_parcela: round2(primeiraParcela),
+    segunda_parcela_bruta: round2(segundaParcelaBruta),
+    inss,
+    irrf,
+    segunda_parcela_liquida: round2(segundaParcelaLiquida),
+  };
+}
+

@@ -36,6 +36,7 @@ import MapaLocalizacaoTab from "@/components/admin/MapaLocalizacaoTab";
 import ExportacoesTab from "@/components/admin/ExportacoesTab";
 import EspelhoPontoTab from "@/components/admin/payroll/EspelhoPontoTab";
 import SimuladorFolhaTab from "@/components/admin/payroll/SimuladorFolhaTab";
+import DecimoTerceiroTab from "@/components/admin/payroll/DecimoTerceiroTab";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
@@ -92,6 +93,7 @@ const tabTitles: Record<AdminTab, string> = {
   "mapa-localizacao": "Mapa de Localização",
   "espelho-ponto": "Folha — Espelho de Ponto",
   "simulador": "Folha — Simulador",
+  "decimo-terceiro": "Folha — 13º Salário",
   "exportacoes": "Relatórios",
   "aprovacoes-lote": "Aprovações em Lote",
   "analises": "Análises",
@@ -621,6 +623,7 @@ export default function AdminDashboard() {
               {tab === "solicitacoes" && <SolicitacoesTab />}
               {tab === "avisos" && <AvisosTab />}
               {tab === "simulador" && <SimuladorFolhaTab />}
+              {tab === "decimo-terceiro" && <DecimoTerceiroTab employees={employees} />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
