@@ -1,22 +1,30 @@
 // Tabelas oficiais 2025/2026 — atualizar anualmente
 // Valores em reais. INSS: faixas progressivas. IRRF: dedução por dependente.
 
+// Atualizado para 2026 em 17/06/2026 — próxima revisão recomendada: janeiro/2027
 export const INSS_TABLE_2025 = [
-  { ate: "1518.00", aliquota: "0.075" },
-  { ate: "2793.88", aliquota: "0.09" },
-  { ate: "4190.83", aliquota: "0.12" },
-  { ate: "8157.41", aliquota: "0.14" },
+  { ate: "1621.00", aliquota: "0.075" },
+  { ate: "2902.84", aliquota: "0.09" },
+  { ate: "4354.27", aliquota: "0.12" },
+  { ate: "8475.55", aliquota: "0.14" },
 ];
-export const INSS_TETO = "8157.41";
+export const INSS_TETO = "8475.55";
 
 export const IRRF_TABLE_2025 = [
-  { ate: "2259.20", aliquota: "0", deducao: "0" },
+  { ate: "2428.80", aliquota: "0", deducao: "0" },
   { ate: "2826.65", aliquota: "0.075", deducao: "169.44" },
   { ate: "3751.05", aliquota: "0.15", deducao: "381.44" },
   { ate: "4664.68", aliquota: "0.225", deducao: "662.77" },
-  { ate: "999999999", aliquota: "0.275", deducao: "896.00" },
+  { ate: "999999999", aliquota: "0.275", deducao: "908.73" },
 ];
 export const IRRF_DEDUCAO_DEPENDENTE = "189.59";
+
+// Redutor do IRRF — Lei 15.270/2025, vigente desde jan/2026
+// Zera o imposto até R$5.000 de base e reduz gradualmente até R$7.350
+export const IRRF_REDUTOR_LIMITE_ISENCAO = "5000.00";
+export const IRRF_REDUTOR_LIMITE_REDUCAO = "7350.00";
+export const IRRF_REDUTOR_CONSTANTE = "978.62";
+export const IRRF_REDUTOR_COEFICIENTE = "0.133145";
 
 export const FGTS_ALIQUOTA = "0.08";
 

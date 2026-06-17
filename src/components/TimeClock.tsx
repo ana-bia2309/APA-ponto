@@ -48,6 +48,7 @@ import UniformAcceptance from "@/components/UniformAcceptance";
 import ToolAcceptance from "@/components/ToolAcceptance";
 import TimesheetSign from "@/components/TimesheetSign";
 import DocumentoSign from "@/components/DocumentoSign";
+import Ouvidoria from "@/components/Ouvidoria";
 import {
   mapTimeRecordToPunchRecord,
   type DisplayPunchRecord,
@@ -682,6 +683,7 @@ const [showTimesheetSign, setShowTimesheetSign] = useState(false);
 const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
 const [showDocumentoSign, setShowDocumentoSign] = useState(false);
 const [pendingDocumentoCount, setPendingDocumentoCount] = useState(0);
+const [showOuvidoria, setShowOuvidoria] = useState(false);
 
 const fetchPendingDocumentoCount = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
@@ -1703,6 +1705,10 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         onSigned={() => fetchPendingDocumentoCount(validatedContext.cpf_normalized)}
       />
     );
+  }
+
+  if (showOuvidoria) {
+    return <Ouvidoria onClose={() => setShowOuvidoria(false)} />;
   }
   if (showPayslipSign && selectedEmployee && validatedContext) {
     return (
@@ -3068,6 +3074,16 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             </button>
           ))}
         </div>
+
+        {/* Ouvidoria */}
+        <button
+          onClick={() => setShowOuvidoria(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border transition-all hover:shadow-md active:scale-95 mb-3"
+          style={{ background: "white", borderColor: "#e2e8f0", color: "#64748b" }}
+        >
+          <span className="text-base">📮</span>
+          <span className="text-xs font-semibold">Ouvidoria — Canal Anônimo</span>
+        </button>
 
         {/* Geo status */}
         {geoStatus && (

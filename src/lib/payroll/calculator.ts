@@ -2,6 +2,8 @@ import Decimal from "decimal.js";
 import {
   INSS_TABLE_2025, INSS_TETO,
   IRRF_TABLE_2025, IRRF_DEDUCAO_DEPENDENTE, FGTS_ALIQUOTA,
+  IRRF_REDUTOR_LIMITE_ISENCAO, IRRF_REDUTOR_LIMITE_REDUCAO,
+  IRRF_REDUTOR_CONSTANTE, IRRF_REDUTOR_COEFICIENTE,
 } from "./tables";
 
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_EVEN });
@@ -94,6 +96,49 @@ export function calcIRRF(
     }
   }
   return { irrf: "0.00", base: round2(base) };
+}
+
+/**
+ * Calcula o IRRF já aplicando o redutor da Lei 15.270/2025 (vigente desde jan/2026).
+ * Zera o imposto para base tributável até R$5.000 e reduz gradualmente até R$7.350.
+ * Acima de R$7.350, segue só a tabela progressiva tradicional (sem redutor).
+ *
+ * IMPORTANTE: o "rendimento tributável" usado para decidir a faixa do redutor é a
+ * base bruta ANTES dos descontos de INSS/dependentes (conforme exemplos oficiais da
+ * Receita Federal), enquanto o cálculo do imposto pela tabela progressiva continua
+ * usando a base líquida (depois de INSS/dependentes), exatamente como já era feito.
+ */
+export function calcIRRFComRedutor2026(
+  baseBruta: string | number,
+  inss: string | number,
+  dependentes: number,
+): { irrf: string; base: string; redutor_aplicado: string } {
+  const { irrf: irrfSemRedutor, base } = calcIRRF(baseBruta, inss, dependentes);
+  const rendimentoTributavel = D(baseBruta);
+
+  // Acima do limite de redução: sem benefício, comportamento igual ao de antes
+  if (rendimentoTributavel.gt(IRRF_REDUTOR_LIMITE_REDUCAO)) {
+    return { irrf: irrfSemRedutor, base, redutor_aplicado: "0.00" };
+  }
+
+  // Até R$5.000 de rendimento tributável: isenção total
+  if (rendimentoTributavel.lte(IRRF_REDUTOR_LIMITE_ISENCAO)) {
+    return { irrf: "0.00", base, redutor_aplicado: irrfSemRedutor };
+  }
+
+  // Entre R$5.000,01 e R$7.350,00: redutor parcial
+  // Fórmula oficial: R$978,62 − (0,133145 × rendimento tributável)
+  const redutor = D(IRRF_REDUTOR_CONSTANTE).minus(
+    D(IRRF_REDUTOR_COEFICIENTE).mul(rendimentoTributavel),
+  );
+  const redutorPositivo = Decimal.max(redutor, D(0));
+  const irrfFinal = Decimal.max(D(irrfSemRedutor).minus(redutorPositivo), D(0));
+
+  return {
+    irrf: round2(irrfFinal),
+    base,
+    redutor_aplicado: round2(Decimal.min(redutorPositivo, D(irrfSemRedutor))),
+  };
 }
 
 export function calculatePayroll(
@@ -230,8 +275,8 @@ export function calculatePayroll(
     reference: "Tabela Progressiva", amount: inss,
   });
 
-  // 12. IRRF
-  const { irrf, base: baseIrrf } = calcIRRF(
+  // 12. IRRF (com redutor da Lei 15.270/2025)
+  const { irrf, base: baseIrrf } = calcIRRFComRedutor2026(
     proventosTributaveis.toString(), inss, settings.dependentes_irrf,
   );
   if (D(irrf).gt(0)) {
@@ -423,7 +468,7 @@ export function calcular13Salario(
   const segundaParcelaBruta = valorTotal.minus(primeiraParcela);
 
   const { inss } = calcINSS(segundaParcelaBruta.toString());
-  const { irrf } = calcIRRF(segundaParcelaBruta.toString(), inss, dependentesIrrf);
+  const { irrf } = calcIRRFComRedutor2026(segundaParcelaBruta.toString(), inss, dependentesIrrf);
 
   const segundaParcelaLiquida = segundaParcelaBruta.minus(inss).minus(D(irrf));
 
@@ -603,7 +648,7 @@ export function calcularRescisao(params: {
   // 7. INSS e IRRF sobre saldo de salário + 13º (férias e aviso prévio indenizado são isentos)
   const baseTributavel = saldoSalario.plus(decimoTerceiro);
   const { inss } = calcINSS(baseTributavel.toString());
-  const { irrf } = calcIRRF(baseTributavel.toString(), inss, params.dependentesIrrf);
+  const { irrf } = calcIRRFComRedutor2026(baseTributavel.toString(), inss, params.dependentesIrrf);
 
   if (D(inss).gt(0)) {
     items.push({

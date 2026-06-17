@@ -40,6 +40,7 @@ import DecimoTerceiroTab from "@/components/admin/payroll/DecimoTerceiroTab";
 import RescisaoTab from "@/components/admin/payroll/RescisaoTab";
 import AdiantamentosTab from "@/components/admin/payroll/AdiantamentosTab";
 import DocumentosAssinaturaTab from "@/components/admin/DocumentosAssinaturaTab";
+import OuvidoriaTab from "@/components/admin/OuvidoriaTab";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import AprovacoesLoteTab from "@/components/admin/AprovacoesLoteTab";
@@ -101,6 +102,7 @@ const tabTitles: Record<AdminTab, string> = {
   "rescisao": "Folha — Rescisão",
   "adiantamentos": "Folha — Adiantamentos",
   "documentos-assinatura": "Documentos para Assinatura",
+  "ouvidoria": "Ouvidoria",
   "exportacoes": "Relatórios",
   "aprovacoes-lote": "Aprovações em Lote",
   "analises": "Análises",
@@ -647,6 +649,7 @@ export default function AdminDashboard() {
               {tab === "rescisao" && <RescisaoTab employees={employees} />}
               {tab === "adiantamentos" && <AdiantamentosTab employees={employees} />}
               {tab === "documentos-assinatura" && <DocumentosAssinaturaTab employees={employees} />}
+              {tab === "ouvidoria" && <OuvidoriaTab />}
               {tab === "audit" && <AuditTab />}
               {tab === "debug" && <DebugLogsTab />}
               {tab === "users" && <UsersTab />}
