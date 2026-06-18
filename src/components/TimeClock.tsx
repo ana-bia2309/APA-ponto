@@ -1439,7 +1439,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     // When online, MUST have server step info to prevent sending wrong record_type
     if (navigator.onLine && !serverStepInfo) {
       console.error("DEBUG PONTO [insert]: BLOQUEIO — serverStepInfo ainda não carregado");
-      toast.error("Aguarde a consulta da próxima etAMR no servidor.");
+      toast.error("Aguarde a consulta da próxima etapa no servidor.");
       return;
     }
     if (navigator.onLine && serverStepInfo?.day_complete) {
@@ -1570,7 +1570,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       console.error("DEBUG PONTO [insert]: ERRO:", err);
       const msg = err?.message || err?.details || "Erro desconhecido";
       if (msg.includes("já existe")) {
-        toast.error("Este registro já foi realizado hoje. Siga a próxima etAMR.");
+        toast.error("Este registro já foi realizado hoje. Siga a próxima etapa.");
         // Refresh server state to show correct next step
         if (validatedContext?.cpf_normalized) {
           await fetchNextStep(validatedContext.cpf_normalized);

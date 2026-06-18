@@ -163,7 +163,7 @@ const empId = empData?.id;
       pdf.setFontSize(13); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
       pdf.text("ESPELHO DE PONTO", W / 2, 11, { align: "center" });
       pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(180, 200, 230);
-      pdf.text("AMR Refrigeração e Climatização", W / 2, 17, { align: "center" });
+      pdf.text("APA Refrigeração e Climatização", W / 2, 17, { align: "center" });
       pdf.text(`Competência: ${MONTH_NAMES[month - 1]} / ${year}`, W / 2, 22, { align: "center" });
 
       let y = 34;

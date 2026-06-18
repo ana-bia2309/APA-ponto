@@ -45,7 +45,7 @@ export interface PayslipPdfData {
 }
 
 const EMPRESA_PADRAO = {
-  nome: "AMR Refrigeração e Climatização",
+  nome: "APA Refrigeração e Climatização",
   cnpj: "—",
   endereco: "Recibo de Pagamento de Salário",
 };

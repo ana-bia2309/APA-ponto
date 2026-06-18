@@ -1,3 +1,0 @@
-PROJETO APP DE REGISTRO DE PONTO
-
-Registro de ponto AMR 

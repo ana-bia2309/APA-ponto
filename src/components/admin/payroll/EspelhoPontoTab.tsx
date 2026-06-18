@@ -200,7 +200,7 @@ function generateEspelhoPDF(
   doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
   doc.text("ESPELHO DE PONTO", W / 2, 11, { align: "center" });
   doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 200, 230);
-  doc.text("AMR Refrigeração e Climatização", W / 2, 17, { align: "center" });
+  doc.text("APA Refrigeração e Climatização", W / 2, 17, { align: "center" });
   doc.text(`Competência: ${MONTH_NAMES[month - 1]} / ${year}`, W / 2, 22, { align: "center" });
 
   let y = 34;
@@ -344,7 +344,7 @@ function generateEspelhoPDF(
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 60, 120);
   doc.text("RESPONSÁVEL / EMPRESA", rightX, sigY);
   doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50); doc.setFontSize(7.5);
-  doc.text("AMR Refrigeração e Climatização", rightX, sigY + 5);
+  doc.text("APA Refrigeração e Climatização", rightX, sigY + 5);
   doc.setDrawColor(180); doc.setLineWidth(0.3);
   doc.line(rightX, boxY + 18, rightX + halfW, boxY + 18);
   doc.setFontSize(7); doc.setTextColor(120, 120, 130);

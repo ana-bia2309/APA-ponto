@@ -78,7 +78,7 @@ export function generateToolTermo(data: ToolTermoData) {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(200, 215, 240);
-  doc.text("AMR Refrigeração e Climatização", W / 2, 22, { align: "center" });
+  doc.text("APA Refrigeração e Climatização", W / 2, 22, { align: "center" });
 
   y = 34;
   doc.setFontSize(7);

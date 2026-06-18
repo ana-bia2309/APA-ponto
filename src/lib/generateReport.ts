@@ -22,7 +22,7 @@ function getBrazilianHolidays(year: number): Set<string> {
     [4, 21],  // Tiradentes
     [5, 1],   // Dia do Trabalho
     [9, 7],   // Independência
-    [10, 12], // Nossa Sra. AMRrecida
+    [10, 12], // Nossa Sra. Aparecida
     [11, 2],  // Finados
     [11, 15], // Proclamação da República
     [12, 25], // Natal
@@ -724,7 +724,7 @@ export async function generatePayrollReport(
   // Cabeçalho
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("AMR Refrigeração e Climatização", 14, 15);
+  doc.text("APA Refrigeração e Climatização", 14, 15);
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text(`Folha de Pagamento — ${mesNome}/${year}`, 14, 22);
