@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Clock, RefreshCw, FileDown, Lock, CheckCircle, AlertTriangle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import jsPDF from "jspdf";
+import { getDiaEscalaComExcecoes, buscarExcecoesEscala } from "@/lib/escala12x36";
 
 type Employee = Tables<"employees">;
 
@@ -25,7 +26,7 @@ interface DayRecord {
   retorno: string | null;
   saida: string | null;
   totalMinutes: number;
-  status: "completo" | "incompleto" | "falta";
+  status: "completo" | "incompleto" | "falta" | "folga";
 }
 
 interface TimesheetClosing {
@@ -40,7 +41,7 @@ interface TimesheetClosing {
   accepted_at: string | null;
 }
 
-const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MONTH_NAMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 function fmtTime(iso: string | null): string {
   if (!iso) return "—";
@@ -64,21 +65,36 @@ function getDaysInMonth(year: number, month: number): string[] {
   return days;
 }
 
-function buildDayRecords(records: TimeRecord[], year: number, month: number): DayRecord[] {
-  const days = getDaysInMonth(year, month);
-  return days.map(date => {
-    const dayRecs = records.filter(r => {
-      const d = new Date(r.recorded_at);
-      const sp = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
-      return sp === date;
-    });
+function spDate(iso: string): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(iso));
+}
 
-    const get = (type: string) => dayRecs.find(r => r.record_type === type)?.recorded_at || null;
-    const entrada = get("entrada");
-    const intervalo = get("intervalo");
-    const retorno = get("retorno");
-    const saida = get("saida");
+interface Shift {
+  refDate: string;            // data de referência do turno = data da entrada
+  entrada: string | null;
+  intervalo: string | null;
+  retorno: string | null;
+  saida: string | null;
+  totalMinutes: number;
+  overnight: boolean;         // turno que atravessa a meia-noite
+}
 
+// Monta turnos completos a partir dos registros, em ordem cronológica,
+// em vez de agrupar por data civil. Isso resolve o problema de turnos
+// noturnos que começam num dia e terminam no dia seguinte.
+function buildShifts(records: TimeRecord[]): Shift[] {
+  const sorted = [...records].sort(
+    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+  );
+
+  const shifts: Shift[] = [];
+  let current: { entrada: string | null; intervalo: string | null; retorno: string | null; saida: string | null } | null = null;
+
+  const finalize = () => {
+    if (!current) return;
+    const { entrada, intervalo, retorno, saida } = current;
     let totalMinutes = 0;
     if (entrada && saida) {
       const manha = intervalo
@@ -89,12 +105,77 @@ function buildDayRecords(records: TimeRecord[], year: number, month: number): Da
         : 0;
       totalMinutes = Math.round(intervalo ? manha + tarde : manha);
     }
+    const refDate = entrada ? spDate(entrada)
+      : intervalo ? spDate(intervalo)
+        : retorno ? spDate(retorno)
+          : saida ? spDate(saida) : "";
+    const overnight = !!(entrada && saida && spDate(entrada) !== spDate(saida));
+    shifts.push({ refDate, entrada, intervalo, retorno, saida, totalMinutes, overnight });
+    current = null;
+  };
 
+  for (const r of sorted) {
+    if (r.record_type === "entrada") {
+      finalize(); // fecha o turno anterior (mesmo que incompleto) antes de abrir um novo
+      current = { entrada: r.recorded_at, intervalo: null, retorno: null, saida: null };
+    } else {
+      if (!current) current = { entrada: null, intervalo: null, retorno: null, saida: null };
+      if (r.record_type === "intervalo" && !current.intervalo) current.intervalo = r.recorded_at;
+      else if (r.record_type === "retorno" && !current.retorno) current.retorno = r.recorded_at;
+      else if (r.record_type === "saida" && !current.saida) {
+        current.saida = r.recorded_at;
+        finalize();
+      }
+    }
+  }
+  finalize();
+  return shifts;
+}
+
+function buildDayRecords(
+  records: TimeRecord[],
+  year: number,
+  month: number,
+  escalaInfo: { isEscala12x36: boolean; referenciaData: string | null; excecoes: Record<string, "trabalha" | "descansa"> },
+): DayRecord[] {
+  const days = getDaysInMonth(year, month);
+  const shifts = buildShifts(records);
+
+  const byDate = new Map<string, Shift[]>();
+  shifts.forEach(s => {
+    if (!s.refDate) return;
+    if (!byDate.has(s.refDate)) byDate.set(s.refDate, []);
+    byDate.get(s.refDate)!.push(s);
+  });
+
+  return days.map(date => {
     const dow = new Date(date + "T12:00:00").getDay();
     const isWeekend = dow === 0 || dow === 6;
-    const status = isWeekend ? "completo" : entrada && saida ? "completo" : entrada ? "incompleto" : "falta";
 
-    return { date, entrada, intervalo, retorno, saida, totalMinutes, status };
+    // Dia esperado de trabalho: para 12x36 configurado, usa a rotação real
+    // (incluindo fins de semana); para escala padrão, segue seg-sex como antes.
+    const diaTrabalhoEsperado = escalaInfo.isEscala12x36 && escalaInfo.referenciaData
+      ? getDiaEscalaComExcecoes(escalaInfo.referenciaData, date, escalaInfo.excecoes) === "trabalha"
+      : !isWeekend;
+
+    const dayShifts = byDate.get(date) || [];
+
+    if (dayShifts.length === 0) {
+      return {
+        date, entrada: null, intervalo: null, retorno: null, saida: null,
+        totalMinutes: 0, status: diaTrabalhoEsperado ? "falta" : "folga",
+      };
+    }
+
+    const main = dayShifts[0];
+    const totalMinutes = dayShifts.reduce((a, s) => a + s.totalMinutes, 0);
+    const status: DayRecord["status"] = main.entrada && main.saida
+      ? "completo"
+      : (main.entrada || main.intervalo || main.retorno || main.saida)
+        ? "incompleto"
+        : diaTrabalhoEsperado ? "falta" : "folga";
+
+    return { date, entrada: main.entrada, intervalo: main.intervalo, retorno: main.retorno, saida: main.saida, totalMinutes, status };
   });
 }
 
@@ -178,22 +259,26 @@ function generateEspelhoPDF(
     doc.text(fmtTime(d.saida), cols[5], y + 4.5);
 
     const labelAfast = afastamentosDias?.[d.date];
-    if (!isWeekend) {
-      if (labelAfast) {
-        doc.setTextColor(194, 65, 12); // laranja
-      } else if (d.totalMinutes > 0) {
-        doc.setTextColor(20, 110, 60);
-        totalGeral += d.totalMinutes;
-        workDays++;
-      } else if (d.entrada) {
-        doc.setTextColor(180, 100, 0);
-      } else {
-        doc.setTextColor(160, 30, 40);
-        faults++;
-      }
+    let valorCelula = "—";
+    if (labelAfast) {
+      doc.setTextColor(194, 65, 12); // laranja
+      valorCelula = labelAfast;
+    } else if (d.status === "completo") {
+      doc.setTextColor(20, 110, 60);
+      totalGeral += d.totalMinutes;
+      workDays++;
+      valorCelula = fmtHours(d.totalMinutes);
+    } else if (d.status === "incompleto") {
+      doc.setTextColor(180, 100, 0);
+      valorCelula = fmtHours(d.totalMinutes);
+    } else if (d.status === "falta") {
+      doc.setTextColor(160, 30, 40);
+      faults++;
+      valorCelula = "0h00";
     }
+    // status "folga": mantém valorCelula = "—", sem cor especial
 
-    doc.text(isWeekend ? "—" : labelAfast ? labelAfast : fmtHours(d.totalMinutes), cols[6], y + 4.5);
+    doc.text(valorCelula, cols[6], y + 4.5);
     y += 6;
     doc.setTextColor(40, 40, 50);
 
@@ -230,8 +315,7 @@ function generateEspelhoPDF(
   const boxY = sigY + 10;
 
   if (closing?.status === "assinado" && signatureDataUrl) {
-    // Mostra a imagem da assinatura
-    try { doc.addImage(signatureDataUrl, "PNG", M, boxY, halfW, 18); } catch {}
+    try { doc.addImage(signatureDataUrl, "PNG", M, boxY, halfW, 18); } catch { }
     doc.setDrawColor(180); doc.setLineWidth(0.3);
     doc.line(M, boxY + 18, M + halfW, boxY + 18);
     doc.setFontSize(7); doc.setTextColor(120, 120, 130);
@@ -240,7 +324,6 @@ function generateEspelhoPDF(
       doc.text(`Assinado em: ${new Date(closing.accepted_at).toLocaleString("pt-BR")}`, M, boxY + 27);
     }
   } else if (closing?.status === "assinado") {
-    // Assinado mas sem imagem
     doc.setFillColor(230, 248, 235);
     doc.rect(M, boxY, halfW, 18, "F");
     doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(22, 130, 65);
@@ -287,18 +370,34 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
   const [closing2, setClosing2] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [afastamentosDias, setAfastamentosDias] = useState<Record<string, string>>({});
+  const [excecoesEscala, setExcecoesEscala] = useState<Record<string, "trabalha" | "descansa">>({});
 
   const selectedEmployee = employees.find(e => e.id === selectedId);
+  const isEscala12x36 = !!selectedEmployee && (selectedEmployee as any).escala === "12x36" && !!(selectedEmployee as any).escala_referencia_data;
+  const escalaReferenciaData = selectedEmployee ? (selectedEmployee as any).escala_referencia_data || null : null;
 
   const load = useCallback(async () => {
     if (!selectedId) return;
     setLoading(true);
     try {
-      const start = new Date(year, month - 1, 1).toISOString();
-      const end = new Date(year, month, 1).toISOString();
+      const startBuffer = new Date(year, month - 1, 1);
+      startBuffer.setDate(startBuffer.getDate() - 1);
+      const endBuffer = new Date(year, month, 1);
+      endBuffer.setDate(endBuffer.getDate() + 1);
+      const start = startBuffer.toISOString();
+      const end = endBuffer.toISOString();
 
       const primeiroDia = new Date(year, month - 1, 1).toISOString().slice(0, 10);
       const ultimoDia = new Date(year, month, 0).toISOString().slice(0, 10);
+
+      const emp = employees.find(e => e.id === selectedId);
+      const empIsEscala12x36 = !!emp && (emp as any).escala === "12x36" && !!(emp as any).escala_referencia_data;
+      if (empIsEscala12x36) {
+        const excecoes = await buscarExcecoesEscala(selectedId, primeiroDia, ultimoDia);
+        setExcecoesEscala(excecoes);
+      } else {
+        setExcecoesEscala({});
+      }
 
       const [recRes, closingRes, afastRes] = await Promise.all([
         supabase.from("time_records" as any)
@@ -326,7 +425,8 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
       const labels: Record<string, string> = {
         licenca_medica: "Lic. Médica", licenca_maternidade: "Maternidade",
         licenca_paternidade: "Paternidade", ferias: "Férias",
-        acidente_trabalho: "Acidente", suspensao: "Suspenso", outro: "Afastado",
+        acidente_trabalho: "Acidente", suspensao: "Suspenso",
+        abono_dia: "Abono", outro: "Afastado",
       };
       const diasAfastados: Record<string, string> = {};
       (afastRes.data || []).forEach((a: any) => {
@@ -349,16 +449,12 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
 
   useEffect(() => { load(); }, [load]);
 
-  const days = selectedEmployee ? buildDayRecords(records, year, month) : [];
+  const days = selectedEmployee
+    ? buildDayRecords(records, year, month, { isEscala12x36, referenciaData: escalaReferenciaData, excecoes: excecoesEscala })
+    : [];
   const totalMinutes = days.reduce((a, d) => a + d.totalMinutes, 0);
-  const workDays = days.filter(d => {
-    const dow = new Date(d.date + "T12:00:00").getDay();
-    return dow !== 0 && dow !== 6 && d.totalMinutes > 0;
-  }).length;
-  const faults = days.filter(d => {
-    const dow = new Date(d.date + "T12:00:00").getDay();
-    return dow !== 0 && dow !== 6 && !d.entrada;
-  }).length;
+  const workDays = days.filter(d => d.status === "completo").length;
+  const faults = days.filter(d => d.status === "falta").length;
 
   const handleDownload = async () => {
     if (!selectedEmployee) return;
@@ -379,7 +475,7 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
             signatureDataUrl = `data:image/png;base64,${btoa(bin)}`;
           }
         }
-      } catch {}
+      } catch { }
     }
     generateEspelhoPDF(selectedEmployee, days, year, month, closing, signatureDataUrl, afastamentosDias);
     setDownloading(false);
@@ -492,10 +588,10 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
             </Card>
           </div>
 
-{/* Calendário visual */}
+          {/* Calendário visual */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Calendário — {MONTH_NAMES[month-1]}/{year}</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Calendário — {MONTH_NAMES[month - 1]}/{year}</p>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Presente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span>Incompleto</span>
@@ -504,7 +600,7 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(d => (
                 <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
               ))}
             </div>
@@ -521,31 +617,33 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                     const dow = new Date(day.date + "T12:00:00").getDay();
                     const isWeekend = dow === 0 || dow === 6;
                     const dayNum = parseInt(day.date.split("-")[2]);
-                    const isAfastado = !isWeekend && !!afastamentosDias[day.date];
+                    const isAfastado = !!afastamentosDias[day.date];
                     let bg = "bg-blue-100 text-blue-600";
-                    let title = "Fim de semana";
+                    let title = isWeekend ? "Fim de semana" : "Folga";
                     if (isAfastado) {
                       bg = "bg-orange-100 text-orange-700";
                       title = afastamentosDias[day.date];
-                    } else if (!isWeekend) {
-                      if (day.status === "completo") { bg = "bg-emerald-100 text-emerald-700"; title = `${fmtHours(day.totalMinutes)}`; }
-                      else if (day.status === "incompleto") { bg = "bg-amber-100 text-amber-700"; title = "Incompleto"; }
-                      else { bg = "bg-rose-100 text-rose-700"; title = "Falta"; }
+                    } else if (day.status === "completo") {
+                      bg = "bg-emerald-100 text-emerald-700"; title = `${fmtHours(day.totalMinutes)}`;
+                    } else if (day.status === "incompleto") {
+                      bg = "bg-amber-100 text-amber-700"; title = "Incompleto";
+                    } else if (day.status === "falta") {
+                      bg = "bg-rose-100 text-rose-700"; title = "Falta";
                     }
                     return (
                       <div key={di} title={`${day.date} — ${title}`}
                         className={`rounded-md p-1 text-center cursor-default transition-all hover:opacity-80 ${bg}`}>
                         <p className="text-xs font-bold">{dayNum}</p>
-                        {!isWeekend && day.totalMinutes > 0 && (
+                        {day.totalMinutes > 0 && (
                           <p className="text-[9px] leading-tight">{fmtHours(day.totalMinutes)}</p>
                         )}
-                        {!isWeekend && day.status === "incompleto" && (
+                        {day.status === "incompleto" && (
                           <p className="text-[9px] leading-tight">inc.</p>
                         )}
                         {isAfastado && (
                           <p className="text-[9px] leading-tight truncate">{afastamentosDias[day.date]}</p>
                         )}
-                        {!isAfastado && !isWeekend && day.status === "falta" && day.totalMinutes === 0 && !day.entrada && (
+                        {!isAfastado && day.status === "falta" && (
                           <p className="text-[9px] leading-tight">falta</p>
                         )}
                       </div>
@@ -579,8 +677,8 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                         <td className="p-2 tabular-nums">{fmtTime(d.intervalo)}</td>
                         <td className="p-2 tabular-nums">{fmtTime(d.retorno)}</td>
                         <td className="p-2 tabular-nums">{fmtTime(d.saida)}</td>
-                        <td className={`p-2 font-medium tabular-nums ${d.totalMinutes > 0 ? "text-emerald-500" : isWeekend ? "" : "text-muted-foreground"}`}>
-                          {isWeekend ? "—" : fmtHours(d.totalMinutes)}
+                        <td className={`p-2 font-medium tabular-nums ${d.totalMinutes > 0 ? "text-emerald-500" : "text-muted-foreground"}`}>
+                          {d.totalMinutes > 0 ? fmtHours(d.totalMinutes) : "—"}
                         </td>
                         <td className="p-2">
                           {afastamentosDias[d.date] ? (
@@ -588,14 +686,14 @@ export default function EspelhoPontoTab({ employees }: { employees: Employee[] }
                               style={{ background: "#ffedd5", color: "#c2410c" }}>
                               {afastamentosDias[d.date]}
                             </span>
-                          ) : isWeekend ? (
-                            <span className="text-xs text-muted-foreground">Fim de semana</span>
                           ) : d.status === "completo" ? (
                             <CheckCircle className="w-4 h-4 text-emerald-500" />
                           ) : d.status === "incompleto" ? (
                             <AlertTriangle className="w-4 h-4 text-amber-500" />
-                          ) : (
+                          ) : d.status === "falta" ? (
                             <span className="text-xs text-rose-500 font-medium">Falta</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{isWeekend ? "Fim de semana" : "Folga"}</span>
                           )}
                         </td>
                       </tr>

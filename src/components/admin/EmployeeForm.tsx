@@ -19,6 +19,8 @@ interface EmployeeFormData {
   shift: "diurno" | "noturno";
   escala: string;
   carga_horaria_semanal: number;
+  escala_referencia_data: string;
+  carga_horaria_turno: number;
   hora_entrada: string;
   hora_saida: string;
   status: string;
@@ -49,6 +51,8 @@ const DEFAULTS: EmployeeFormData = {
   data_nascimento: "",
   punch_mode: "full", shift: "diurno", escala: "padrao",
   carga_horaria_semanal: 44,
+  escala_referencia_data: "",
+  carga_horaria_turno: 11,
   hora_entrada: "",
   hora_saida: "",
   status: "ativo", observacoes: "", foto_url: "", telefone: "", contato_emergencia: "",
@@ -364,6 +368,47 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
             </select>
           </div>
         </div>
+
+        {form.escala === "12x36" && (
+          <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <p className="text-xs font-medium text-amber-800 mb-3">
+              🔄 Configuração da Escala 12×36
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Data de referência (um dia em que ele TRABALHOU)
+                </Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={form.escala_referencia_data}
+                  onChange={e => upd("escala_referencia_data", e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Usado para calcular automaticamente quais dias são trabalho e quais são descanso.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Horas líquidas por turno (já com intervalo descontado)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  max="24"
+                  className="mt-1"
+                  value={form.carga_horaria_turno}
+                  onChange={e => upd("carga_horaria_turno", Number(e.target.value))}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Ex: turno de 12h com 1h de intervalo = 11h.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Horários das Batidas */}
         <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border">

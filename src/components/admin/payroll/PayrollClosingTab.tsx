@@ -10,6 +10,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { calculatePayroll, summarizeWorkFromRecords } from "@/lib/payroll/calculator";
 import { generatePayrollReport } from "@/lib/generateReport";
 import { getDiasUteisNoMes } from "@/lib/payroll/tables";
+import { getDiasEsperadosTrabalho, buscarExcecoesEscala } from "@/lib/escala12x36";
 
 type Employee = Tables<"employees">;
 
@@ -87,12 +88,31 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       parcelasPendentes = data || [];
     }
 
-    const diasUteis = getDiasUteisNoMes(year, month);
-    const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria: 8, diasUteisPrevistos: diasUteis });
-    work.dias_uteis_mes = diasUteis;
+    const primeiroDiaMes = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+    const ultimoDiaMes = new Date(year, month, 0).toISOString().slice(0, 10);
+    const isEscala12x36 = (emp as any).escala === "12x36" && !!(emp as any).escala_referencia_data;
+
+    let diasPrevistos: number;
+    let cargaHorariaDiaria: number;
+
+    if (isEscala12x36) {
+      const excecoes = await buscarExcecoesEscala(emp.id, primeiroDiaMes, ultimoDiaMes);
+      diasPrevistos = getDiasEsperadosTrabalho(
+        (emp as any).escala_referencia_data, primeiroDiaMes, ultimoDiaMes, excecoes,
+      ).length;
+      cargaHorariaDiaria = Number((emp as any).carga_horaria_turno) || 11;
+    } else {
+      diasPrevistos = getDiasUteisNoMes(year, month);
+      cargaHorariaDiaria = 8;
+    }
+
+    const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistos });
+    work.dias_uteis_mes = diasPrevistos;
     work.dias_trabalhados = parseInt(work.faltas_dias as string) >= 0
-      ? diasUteis - parseInt(work.faltas_dias as string)
-      : diasUteis;
+  
+      ? diasPrevistos - parseInt(work.faltas_dias as string)
+      : diasPrevistos;
+      work.horas_falta_dia = cargaHorariaDiaria;
     const customItems = (customs || []).map((c: any) => ({
       kind: c.kind, code: "C", description: c.description, amount: String(c.amount),
     }));

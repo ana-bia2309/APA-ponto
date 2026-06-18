@@ -28,7 +28,58 @@ export const IRRF_REDUTOR_COEFICIENTE = "0.133145";
 
 export const FGTS_ALIQUOTA = "0.08";
 
-// Feriados nacionais fixos
+// --- Feriados móveis ---------------------------------------------------
+
+// Calcula o Domingo de Páscoa para um ano (algoritmo de Gauss/Meeus,
+// válido para o calendário gregoriano)
+function calcularPascoa(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31); // 3 = março, 4 = abril
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+function formatarDataISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function somarDias(date: Date, dias: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + dias);
+  return result;
+}
+
+// Feriados móveis calculados a partir da Páscoa:
+// - Sexta-feira Santa: feriado nacional (Páscoa - 2 dias)
+// - Carnaval (segunda e terça): ponto facultativo, tratado como feriado
+//   pela prática da empresa (Páscoa - 48 e - 47 dias)
+// - Corpus Christi: ponto facultativo nacional, tratado como feriado
+//   pela prática da empresa (Páscoa + 60 dias)
+function getFeriadosMoveis(year: number): string[] {
+  const pascoa = calcularPascoa(year);
+  return [
+    formatarDataISO(somarDias(pascoa, -48)), // Segunda de Carnaval
+    formatarDataISO(somarDias(pascoa, -47)), // Terça de Carnaval
+    formatarDataISO(somarDias(pascoa, -2)),  // Sexta-feira Santa
+    formatarDataISO(somarDias(pascoa, 60)),  // Corpus Christi
+  ];
+}
+
+// Feriados nacionais (fixos + móveis)
 export function getFeriadosNacionais(year: number): string[] {
   return [
     `${year}-01-01`, // Confraternização Universal
@@ -39,7 +90,8 @@ export function getFeriadosNacionais(year: number): string[] {
     `${year}-11-02`, // Finados
     `${year}-11-15`, // Proclamação da República
     `${year}-12-25`, // Natal
-  ]
+    ...getFeriadosMoveis(year),
+  ];
 }
 
 export function getDiasUteisNoMes(year: number, month: number): number {

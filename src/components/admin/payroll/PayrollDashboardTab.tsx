@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Users, TrendingUp, TrendingDown, Wallet, Clock, Calendar, RefreshCw, Sparkles } from "lucide-react";
 import { summarizeWorkFromRecords, calculatePayroll } from "@/lib/payroll/calculator";
 import { Button } from "@/components/ui/button";
+import { getDiasEsperadosTrabalho, buscarExcecoesEscala } from "@/lib/escala12x36";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -13,7 +14,7 @@ import {
 const fmt = (v: number) =>
   "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function PayrollDashboardTab() {
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ export default function PayrollDashboardTab() {
           .select("*")
           .eq("period_id", (period as any).id);
 
-       const ps = (payslips as any[]) || [];
+        const ps = (payslips as any[]) || [];
         setSummary({
           totalFolha: ps.reduce((a, p) => a + Number(p.total_proventos || 0), 0),
           totalFuncionarios: ps.length,
@@ -139,10 +140,34 @@ export default function PayrollDashboardTab() {
           .lte("recorded_at", endIso)
           .order("recorded_at");
 
-        const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria: 8, diasUteisPrevistos: diaHoje });
-        work.dias_uteis_mes = diaHoje;
-        work.dias_trabalhados = diaHoje - parseInt(work.faltas_dias as string || "0");
+        const primeiroDiaMes = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+        const ultimoDiaMes = new Date(year, month, 0).toISOString().slice(0, 10);
+        const diaHojeStr = now.toISOString().slice(0, 10);
+        const isEscala12x36 = (emp as any).escala === "12x36" && !!(emp as any).escala_referencia_data;
 
+        let cargaHorariaDiaria: number;
+        let diasPrevistosAteHoje: number;
+        let diasPrevistosMesCompleto: number;
+
+        if (isEscala12x36) {
+          const excecoes = await buscarExcecoesEscala(emp.id, primeiroDiaMes, ultimoDiaMes);
+          cargaHorariaDiaria = Number((emp as any).carga_horaria_turno) || 11;
+          diasPrevistosAteHoje = getDiasEsperadosTrabalho(
+            (emp as any).escala_referencia_data, primeiroDiaMes, diaHojeStr, excecoes,
+          ).length;
+          diasPrevistosMesCompleto = getDiasEsperadosTrabalho(
+            (emp as any).escala_referencia_data, primeiroDiaMes, ultimoDiaMes, excecoes,
+          ).length;
+        } else {
+          cargaHorariaDiaria = 8;
+          diasPrevistosAteHoje = diaHoje;
+          diasPrevistosMesCompleto = diasNoMes;
+        }
+
+        const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistosAteHoje });
+        work.dias_uteis_mes = diasPrevistosAteHoje;
+        work.dias_trabalhados = diasPrevistosAteHoje - parseInt(work.faltas_dias as string || "0");
+        work.horas_falta_dia = cargaHorariaDiaria;
         const result = calculatePayroll(settings as any, work);
         confirmadoTotal += Number(result.liquido);
 
@@ -153,8 +178,8 @@ export default function PayrollDashboardTab() {
           ...work,
           horas_extras_50: (Number(work.horas_extras_50) + mediaExtras50PorDia * diasRestantes).toFixed(2),
           horas_extras_100: (Number(work.horas_extras_100) + mediaExtras100PorDia * diasRestantes).toFixed(2),
-          dias_uteis_mes: diasNoMes,
-          dias_trabalhados: diasNoMes,
+          dias_uteis_mes: diasPrevistosMesCompleto,
+          dias_trabalhados: diasPrevistosMesCompleto,
           faltas_dias: "0",
         };
         const resultProjetado = calculatePayroll(settings as any, workProjetado);
@@ -183,7 +208,7 @@ export default function PayrollDashboardTab() {
 
   useEffect(() => { load(); loadProjecao(); }, [load, loadProjecao]);
 
- const cards = [
+  const cards = [
     { label: "Total da folha", value: fmt(summary.totalFolha), icon: Wallet, color: "text-blue-500" },
     { label: "Funcionários", value: summary.totalFuncionarios, icon: Users, color: "text-purple-500" },
     { label: "Horas extras (h)", value: summary.custoExtras.toFixed(1), icon: Clock, color: "text-amber-500" },
@@ -254,7 +279,7 @@ export default function PayrollDashboardTab() {
           <LineChart data={evolucao}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: any) => fmt(v)} />
             <Legend />
             <Line type="monotone" dataKey="proventos" name="Proventos" stroke="#3b82f6" strokeWidth={2} dot={false} />
@@ -264,7 +289,7 @@ export default function PayrollDashboardTab() {
         </ResponsiveContainer>
       </Card>
 
-    <Card className="p-4">
+      <Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Horas extras por mês</h3>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={extrasData}>
@@ -277,13 +302,13 @@ export default function PayrollDashboardTab() {
         </ResponsiveContainer>
       </Card>
 
-<Card className="p-4">
+      <Card className="p-4">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Comparativo mensal — proventos vs líquido</h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={evolucao}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: any) => fmt(v)} />
             <Legend />
             <Bar dataKey="proventos" name="Proventos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -300,7 +325,7 @@ export default function PayrollDashboardTab() {
           <ResponsiveContainer width="100%" height={Math.max(200, payslipDetails.length * 40)}>
             <BarChart data={payslipDetails} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(1)}k`} />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} />
               <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} width={140} />
               <Tooltip formatter={(v: any) => fmt(v)} />
               <Bar dataKey="liquido" name="Líquido" fill="#10b981" radius={[0, 4, 4, 0]} />

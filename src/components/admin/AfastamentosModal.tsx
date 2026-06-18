@@ -37,6 +37,7 @@ const TIPO_OPTIONS = [
   { value: "ferias", label: "🏖️ Férias" },
   { value: "acidente_trabalho", label: "⚠️ Acidente de Trabalho" },
   { value: "suspensao", label: "🚫 Suspensão" },
+  { value: "abono_dia", label: "✅ Abono de Dia" },
   { value: "outro", label: "📋 Outro" },
 ];
 
@@ -47,6 +48,7 @@ const TIPO_LABELS: Record<string, string> = {
   ferias: "🏖️ Férias",
   acidente_trabalho: "⚠️ Acidente",
   suspensao: "🚫 Suspensão",
+  abono_dia: "✅ Abono de Dia",
   outro: "📋 Outro",
 };
 

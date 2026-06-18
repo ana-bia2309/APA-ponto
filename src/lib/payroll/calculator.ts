@@ -42,6 +42,7 @@ export type WorkSummary = {
   custom_items?: PayrollItem[];
   dias_uteis_mes?: number;
   dias_trabalhados?: number;
+   horas_falta_dia?: number;
 };
 
 export type PayrollResult = {
@@ -152,7 +153,8 @@ export function calculatePayroll(
   const valorHora = cargaMensal.gt(0) ? salario.div(cargaMensal) : D(0);
 
   // 1. Salário base (proporcional a faltas/atrasos)
-  const faltasValor = valorHora.mul(8).mul(work.faltas_dias); // 8h por dia faltado
+  const horasPorFalta = work.horas_falta_dia ?? 8;
+  const faltasValor = valorHora.mul(horasPorFalta).mul(work.faltas_dias);
   const atrasosValor = valorHora.div(60).mul(work.atrasos_minutos);
   const salarioLiquidoMes = salario.minus(faltasValor).minus(atrasosValor);
   items.push({
@@ -371,7 +373,7 @@ export function summarizeWorkFromRecords(
     cargaHorariaDiaria?: number;
     diasUteisPrevistos?: number; // dias esperados de trabalho no mês
   } = {},
-): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"|"dias_uteis_mes"|"dias_trabalhados"> {
+): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"|"dias_uteis_mes"|"dias_trabalhados"|"horas_falta_dia"> {
   const cargaDiaria = opts.cargaHorariaDiaria ?? 8;
 
   // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada") 
