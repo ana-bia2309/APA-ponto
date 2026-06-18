@@ -6,6 +6,7 @@ import { Users, TrendingUp, TrendingDown, Wallet, Clock, Calendar, RefreshCw, Sp
 import { summarizeWorkFromRecords, calculatePayroll } from "@/lib/payroll/calculator";
 import { Button } from "@/components/ui/button";
 import { getDiasEsperadosTrabalho, buscarExcecoesEscala } from "@/lib/escala12x36";
+import { getDatasAfastamentoSemDesconto } from "@/lib/payroll/afastamentos";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -146,25 +147,41 @@ export default function PayrollDashboardTab() {
         const isEscala12x36 = (emp as any).escala === "12x36" && !!(emp as any).escala_referencia_data;
 
         let cargaHorariaDiaria: number;
+        let cargaHorariaPorDiaSemana: ((dow: number) => number) | undefined;
         let diasPrevistosAteHoje: number;
         let diasPrevistosMesCompleto: number;
+
+        const datasAfastamentoSemDesconto = await getDatasAfastamentoSemDesconto(emp.id, primeiroDiaMes, ultimoDiaMes);
 
         if (isEscala12x36) {
           const excecoes = await buscarExcecoesEscala(emp.id, primeiroDiaMes, ultimoDiaMes);
           cargaHorariaDiaria = Number((emp as any).carga_horaria_turno) || 11;
           diasPrevistosAteHoje = getDiasEsperadosTrabalho(
             (emp as any).escala_referencia_data, primeiroDiaMes, diaHojeStr, excecoes,
-          ).length;
+          ).filter((d: string) => !datasAfastamentoSemDesconto.has(d)).length;
           diasPrevistosMesCompleto = getDiasEsperadosTrabalho(
             (emp as any).escala_referencia_data, primeiroDiaMes, ultimoDiaMes, excecoes,
-          ).length;
+          ).filter((d: string) => !datasAfastamentoSemDesconto.has(d)).length;
         } else {
-          cargaHorariaDiaria = 8;
-          diasPrevistosAteHoje = diaHoje;
-          diasPrevistosMesCompleto = diasNoMes;
+          const cargaPadrao = Number((emp as any).carga_horaria_diaria_padrao) || 9;
+          const cargaSexta = Number((emp as any).carga_horaria_diaria_sexta) || 8;
+          cargaHorariaPorDiaSemana = (dow: number) =>
+            dow === 5 ? cargaSexta : (dow === 0 || dow === 6) ? 0 : cargaPadrao;
+          cargaHorariaDiaria = cargaPadrao;
+
+          let diasAfastamentoUteisAteHoje = 0;
+          let diasAfastamentoUteisMesCompleto = 0;
+          for (const dataStr of datasAfastamentoSemDesconto) {
+            const dow = new Date(dataStr + "T12:00:00").getDay();
+            if (dow === 0 || dow === 6) continue;
+            diasAfastamentoUteisMesCompleto++;
+            if (dataStr <= diaHojeStr) diasAfastamentoUteisAteHoje++;
+          }
+          diasPrevistosAteHoje = Math.max(0, diaHoje - diasAfastamentoUteisAteHoje);
+          diasPrevistosMesCompleto = Math.max(0, diasNoMes - diasAfastamentoUteisMesCompleto);
         }
 
-        const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistosAteHoje });
+        const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistosAteHoje, cargaHorariaPorDiaSemana });
         work.dias_uteis_mes = diasPrevistosAteHoje;
         work.dias_trabalhados = diasPrevistosAteHoje - parseInt(work.faltas_dias as string || "0");
         work.horas_falta_dia = cargaHorariaDiaria;

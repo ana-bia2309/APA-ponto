@@ -35,6 +35,8 @@ interface EmployeeFormData {
   bairro: string;
   cidade: string;
   estado: string;
+  carga_horaria_diaria_padrao: number;
+  carga_horaria_diaria_sexta: number;
 }
 
 interface Props {
@@ -63,6 +65,8 @@ const DEFAULTS: EmployeeFormData = {
   bairro: "",
   cidade: "",
   estado: "",
+  carga_horaria_diaria_padrao: 9,
+  carga_horaria_diaria_sexta: 8, 
 };
 
 function formatCpf(value: string) {
@@ -368,6 +372,41 @@ export default function EmployeeForm({ onSubmit, loading, initialData, submitLab
             </select>
           </div>
         </div>
+
+{form.escala === "padrao" && (
+          <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-xs font-medium text-blue-800 mb-3">
+              🕐 Carga Horária por Dia da Semana
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Horas líquidas — Segunda a Quinta
+                </Label>
+                <Input
+                  type="number" step="0.5" min="1" max="24"
+                  className="mt-1"
+                  value={form.carga_horaria_diaria_padrao}
+                  onChange={e => upd("carga_horaria_diaria_padrao", Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Horas líquidas — Sexta-feira
+                </Label>
+                <Input
+                  type="number" step="0.5" min="1" max="24"
+                  className="mt-1"
+                  value={form.carga_horaria_diaria_sexta}
+                  onChange={e => upd("carga_horaria_diaria_sexta", Number(e.target.value))}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Usado para calcular hora extra corretamente. Padrão: 9h (seg-qui) e 8h (sex), já com 1h de almoço descontado.
+            </p>
+          </div>
+        )}
 
         {form.escala === "12x36" && (
           <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">

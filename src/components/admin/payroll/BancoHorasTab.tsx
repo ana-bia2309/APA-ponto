@@ -10,14 +10,14 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Employee = Tables<"employees">;
 
-interface BancoEntry {
+interface BancoMes {
   id: string;
   employee_id: string;
-  data: string;
-  tipo: "credito" | "debito";
-  horas: number;
-  descricao: string;
-  created_at: string;
+  reference_month: string; // "YYYY-MM"
+  extra_hours: number;
+  debit_hours: number;
+  balance: number;
+  updated_at: string;
 }
 
 interface DiaCalculo {
@@ -27,18 +27,20 @@ interface DiaCalculo {
   diferenca: number;
 }
 
-const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MONTH_NAMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+function fmtMes(referenceMonth: string) {
+  const [y, m] = referenceMonth.split("-").map(Number);
+  return `${MONTH_NAMES[(m || 1) - 1]}/${y}`;
+}
 
 export default function BancoHorasTab({ employees }: { employees: Employee[] }) {
   const [selectedId, setSelectedId] = useState("");
-  const [entries, setEntries] = useState<BancoEntry[]>([]);
+  const [entries, setEntries] = useState<BancoMes[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novaData, setNovaData] = useState(new Date().toISOString().slice(0, 10));
-  const [novoTipo, setNovoTipo] = useState<"credito" | "debito">("credito");
-  const [novasHoras, setNovasHoras] = useState("");
-  const [novaDescricao, setNovaDescricao] = useState("");
+  const [destinoFuncionario, setDestinoFuncionario] = useState<"hora_extra" | "banco_horas">("hora_extra");
 
-  // Cálculo automático
+  // Cálculo automático (diário, a partir dos registros de ponto)
   const [subTab, setSubTab] = useState<"manual" | "automatico">("automatico");
   const [calcMonth, setCalcMonth] = useState(new Date().getMonth() + 1);
   const [calcYear, setCalcYear] = useState(new Date().getFullYear());
@@ -46,7 +48,18 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
   const [calcLoading, setCalcLoading] = useState(false);
   const [importando, setImportando] = useState(false);
 
-  const totalDif = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
+  // Ajuste manual (mensal)
+  const [ajusteMonth, setAjusteMonth] = useState(new Date().getMonth() + 1);
+  const [ajusteYear, setAjusteYear] = useState(new Date().getFullYear());
+  const [ajusteCredito, setAjusteCredito] = useState("");
+  const [ajusteDebito, setAjusteDebito] = useState("");
+  const [salvandoAjuste, setSalvandoAjuste] = useState(false);
+
+  const totalCredito = entries.reduce((a, e) => a + Number(e.extra_hours || 0), 0);
+  const totalDebito = entries.reduce((a, e) => a + Number(e.debit_hours || 0), 0);
+  const totalDif = entries.reduce((a, e) => a + Number(e.balance || 0), 0);
+
+  const totalDifCalc = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
   const totalTrabalhado = diasCalculo.reduce((a, d) => a + Number(d.horas_trabalhadas), 0);
   const totalEsperado = diasCalculo.reduce((a, d) => a + Number(d.horas_esperadas), 0);
 
@@ -57,7 +70,7 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
       .from("hour_bank")
       .select("*")
       .eq("employee_id", selectedId)
-      .order("updated_at", { ascending: false });
+      .order("reference_month", { ascending: false });
     if (!error && data) setEntries(data as any);
     setLoading(false);
   }, [selectedId]);
@@ -86,23 +99,50 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
     if (selectedId && subTab === "automatico") calcular();
   }, [selectedId, calcMonth, calcYear, subTab, calcular]);
 
+  useEffect(() => {
+    if (!selectedId) { setDestinoFuncionario("hora_extra"); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("payroll_settings" as any)
+        .select("destino_horas_excedentes")
+        .eq("employee_id", selectedId)
+        .maybeSingle();
+      setDestinoFuncionario(((data as any)?.destino_horas_excedentes) === "banco_horas" ? "banco_horas" : "hora_extra");
+    })();
+  }, [selectedId]);
+
+  // Soma `delta` (positivo ou negativo) ao crédito/débito daquele mês, preservando o que já existir.
+  const aplicarDelta = async (referenceMonth: string, deltaCredito: number, deltaDebito: number) => {
+    const { data: existing } = await supabase
+      .from("hour_bank" as any)
+      .select("extra_hours, debit_hours")
+      .eq("employee_id", selectedId)
+      .eq("reference_month", referenceMonth)
+      .maybeSingle();
+    const extraAtual = Number((existing as any)?.extra_hours || 0);
+    const debitoAtual = Number((existing as any)?.debit_hours || 0);
+    const novoExtra = extraAtual + deltaCredito;
+    const novoDebito = debitoAtual + deltaDebito;
+    const { error } = await supabase.from("hour_bank" as any).upsert({
+      employee_id: selectedId,
+      reference_month: referenceMonth,
+      extra_hours: novoExtra,
+      debit_hours: novoDebito,
+      balance: novoExtra - novoDebito,
+    }, { onConflict: "employee_id,reference_month" });
+    if (error) throw error;
+  };
+
   const importarMes = async () => {
     if (!selectedId || diasCalculo.length === 0) return;
-    const totalDif = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
-    if (totalDif === 0) { toast.info("Nenhuma diferença para importar."); return; }
-    if (!confirm(`Importar ${fmtHoras(Math.abs(totalDif))} de ${totalDif >= 0 ? "crédito" : "débito"} para ${MONTH_NAMES[calcMonth - 1]}/${calcYear}?`)) return;
+    const dif = diasCalculo.reduce((a, d) => a + Number(d.diferenca), 0);
+    if (dif === 0) { toast.info("Nenhuma diferença para importar."); return; }
+    if (!confirm(`Importar ${fmtHoras(Math.abs(dif))} de ${dif >= 0 ? "crédito" : "débito"} para ${MONTH_NAMES[calcMonth - 1]}/${calcYear}?`)) return;
 
     setImportando(true);
     try {
-      const tipo = totalDif >= 0 ? "credito" : "debito";
-      const { error } = await (supabase as any).from("hour_bank").insert({
-        employee_id: selectedId,
-        data: `${calcYear}-${String(calcMonth).padStart(2, "0")}-01`,
-        tipo,
-        horas: Math.abs(totalDif),
-        descricao: `Cálculo automático — ${MONTH_NAMES[calcMonth - 1]}/${calcYear}`,
-      });
-      if (error) throw error;
+      const referenceMonth = `${calcYear}-${String(calcMonth).padStart(2, "0")}`;
+      await aplicarDelta(referenceMonth, Math.max(dif, 0), Math.max(-dif, 0));
       toast.success("Importado com sucesso!");
       load();
     } catch (err: any) {
@@ -112,24 +152,27 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
     }
   };
 
-  const adicionar = async () => {
-    if (!selectedId || !novasHoras || !novaDescricao) {
-      toast.error("Preencha todos os campos");
-      return;
+  const aplicarAjuste = async () => {
+    if (!selectedId) return;
+    const credito = parseFloat(ajusteCredito) || 0;
+    const debito = parseFloat(ajusteDebito) || 0;
+    if (credito === 0 && debito === 0) { toast.error("Informe horas de crédito ou débito"); return; }
+    setSalvandoAjuste(true);
+    try {
+      const referenceMonth = `${ajusteYear}-${String(ajusteMonth).padStart(2, "0")}`;
+      await aplicarDelta(referenceMonth, credito, debito);
+      toast.success("Ajuste aplicado!");
+      setAjusteCredito(""); setAjusteDebito("");
+      load();
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    } finally {
+      setSalvandoAjuste(false);
     }
-    const horas = parseFloat(novasHoras);
-    if (isNaN(horas) || horas <= 0) { toast.error("Horas inválidas"); return; }
-    const { error } = await (supabase as any).from("hour_bank").insert({
-      employee_id: selectedId, data: novaData, tipo: novoTipo, horas, descricao: novaDescricao,
-    });
-    if (error) { toast.error("Erro: " + error.message); return; }
-    toast.success("Lançamento adicionado!");
-    setNovasHoras(""); setNovaDescricao("");
-    load();
   };
 
-  const excluir = async (id: string) => {
-    if (!confirm("Excluir este lançamento?")) return;
+  const excluirMes = async (id: string) => {
+    if (!confirm("Excluir o registro deste mês? Isso zera o saldo desse mês específico.")) return;
     await (supabase as any).from("hour_bank").delete().eq("id", id);
     load();
   };
@@ -142,111 +185,113 @@ export default function BancoHorasTab({ employees }: { employees: Employee[] }) 
   };
 
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
-const exportarPDF = () => {
-  import("jspdf").then(({ default: jsPDF }) => {
-    const emp = employees.find(e => e.id === selectedId);
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = doc.internal.pageSize.getWidth();
-    const M = 15;
 
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, W, 28, "F");
-    doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
-    doc.text("RELATÓRIO DE BANCO DE HORAS", W / 2, 11, { align: "center" });
-    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 200, 230);
-    doc.text("APA Refrigeração e Climatização", W / 2, 17, { align: "center" });
-    doc.text(`Funcionário: ${emp?.name || "—"}`, W / 2, 22, { align: "center" });
+  const exportarPDF = () => {
+    import("jspdf").then(({ default: jsPDF }) => {
+      const emp = employees.find(e => e.id === selectedId);
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+      const M = 15;
 
-    let y = 34;
-    doc.setFillColor(245, 247, 250);
-    doc.rect(M, y, W - M * 2, 12, "FD");
-    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
-    doc.text(`totalDif atual: ${fmtHoras(totalDif)}`, M + 2, y + 5);
-    doc.text(`Créditos: ${fmtHoras(entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0))}`, M + 60, y + 5);
-    doc.text(`Débitos: ${fmtHoras(entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0))}`, M + 120, y + 5);
-    y += 16;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, W, 28, "F");
+      doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+      doc.text("RELATÓRIO DE BANCO DE HORAS", W / 2, 11, { align: "center" });
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 200, 230);
+      doc.text("APA Refrigeração e Climatização", W / 2, 17, { align: "center" });
+      doc.text(`Funcionário: ${emp?.name || "—"}`, W / 2, 22, { align: "center" });
 
-    doc.setFillColor(15, 23, 42);
-    doc.rect(M, y, W - M * 2, 7, "F");
-    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
-    doc.text("DATA", M + 2, y + 5);
-    doc.text("TIPO", M + 35, y + 5);
-    doc.text("HORAS", M + 80, y + 5);
-    doc.text("DESCRIÇÃO", M + 110, y + 5);
-    y += 7;
+      let y = 34;
+      doc.setFillColor(245, 247, 250);
+      doc.rect(M, y, W - M * 2, 12, "FD");
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 40, 50);
+      doc.text(`Saldo atual: ${fmtHoras(totalDif)}`, M + 2, y + 5);
+      doc.text(`Créditos: ${fmtHoras(totalCredito)}`, M + 60, y + 5);
+      doc.text(`Débitos: ${fmtHoras(totalDebito)}`, M + 120, y + 5);
+      y += 16;
 
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
-    entries.forEach((e, idx) => {
-      if (idx % 2 === 0) { doc.setFillColor(250, 251, 253); doc.rect(M, y, W - M * 2, 6, "F"); }
-      doc.setTextColor(40, 40, 50);
-      doc.text(new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR"), M + 2, y + 4.5);
-      e.tipo === "credito" ? doc.setTextColor(20, 110, 60) : doc.setTextColor(160, 30, 40);
-      doc.text(e.tipo === "credito" ? "Crédito" : "Débito", M + 35, y + 4.5);
-      doc.text((e.tipo === "debito" ? "-" : "+") + fmtHoras(e.horas), M + 80, y + 4.5);
-      doc.setTextColor(40, 40, 50);
-      doc.text((e.descricao || "").slice(0, 50), M + 110, y + 4.5);
-      y += 6;
-      if (y > 270) { doc.addPage(); y = 15; }
+      doc.setFillColor(15, 23, 42);
+      doc.rect(M, y, W - M * 2, 7, "F");
+      doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+      doc.text("MÊS", M + 2, y + 5);
+      doc.text("CRÉDITO", M + 60, y + 5);
+      doc.text("DÉBITO", M + 110, y + 5);
+      doc.text("SALDO", M + 160, y + 5);
+      y += 7;
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+      entries.forEach((e, idx) => {
+        if (idx % 2 === 0) { doc.setFillColor(250, 251, 253); doc.rect(M, y, W - M * 2, 6, "F"); }
+        doc.setTextColor(40, 40, 50);
+        doc.text(fmtMes(e.reference_month), M + 2, y + 4.5);
+        doc.setTextColor(20, 110, 60);
+        doc.text("+" + fmtHoras(e.extra_hours), M + 60, y + 4.5);
+        doc.setTextColor(160, 30, 40);
+        doc.text("-" + fmtHoras(e.debit_hours), M + 110, y + 4.5);
+        doc.setTextColor(40, 40, 50);
+        doc.text(fmtHoras(e.balance), M + 160, y + 4.5);
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 15; }
+      });
+
+      doc.setDrawColor(15, 23, 42); doc.setLineWidth(0.5);
+      doc.line(M, doc.internal.pageSize.getHeight() - 12, W - M, doc.internal.pageSize.getHeight() - 12);
+      doc.setFontSize(6.5); doc.setTextColor(120, 120, 130);
+      doc.text(`APA Ponto — Gerado em ${new Date().toLocaleString("pt-BR")}`, W / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
+
+      const safeName = (emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+      doc.save(`BancoHoras_${safeName}.pdf`);
     });
+  };
 
-    doc.setDrawColor(15, 23, 42); doc.setLineWidth(0.5);
-    doc.line(M, doc.internal.pageSize.getHeight() - 12, W - M, doc.internal.pageSize.getHeight() - 12);
-    doc.setFontSize(6.5); doc.setTextColor(120, 120, 130);
-    doc.text(`APA Ponto — Gerado em ${new Date().toLocaleString("pt-BR")}`, W / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
+  const exportarExcel = () => {
+    const emp = employees.find(e => e.id === selectedId);
+    const rows = [
+      ["Mês", "Crédito", "Débito", "Saldo"],
+      ...entries.map(e => [
+        fmtMes(e.reference_month),
+        "+" + fmtHoras(e.extra_hours),
+        "-" + fmtHoras(e.debit_hours),
+        fmtHoras(e.balance),
+      ]),
+      [],
+      ["Saldo total", fmtHoras(totalDif)],
+    ];
+    const csv = rows.map(r => r.join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `BancoHoras_${(emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Excel baixado!");
+  };
 
-    const safeName = (emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
-    doc.save(`BancoHoras_${safeName}.pdf`);
-  });
-};
-
-const exportarExcel = () => {
-  const emp = employees.find(e => e.id === selectedId);
-  const rows = [
-    ["Data", "Tipo", "Horas", "Descrição"],
-    ...entries.map(e => [
-      new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR"),
-      e.tipo === "credito" ? "Crédito" : "Débito",
-      (e.tipo === "debito" ? "-" : "+") + fmtHoras(e.horas),
-      e.descricao,
-    ]),
-    [],
-    ["totalDif atual", fmtHoras(totalDif)],
-  ];
-  const csv = rows.map(r => r.join(";")).join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `BancoHoras_${(emp?.name || "funcionario").replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success("Excel baixado!");
-};
   return (
     <div className="space-y-4">
-  <div className="flex items-center justify-between">
-    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-      <Clock className="w-5 h-5 text-primary" />
-      Banco de Horas
-    </h2>
-    <div className="flex gap-2">
-      {selectedId && entries.length > 0 && (
-        <>
-          <Button variant="outline" size="sm" onClick={exportarPDF} className="gap-1">
-            <FileDown className="w-4 h-4" /> PDF
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Clock className="w-5 h-5 text-primary" />
+          Banco de Horas
+        </h2>
+        <div className="flex gap-2">
+          {selectedId && entries.length > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={exportarPDF} className="gap-1">
+                <FileDown className="w-4 h-4" /> PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportarExcel} className="gap-1">
+                <FileSpreadsheet className="w-4 h-4" /> Excel
+              </Button>
+            </>
+          )}
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" size="sm" onClick={exportarExcel} className="gap-1">
-            <FileSpreadsheet className="w-4 h-4" /> Excel
-          </Button>
-        </>
-      )}
-      <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-      </Button>
-    </div>
-  </div>
+        </div>
+      </div>
 
-      {/* Seleção de funcionário */}
       <Card className="p-4">
         <Label>Funcionário</Label>
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
@@ -258,101 +303,52 @@ const exportarExcel = () => {
 
       {selectedId && (
         <>
-          {/* Medidor visual de totalDif */}
-          {(() => {
-            const creditos = entries.filter(e => e.tipo === "credito").reduce((a, e) => a + e.horas, 0);
-            const debitos = entries.filter(e => e.tipo === "debito").reduce((a, e) => a + e.horas, 0);
-            const limite = 40;
-            const pct = Math.min(Math.abs(totalDif) / limite * 100, 100);
-            const isPositivo = totalDif >= 0;
-            return (
-              <Card className={`p-5 border-2 ${isPositivo ? "border-emerald-500/30" : "border-rose-500/30"}`}>
-                <div className="flex items-end justify-between mb-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">totalDif do banco de horas</p>
-                    <p className={`text-5xl font-bold mt-1 tabular-nums ${isPositivo ? "text-emerald-500" : "text-rose-500"}`}>
-                      {totalDif > 0 ? "+" : ""}{fmtHoras(totalDif)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">{isPositivo ? "Horas a receber / compensar" : "Horas em débito"}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Limite recomendado</p>
-                    <p className="text-sm font-semibold text-muted-foreground">40h</p>
-                  </div>
-                </div>
-
-                {/* Barra progressiva */}
-                <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-4 rounded-full transition-all duration-700 ${
-                      pct >= 100 ? "bg-rose-500" :
-                      pct >= 75 ? "bg-amber-500" :
-                      isPositivo ? "bg-emerald-500" : "bg-rose-500"
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                  <span>0h</span>
-                  <span>{pct.toFixed(0)}% do limite</span>
-                  <span>40h</span>
-                </div>
-
-                {/* Créditos e débitos */}
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <div className="rounded-xl bg-emerald-500/10 p-3">
-                    <p className="text-xs text-muted-foreground">Créditos</p>
-                    <p className="text-xl font-bold text-emerald-500 mt-0.5">+{fmtHoras(creditos)}</p>
-                  </div>
-                  <div className="rounded-xl bg-rose-500/10 p-3">
-                    <p className="text-xs text-muted-foreground">Débitos</p>
-                    <p className="text-xl font-bold text-rose-500 mt-0.5">-{fmtHoras(debitos)}</p>
-                  </div>
-                </div>
-              </Card>
-            );
-          })()}
+          <Card className={`p-5 border-2 ${totalDif >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Saldo do banco de horas</p>
+                <p className={`text-5xl font-bold mt-1 tabular-nums ${totalDif >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                  {totalDif > 0 ? "+" : ""}{fmtHoras(totalDif)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{totalDif >= 0 ? "Horas a receber / compensar" : "Horas em débito"}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Limite recomendado</p>
+                <p className="text-sm font-semibold text-muted-foreground">40h</p>
+              </div>
+            </div>
+            <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-4 rounded-full transition-all duration-700 ${
+                  Math.abs(totalDif) >= 40 ? "bg-rose-500" :
+                  Math.abs(totalDif) >= 30 ? "bg-amber-500" :
+                  totalDif >= 0 ? "bg-emerald-500" : "bg-rose-500"
+                }`}
+                style={{ width: `${Math.min(Math.abs(totalDif) / 40 * 100, 100)}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="rounded-xl bg-emerald-500/10 p-3">
+                <p className="text-xs text-muted-foreground">Créditos acumulados</p>
+                <p className="text-xl font-bold text-emerald-500 mt-0.5">+{fmtHoras(totalCredito)}</p>
+              </div>
+              <div className="rounded-xl bg-rose-500/10 p-3">
+                <p className="text-xs text-muted-foreground">Débitos acumulados</p>
+                <p className="text-xl font-bold text-rose-500 mt-0.5">-{fmtHoras(totalDebito)}</p>
+              </div>
+            </div>
+          </Card>
 
           {totalDif > 40 && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <span className="text-amber-500 text-lg">⚠️</span>
               <div>
                 <p className="text-sm font-semibold text-amber-600">Excesso de horas no banco</p>
-                <p className="text-xs text-amber-600">totalDif de {fmtHoras(totalDif)} ultrapassa o limite recomendado de 40h.</p>
-              </div>
-            </div>
-          )}
-          {totalDif < -20 && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
-              <span className="text-rose-500 text-lg">🔴</span>
-              <div>
-                <p className="text-sm font-semibold text-rose-600">totalDif negativo elevado</p>
-                <p className="text-xs text-rose-600">Funcionário possui {fmtHoras(Math.abs(totalDif))} a compensar.</p>
+                <p className="text-xs text-amber-600">Saldo de {fmtHoras(totalDif)} ultrapassa o limite recomendado de 40h.</p>
               </div>
             </div>
           )}
 
-          {totalDif > 0 && (
-            <Card className="p-4 space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Previsão de compensação</h3>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-lg bg-muted/40">
-                  <p className="text-xs text-muted-foreground">Compensando 2h/dia</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 2)} dias</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/40">
-                  <p className="text-xs text-muted-foreground">Compensando 4h/dia</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 4)} dias</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/40">
-                  <p className="text-xs text-muted-foreground">Folga integral (8h)</p>
-                  <p className="text-lg font-bold mt-1">{Math.ceil(totalDif / 8)} dia(s)</p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Sub-abas */}
           <div className="flex gap-2">
             <Button variant={subTab === "automatico" ? "default" : "outline"} size="sm"
               onClick={() => setSubTab("automatico")} className="gap-1">
@@ -360,13 +356,25 @@ const exportarExcel = () => {
             </Button>
             <Button variant={subTab === "manual" ? "default" : "outline"} size="sm"
               onClick={() => setSubTab("manual")} className="gap-1">
-              <List className="w-4 h-4" /> Lançamentos Manuais
+              <List className="w-4 h-4" /> Ajuste Manual
             </Button>
           </div>
 
-          {/* CÁLCULO AUTOMÁTICO */}
           {subTab === "automatico" && (
             <div className="space-y-3">
+              {destinoFuncionario === "banco_horas" && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <span className="text-blue-500 text-lg">ℹ️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-blue-600">Crédito automático ativo</p>
+                    <p className="text-xs text-blue-600">
+                      Este funcionário está configurado para banco de horas em Parâmetros da Folha.
+                      As horas excedentes já são creditadas automaticamente quando a folha é calculada —
+                      não importe manualmente aqui para não duplicar.
+                    </p>
+                  </div>
+                </div>
+              )}
               <Card className="p-4">
                 <div className="flex gap-3 flex-wrap items-end">
                   <div>
@@ -392,7 +400,6 @@ const exportarExcel = () => {
 
               {diasCalculo.length > 0 && (
                 <>
-                  {/* Resumo do mês */}
                   <div className="grid grid-cols-3 gap-3">
                     <Card className="p-3 text-center">
                       <p className="text-xs text-muted-foreground">Trabalhado</p>
@@ -402,20 +409,19 @@ const exportarExcel = () => {
                       <p className="text-xs text-muted-foreground">Esperado</p>
                       <p className="text-xl font-bold mt-1">{fmtHoras(totalEsperado)}</p>
                     </Card>
-                    <Card className={`p-3 text-center border-2 ${totalDif >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
+                    <Card className={`p-3 text-center border-2 ${totalDifCalc >= 0 ? "border-emerald-500/30" : "border-rose-500/30"}`}>
                       <p className="text-xs text-muted-foreground">Diferença</p>
-                      <p className={`text-xl font-bold mt-1 ${totalDif >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                        {fmtHoras(totalDif)}
+                      <p className={`text-xl font-bold mt-1 ${totalDifCalc >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                        {fmtHoras(totalDifCalc)}
                       </p>
                     </Card>
                   </div>
 
-                  <Button onClick={importarMes} disabled={importando || totalDif === 0} className="w-full gap-2">
+                  <Button onClick={importarMes} disabled={importando || totalDifCalc === 0 || destinoFuncionario === "banco_horas"} className="w-full gap-2">
                     <Plus className="w-4 h-4" />
-                    {importando ? "Importando..." : `Importar ${fmtHoras(Math.abs(totalDif))} como ${totalDif >= 0 ? "crédito" : "débito"} no banco`}
+                    {importando ? "Importando..." : `Importar ${fmtHoras(Math.abs(totalDifCalc))} como ${totalDifCalc >= 0 ? "crédito" : "débito"} no banco`}
                   </Button>
 
-                  {/* Tabela por dia */}
                   <Card className="p-0 overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/40">
@@ -457,78 +463,79 @@ const exportarExcel = () => {
             </div>
           )}
 
-          {/* LANÇAMENTOS MANUAIS */}
           {subTab === "manual" && (
-            <div className="space-y-3">
-              <Card className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Novo lançamento</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <Label>Data</Label>
-                    <Input type="date" value={novaData} onChange={(e) => setNovaData(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Tipo</Label>
-                    <select value={novoTipo} onChange={(e) => setNovoTipo(e.target.value as any)}
-                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                      <option value="credito">Crédito (horas a receber)</option>
-                      <option value="debito">Débito (compensação)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Horas</Label>
-                    <Input type="number" step="0.5" min="0" placeholder="Ex: 2.5"
-                      value={novasHoras} onChange={(e) => setNovasHoras(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Descrição</Label>
-                    <Input placeholder="Ex: Horas extras maio"
-                      value={novaDescricao} onChange={(e) => setNovaDescricao(e.target.value)} />
-                  </div>
+            <Card className="p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Ajustar saldo de um mês</h3>
+              <p className="text-xs text-muted-foreground">
+                Soma horas de crédito e/ou débito ao saldo já existente daquele mês (não substitui, acumula).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <Label>Mês</Label>
+                  <select value={ajusteMonth} onChange={(e) => setAjusteMonth(Number(e.target.value))}
+                    className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    {MONTH_NAMES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                  </select>
                 </div>
-                <Button onClick={adicionar} className="gap-2">
-                  <Plus className="w-4 h-4" /> Adicionar lançamento
-                </Button>
-              </Card>
-
-              <Card className="p-0 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr className="text-left">
-                      <th className="p-3">Data</th>
-                      <th className="p-3">Tipo</th>
-                      <th className="p-3">Horas</th>
-                      <th className="p-3">Descrição</th>
-                      <th className="p-3 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.length === 0 ? (
-                      <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Nenhum lançamento encontrado.</td></tr>
-                    ) : entries.map((e) => (
-                      <tr key={e.id} className="border-t border-border/50">
-                        <td className="p-3">{new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR")}</td>
-                        <td className="p-3">
-                          <span className={`text-xs px-2 py-0.5 rounded font-medium ${e.tipo === "credito" ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}>
-                            {e.tipo === "credito" ? "Crédito" : "Débito"}
-                          </span>
-                        </td>
-                        <td className={`p-3 font-medium ${e.tipo === "credito" ? "text-emerald-500" : "text-rose-500"}`}>
-                          {e.tipo === "debito" ? "-" : "+"}{fmtHoras(e.horas)}
-                        </td>
-                        <td className="p-3 text-muted-foreground">{e.descricao}</td>
-                        <td className="p-3 text-right">
-                          <Button size="sm" variant="ghost" onClick={() => excluir(e.id)} className="text-destructive hover:text-destructive">
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            </div>
+                <div>
+                  <Label>Ano</Label>
+                  <select value={ajusteYear} onChange={(e) => setAjusteYear(Number(e.target.value))}
+                    className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label>Crédito (horas)</Label>
+                  <Input type="number" step="0.5" min="0" placeholder="Ex: 2.5"
+                    value={ajusteCredito} onChange={(e) => setAjusteCredito(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Débito (horas)</Label>
+                  <Input type="number" step="0.5" min="0" placeholder="Ex: 2.5"
+                    value={ajusteDebito} onChange={(e) => setAjusteDebito(e.target.value)} />
+                </div>
+              </div>
+              <Button onClick={aplicarAjuste} disabled={salvandoAjuste} className="gap-2">
+                <Plus className="w-4 h-4" /> {salvandoAjuste ? "Aplicando..." : "Aplicar ajuste"}
+              </Button>
+            </Card>
           )}
+
+          <Card className="p-0 overflow-hidden">
+            <div className="p-3 border-b border-border bg-muted/30">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Histórico por mês</p>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-left">
+                  <th className="p-3">Mês</th>
+                  <th className="p-3">Crédito</th>
+                  <th className="p-3">Débito</th>
+                  <th className="p-3">Saldo</th>
+                  <th className="p-3 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.length === 0 ? (
+                  <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Nenhum registro encontrado.</td></tr>
+                ) : entries.map((e) => (
+                  <tr key={e.id} className="border-t border-border/50">
+                    <td className="p-3 font-medium">{fmtMes(e.reference_month)}</td>
+                    <td className="p-3 text-emerald-500">+{fmtHoras(e.extra_hours)}</td>
+                    <td className="p-3 text-rose-500">-{fmtHoras(e.debit_hours)}</td>
+                    <td className={`p-3 font-medium ${e.balance >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                      {e.balance > 0 ? "+" : ""}{fmtHoras(e.balance)}
+                    </td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => excluirMes(e.id)} className="text-destructive hover:text-destructive">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </>
       )}
     </div>

@@ -11,6 +11,7 @@ import { calculatePayroll, summarizeWorkFromRecords } from "@/lib/payroll/calcul
 import { generatePayrollReport } from "@/lib/generateReport";
 import { getDiasUteisNoMes } from "@/lib/payroll/tables";
 import { getDiasEsperadosTrabalho, buscarExcecoesEscala } from "@/lib/escala12x36";
+import { getDatasAfastamentoSemDesconto } from "@/lib/payroll/afastamentos";
 
 type Employee = Tables<"employees">;
 
@@ -94,25 +95,69 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
 
     let diasPrevistos: number;
     let cargaHorariaDiaria: number;
+    let cargaHorariaPorDiaSemana: ((dow: number) => number) | undefined;
+
+    const datasAfastamentoSemDesconto = await getDatasAfastamentoSemDesconto(emp.id, primeiroDiaMes, ultimoDiaMes);
 
     if (isEscala12x36) {
       const excecoes = await buscarExcecoesEscala(emp.id, primeiroDiaMes, ultimoDiaMes);
-      diasPrevistos = getDiasEsperadosTrabalho(
+      const diasTrabalho = getDiasEsperadosTrabalho(
         (emp as any).escala_referencia_data, primeiroDiaMes, ultimoDiaMes, excecoes,
-      ).length;
+      );
+      // Remove da contagem os dias de turno que coincidiram com afastamento protegido por lei.
+      diasPrevistos = diasTrabalho.filter((d: string) => !datasAfastamentoSemDesconto.has(d)).length;
       cargaHorariaDiaria = Number((emp as any).carga_horaria_turno) || 11;
     } else {
-      diasPrevistos = getDiasUteisNoMes(year, month);
-      cargaHorariaDiaria = 8;
+      const diasUteisTotal = getDiasUteisNoMes(year, month);
+      // Conta só os dias úteis (seg-sex) de afastamento, já que fim de semana não seria
+      // "dia previsto de trabalho" mesmo sem afastamento nenhum.
+      let diasAfastamentoUteis = 0;
+      for (const dataStr of datasAfastamentoSemDesconto) {
+        const dow = new Date(dataStr + "T12:00:00").getDay();
+        if (dow !== 0 && dow !== 6) diasAfastamentoUteis++;
+      }
+      diasPrevistos = Math.max(0, diasUteisTotal - diasAfastamentoUteis);
+      const cargaPadrao = Number((emp as any).carga_horaria_diaria_padrao) || 9;
+      const cargaSexta = Number((emp as any).carga_horaria_diaria_sexta) || 8;
+      cargaHorariaPorDiaSemana = (dow: number) =>
+        dow === 5 ? cargaSexta : (dow === 0 || dow === 6) ? 0 : cargaPadrao;
+      cargaHorariaDiaria = cargaPadrao;
     }
 
-    const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistos });
+    const work = summarizeWorkFromRecords(records || [], { cargaHorariaDiaria, diasUteisPrevistos: diasPrevistos, cargaHorariaPorDiaSemana });
     work.dias_uteis_mes = diasPrevistos;
     work.dias_trabalhados = parseInt(work.faltas_dias as string) >= 0
-  
+
       ? diasPrevistos - parseInt(work.faltas_dias as string)
       : diasPrevistos;
-      work.horas_falta_dia = cargaHorariaDiaria;
+    work.horas_falta_dia = cargaHorariaDiaria;
+
+    const destinoHoras = (settings as any).destino_horas_excedentes === "banco_horas" ? "banco_horas" : "hora_extra";
+    const referenceMonth = `${year}-${String(month).padStart(2, "0")}`;
+    const horasExcedentes = Number(work.horas_extras_50 || 0) + Number(work.horas_extras_100 || 0);
+
+    // Busca a linha existente deste funcionário neste mês, para preservar
+    // qualquer débito manual já lançado (não tocamos em debit_hours aqui).
+    const { data: hourBankExistente } = await supabase
+      .from("hour_bank" as any)
+      .select("debit_hours")
+      .eq("employee_id", emp.id)
+      .eq("reference_month", referenceMonth)
+      .maybeSingle();
+
+    const debitHoursAtual = Number((hourBankExistente as any)?.debit_hours || 0);
+    // Em modo "banco_horas", o crédito é o total de horas excedentes do mês.
+    // Em modo "hora_extra", zeramos o crédito automático (essas horas já são pagas no holerite).
+    const extraHoursParaSalvar = destinoHoras === "banco_horas" ? horasExcedentes : 0;
+
+    await supabase.from("hour_bank" as any).upsert({
+      employee_id: emp.id,
+      reference_month: referenceMonth,
+      extra_hours: extraHoursParaSalvar,
+      debit_hours: debitHoursAtual,
+      balance: extraHoursParaSalvar - debitHoursAtual,
+    }, { onConflict: "employee_id,reference_month" });
+
     const customItems = (customs || []).map((c: any) => ({
       kind: c.kind, code: "C", description: c.description, amount: String(c.amount),
     }));
@@ -361,7 +406,7 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
             </tr>
           </thead>
           <tbody>
-      {employees.map((emp) => {
+            {employees.map((emp) => {
               const ps = payslips.find((p) => p.employee_id === emp.id);
               return (
                 <tr key={emp.id} className="border-t border-border/50">

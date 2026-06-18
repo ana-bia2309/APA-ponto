@@ -25,6 +25,7 @@ interface Settings {
   desconta_vt: boolean;
   gratificacao_fixa: number;
   gratificacao_percentual: number;
+  destino_horas_excedentes: "hora_extra" | "banco_horas";
 }
 
 const DEFAULTS: Omit<Settings, "employee_id"> = {
@@ -32,6 +33,7 @@ const DEFAULTS: Omit<Settings, "employee_id"> = {
   vale_alimentacao: 0, dependentes_irrf: 0, percentual_comissao: 0,
   hora_extra_habilitada: true, adicional_noturno_percent: 20, desconta_vt: true,
   gratificacao_fixa: 0, gratificacao_percentual: 0,
+   destino_horas_excedentes: "hora_extra",
 };
 
 export default function PayrollSettingsTab({ employees }: { employees: Employee[] }) {
@@ -62,7 +64,7 @@ useEffect(() => {
         .from("payroll_settings" as any)
         .select("*").eq("employee_id", selectedId).maybeSingle();
       if (data) {
-        setSettings(data as any);
+        setSettings({ ...DEFAULTS, ...(data as any) });
         setHasExisting(true);
       } else {
         setSettings({ ...DEFAULTS, employee_id: selectedId });
@@ -87,7 +89,11 @@ useEffect(() => {
     const salarioMudou = salarioAnterior !== null && salarioAnterior !== Number(settings.salario_base);
     const primeiroCadastro = salarioAnterior === null && Number(settings.salario_base) > 0;
 
-    const payload = { ...settings, employee_id: selectedId };
+    const payload = {
+      ...settings,
+      employee_id: selectedId,
+      hora_extra_habilitada: settings.destino_horas_excedentes !== "banco_horas",
+    };
     const { error } = await supabase
       .from("payroll_settings" as any)
       .upsert(payload, { onConflict: "employee_id" });
@@ -199,10 +205,21 @@ return (
                 value={settings.gratificacao_percentual || ""}
                 onChange={(e) => upd("gratificacao_percentual", parseFloat(e.target.value) || 0)} />
             </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input type="checkbox" id="he" checked={settings.hora_extra_habilitada}
-                onChange={(e) => upd("hora_extra_habilitada", e.target.checked)} />
-              <Label htmlFor="he">Calcular horas extras</Label>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Label>Destino das horas excedentes</Label>
+              <select
+                value={settings.destino_horas_excedentes}
+                onChange={(e) => upd("destino_horas_excedentes", e.target.value as "hora_extra" | "banco_horas")}
+                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="hora_extra">💰 Hora Extra — paga automaticamente no salário</option>
+                <option value="banco_horas">🏦 Banco de Horas — não entra no salário, credita automaticamente</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {settings.destino_horas_excedentes === "banco_horas"
+                  ? "As horas excedentes não serão pagas no holerite — serão creditadas automaticamente no Banco de Horas quando a folha for calculada."
+                  : "As horas excedentes serão pagas automaticamente como hora extra no holerite."}
+              </p>
             </div>
             <div className="flex items-center gap-2 pt-6">
               <input type="checkbox" id="vt" checked={settings.desconta_vt}

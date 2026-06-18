@@ -28,6 +28,7 @@ export type PayrollSettings = {
   desconta_vt: boolean;
   gratificacao_fixa?: string | number;
   gratificacao_percentual?: string | number;
+  destino_horas_excedentes?: "hora_extra" | "banco_horas";
 };
 
 export type WorkSummary = {
@@ -42,7 +43,7 @@ export type WorkSummary = {
   custom_items?: PayrollItem[];
   dias_uteis_mes?: number;
   dias_trabalhados?: number;
-   horas_falta_dia?: number;
+  horas_falta_dia?: number;
 };
 
 export type PayrollResult = {
@@ -151,6 +152,11 @@ export function calculatePayroll(
   const salario = D(settings.salario_base);
   const cargaMensal = D(settings.carga_horaria_mensal);
   const valorHora = cargaMensal.gt(0) ? salario.div(cargaMensal) : D(0);
+  // Destino das horas excedentes: hora extra (paga) ou banco de horas (não entra no salário).
+  // Mantém compatibilidade com configurações antigas que só tinham o checkbox.
+  const pagaHoraExtra = (settings as any).destino_horas_excedentes
+    ? (settings as any).destino_horas_excedentes === "hora_extra"
+    : settings.hora_extra_habilitada;
 
   // 1. Salário base (proporcional a faltas/atrasos)
   const horasPorFalta = work.horas_falta_dia ?? 8;
@@ -163,7 +169,7 @@ export function calculatePayroll(
   });
 
   // 2. Horas extras 50%
-  if (settings.hora_extra_habilitada && D(work.horas_extras_50).gt(0)) {
+  if (pagaHoraExtra && D(work.horas_extras_50).gt(0)) {
     const valor = valorHora.mul("1.5").mul(work.horas_extras_50);
     items.push({
       kind: "provento", code: "002", description: "Horas Extras 50%",
@@ -171,13 +177,24 @@ export function calculatePayroll(
     });
   }
 
-  // 3. Horas extras 100%
-  if (settings.hora_extra_habilitada && D(work.horas_extras_100).gt(0)) {
+   // 3. Horas extras 100%
+  if (pagaHoraExtra && D(work.horas_extras_100).gt(0)) {
     const valor = valorHora.mul(2).mul(work.horas_extras_100);
     items.push({
       kind: "provento", code: "003", description: "Horas Extras 100%",
       reference: `${D(work.horas_extras_100).toFixed(2)}h`, amount: round2(valor),
     });
+  }
+
+   // 3b. Informativo: horas que foram para o banco de horas em vez de pagas
+  if (!pagaHoraExtra) {
+    const horasParaBanco = D(work.horas_extras_50).plus(D(work.horas_extras_100));
+    if (horasParaBanco.gt(0)) {
+      items.push({
+        kind: "informativo", code: "910", description: "Horas para Banco de Horas",
+        reference: `${horasParaBanco.toFixed(2)}h`, amount: "0.00",
+      });
+    }
   }
 
   // 4. Adicional noturno
@@ -372,8 +389,9 @@ export function summarizeWorkFromRecords(
   opts: {
     cargaHorariaDiaria?: number;
     diasUteisPrevistos?: number; // dias esperados de trabalho no mês
+    cargaHorariaPorDiaSemana?: (dow: number) => number; // carga esperada que varia por dia (0=dom...6=sáb). Tem prioridade sobre cargaHorariaDiaria quando informado.
   } = {},
-): Pick<WorkSummary,"horas_trabalhadas"|"horas_extras_50"|"horas_noturnas"|"faltas_dias"|"atrasos_minutos"|"horas_extras_100"|"dias_uteis_mes"|"dias_trabalhados"|"horas_falta_dia"> {
+): Pick<WorkSummary, "horas_trabalhadas" | "horas_extras_50" | "horas_noturnas" | "faltas_dias" | "atrasos_minutos" | "horas_extras_100" | "dias_uteis_mes" | "dias_trabalhados" | "horas_falta_dia"> {
   const cargaDiaria = opts.cargaHorariaDiaria ?? 8;
 
   // Ordena cronologicamente e separa em jornadas (cada jornada inicia em "entrada") 
@@ -417,7 +435,10 @@ export function summarizeWorkFromRecords(
     diasTrabalhados++;
     totalMin += bruto;
 
-    const previstoMin = cargaDiaria * 60;
+    const cargaDoDia = opts.cargaHorariaPorDiaSemana
+      ? opts.cargaHorariaPorDiaSemana(j.entrada.getDay())
+      : cargaDiaria;
+    const previstoMin = cargaDoDia * 60;
     const extra = Math.max(0, bruto - previstoMin);
     // Domingo (0) → 100%; demais → 50%
     if (j.entrada.getDay() === 0) extras100Min += extra;
@@ -438,7 +459,7 @@ export function summarizeWorkFromRecords(
     atrasos_minutos: 0,
   };
 
-return {
+  return {
     horas_trabalhadas: (totalMin / 60).toFixed(2),
     horas_extras_50: (extras50Min / 60).toFixed(2),
     horas_extras_100: (extras100Min / 60).toFixed(2),
