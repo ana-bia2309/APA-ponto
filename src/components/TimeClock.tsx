@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Clock,
   LogIn,
@@ -92,7 +92,7 @@ function useWeather() {
           humidity,
         });
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return weather;
@@ -129,6 +129,84 @@ function getDynamicPhrase(hour: number, weatherCode: number): string {
   }
   return "Madrugada em campo — dedicação total! ⭐";
 }
+
+interface HolidayInfo {
+  date: Date;
+  label: string;
+}
+
+function getEasterDateForHoliday(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+function getBrazilianHolidaysForYear(year: number): HolidayInfo[] {
+  const list: HolidayInfo[] = [
+    { date: new Date(year, 0, 1), label: "Confraternização Universal" },
+    { date: new Date(year, 3, 21), label: "Tiradentes" },
+    { date: new Date(year, 4, 1), label: "Dia do Trabalho" },
+    { date: new Date(year, 8, 7), label: "Independência" },
+    { date: new Date(year, 9, 12), label: "Nossa Senhora Aparecida" },
+    { date: new Date(year, 10, 2), label: "Finados" },
+    { date: new Date(year, 10, 15), label: "Proclamação da República" },
+    { date: new Date(year, 11, 25), label: "Natal" },
+  ];
+  const easter = getEasterDateForHoliday(year);
+  const addDays = (date: Date, days: number) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  };
+  list.push({ date: addDays(easter, -48), label: "Carnaval" });
+  list.push({ date: addDays(easter, -47), label: "Carnaval" });
+  list.push({ date: addDays(easter, -2), label: "Sexta-feira Santa" });
+  list.push({ date: easter, label: "Páscoa" });
+  list.push({ date: addDays(easter, 60), label: "Corpus Christi" });
+  return list;
+}
+
+function getNextHoliday(today: Date): { label: string; daysUntil: number } | null {
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const candidates = [
+    ...getBrazilianHolidaysForYear(today.getFullYear()),
+    ...getBrazilianHolidaysForYear(today.getFullYear() + 1),
+  ]
+    .filter((h) => h.date.getTime() > todayMidnight.getTime())
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (candidates.length === 0) return null;
+  const next = candidates[0];
+  const daysUntil = Math.round((next.date.getTime() - todayMidnight.getTime()) / 86400000);
+  return { label: next.label, daysUntil };
+}
+
+function getExpectedMinutesForToday(emp: any, date: Date): number | null {
+  const dow = date.getDay(); // 0 = domingo, 6 = sábado
+  if (emp?.escala === "12x36") {
+    const turno = Number(emp?.carga_horaria_turno) || 11;
+    return turno * 60;
+  }
+  if (dow === 0 || dow === 6) return null; // fim de semana, sem aviso
+  if (dow === 5) {
+    const sexta = Number(emp?.carga_horaria_diaria_sexta);
+    return (sexta || 8) * 60;
+  }
+  const padrao = Number(emp?.carga_horaria_diaria_padrao);
+  return (padrao || 9) * 60;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 
 /** Single source of truth after CPF validation */
@@ -254,7 +332,7 @@ function readStorageJson<T>(key: string, fallback: T): T {
 function writeStorageJson(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
+  } catch { }
 }
 
 function normalizeCachedEmployee(employee: Partial<CachedEmployee> & { id: string; name: string }): CachedEmployee {
@@ -584,9 +662,9 @@ function MeusSolicitacoes({ employeeId }: { employeeId: string }) {
   if (solicitacoes.length === 0) return null;
 
   const STATUS = {
-    pendente: { icon: "⏳", label: "Pendente",  bg: "#fef3c7", text: "#b45309" },
-    aprovado: { icon: "✅", label: "Aprovado",  bg: "#f0fdf4", text: "#15803d" },
-    recusado: { icon: "❌", label: "Recusado",  bg: "#fff1f2", text: "#be123c" },
+    pendente: { icon: "⏳", label: "Pendente", bg: "#fef3c7", text: "#b45309" },
+    aprovado: { icon: "✅", label: "Aprovado", bg: "#f0fdf4", text: "#15803d" },
+    recusado: { icon: "❌", label: "Recusado", bg: "#fff1f2", text: "#be123c" },
   } as any;
 
   const TIPO_ICONS: Record<string, string> = {
@@ -594,7 +672,7 @@ function MeusSolicitacoes({ employeeId }: { employeeId: string }) {
   };
 
   return (
-    <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+    <div id="minhas-solicitacoes-card" className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">📋 Minhas Solicitações</p>
       <div className="space-y-2">
         {solicitacoes.map((s: any) => {
@@ -662,6 +740,7 @@ export default function TimeClock() {
   const navigate = useNavigate();
   const weather = useWeather();
   const currentHour = new Date().getHours();
+  const nextHoliday = useMemo(() => getNextHoliday(now), [now.toDateString()]);
   const { isAdmin } = useAuth();
   const { isDark, toggle } = useTheme();
   const bgPrimary = isDark ? "#0f172a" : "#F0F4F8";
@@ -674,57 +753,85 @@ export default function TimeClock() {
   const [pendingEpis, setPendingEpis] = useState<{ epi_name: string; delivered_at: string }[]>([]);
   const [showPayslipSign, setShowPayslipSign] = useState(false);
   const [pendingPayslipCount, setPendingPayslipCount] = useState(0);
-const [pendingUniformCount, setPendingUniformCount] = useState(0);
-const [pendingUniform, setPendingUniform] = useState<{ uniform_name: string; delivered_at: string }[]>([]);
-const [pendingToolCount, setPendingToolCount] = useState(0);
-const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at: string }[]>([]);
+  const [pendingUniformCount, setPendingUniformCount] = useState(0);
+  const [pendingUniform, setPendingUniform] = useState<{ uniform_name: string; delivered_at: string }[]>([]);
+  const [pendingToolCount, setPendingToolCount] = useState(0);
+  const [pendingTools, setPendingTools] = useState<{ tool_name: string; loaned_at: string }[]>([]);
   const [showDocumentos, setShowDocumentos] = useState(false);
   const [showUniformAcceptance, setShowUniformAcceptance] = useState(false);
-const [showToolAcceptance, setShowToolAcceptance] = useState(false);
-const [showTimesheetSign, setShowTimesheetSign] = useState(false);
-const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
-const [showDocumentoSign, setShowDocumentoSign] = useState(false);
-const [pendingDocumentoCount, setPendingDocumentoCount] = useState(0);
-const [showOuvidoria, setShowOuvidoria] = useState(false);
-const [showAjuda, setShowAjuda] = useState(false);
+  const [showToolAcceptance, setShowToolAcceptance] = useState(false);
+  const [showTimesheetSign, setShowTimesheetSign] = useState(false);
+  const [pendingTimesheetCount, setPendingTimesheetCount] = useState(0);
+  const [showDocumentoSign, setShowDocumentoSign] = useState(false);
+  const [pendingDocumentoCount, setPendingDocumentoCount] = useState(0);
+  const [showOuvidoria, setShowOuvidoria] = useState(false);
+  const [showAjuda, setShowAjuda] = useState(false);
 
-const fetchPendingDocumentoCount = useCallback(async (cpf: string) => {
-  const cpfDigits = normalizeCpf(cpf);
-  if (!cpfDigits || !navigator.onLine) { setPendingDocumentoCount(0); return; }
-  try {
-    const { data } = await (supabase as any).rpc("get_pending_documentos_by_cpf", { p_cpf: cpfDigits });
-    setPendingDocumentoCount(Array.isArray(data) ? data.length : 0);
-  } catch {}
-}, []);
-const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
-const [avisosConfirmados, setAvisosConfirmados] = useState<Record<string, string>>({});
-const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
-const [solicitacaoTexto, setSolicitacaoTexto] = useState("");
-const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
-const [historyTab, setHistoryTab] = useState<"pontos" | "banco" | "ferias" | "afastamentos">("pontos");
-const [feriasSaldo, setFeriasSaldo] = useState<any>(null);
-const [feriasHistorico, setFeriasHistorico] = useState<any[]>([]);
-const [afastamentosHistorico, setAfastamentosHistorico] = useState<any[]>([]);
-const [aniversarioHoje, setAniversarioHoje] = useState(false);
+  const fetchPendingDocumentoCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingDocumentoCount(0); return; }
+    try {
+      const { data } = await (supabase as any).rpc("get_pending_documentos_by_cpf", { p_cpf: cpfDigits });
+      setPendingDocumentoCount(Array.isArray(data) ? data.length : 0);
+    } catch { }
+  }, []);
+  const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string; tipo: string; created_at: string }[]>([]);
+  const [avisosConfirmados, setAvisosConfirmados] = useState<Record<string, string>>({});
+  const [showSolicitacao, setShowSolicitacao] = useState<string | null>(null);
+  const [solicitacaoTexto, setSolicitacaoTexto] = useState("");
+  const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"pontos" | "banco" | "ferias" | "afastamentos">("pontos");
+  const [feriasSaldo, setFeriasSaldo] = useState<any>(null);
+  const [feriasHistorico, setFeriasHistorico] = useState<any[]>([]);
+  const [afastamentosHistorico, setAfastamentosHistorico] = useState<any[]>([]);
+  const [aniversarioHoje, setAniversarioHoje] = useState(false);
+  const [pendingResponseCount, setPendingResponseCount] = useState(0);
+const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
 
-const verificarAniversario = useCallback(async (employeeId: string) => {
-  if (!navigator.onLine) return;
-  try {
-    const { data } = await (supabase as any)
-      .from("employees")
-      .select("data_nascimento")
-      .eq("id", employeeId)
-      .maybeSingle();
-    if (data?.data_nascimento) {
-      const hoje = new Date();
-      const mesHoje = hoje.getMonth() + 1;
-      const diaHoje = hoje.getDate();
-      const mesNasc = parseInt(data.data_nascimento.slice(5, 7));
-      const diaNasc = parseInt(data.data_nascimento.slice(8, 10));
-      setAniversarioHoje(mesNasc === mesHoje && diaNasc === diaHoje);
-    }
-  } catch {}
-}, []);
+  const fetchPendingResponseCount = useCallback(async (employeeId: string) => {
+    if (!employeeId || !navigator.onLine) return;
+    try {
+      const { count } = await (supabase as any)
+        .from("employee_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("employee_id", employeeId)
+        .in("status", ["aprovado", "recusado"])
+        .is("visualizado_em", null);
+      setPendingResponseCount(count || 0);
+    } catch { }
+  }, []);
+
+  const markRequestsAsViewed = useCallback(async (employeeId: string) => {
+    if (!employeeId) return;
+    try {
+      await (supabase as any)
+        .from("employee_requests")
+        .update({ visualizado_em: new Date().toISOString() })
+        .eq("employee_id", employeeId)
+        .in("status", ["aprovado", "recusado"])
+        .is("visualizado_em", null);
+      setPendingResponseCount(0);
+    } catch { }
+  }, []);
+
+  const verificarAniversario = useCallback(async (employeeId: string) => {
+    if (!navigator.onLine) return;
+    try {
+      const { data } = await (supabase as any)
+        .from("employees")
+        .select("data_nascimento")
+        .eq("id", employeeId)
+        .maybeSingle();
+      if (data?.data_nascimento) {
+        const hoje = new Date();
+        const mesHoje = hoje.getMonth() + 1;
+        const diaHoje = hoje.getDate();
+        const mesNasc = parseInt(data.data_nascimento.slice(5, 7));
+        const diaNasc = parseInt(data.data_nascimento.slice(8, 10));
+        setAniversarioHoje(mesNasc === mesHoje && diaNasc === diaHoje);
+      }
+    } catch { }
+  }, []);
 
   const filteredEmployees = selectedShift
     ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
@@ -860,149 +967,202 @@ const verificarAniversario = useCallback(async (employeeId: string) => {
     }
   }, []);
 
-const fetchPendingToolCount = useCallback(async (cpf: string) => {
-  const cpfDigits = normalizeCpf(cpf);
-  if (!cpfDigits || !navigator.onLine) { setPendingToolCount(0); return; }
-  try {
-    const { data, error } = await supabase.rpc("get_pending_tools_by_cpf" as any, { p_cpf: cpfDigits });
-    if (error) throw error;
-    const arr = Array.isArray(data) ? data : [];
-    setPendingToolCount(arr.length);
-    setPendingTools(arr.map((d: any) => ({ tool_name: d.tool_name, loaned_at: d.loaned_at })));
-  } catch (e) {
-    console.error("Erro ao buscar ferramentas pendentes", e);
-  }
-}, []);
-
-const [calendarioDias, setCalendarioDias] = useState<Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento">>({});
-
-const fetchCalendario = useCallback(async (cpf: string) => {
-  const cpfDigits = normalizeCpf(cpf);
-  if (!cpfDigits || !navigator.onLine) return;
-  try {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-    const startOfMonthStr = startOfMonth.slice(0, 10);
-    const endOfMonthStr = endOfMonth.slice(0, 10);
-
-    const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-    const { data: empData } = await (supabase as any)
-      .from("employees")
-      .select("id")
-      .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
-      .single();
-
-    if (!empData?.id) return;
-
-    const [recordsRes, justRes, afastRes] = await Promise.all([
-      (supabase as any).from("time_records")
-        .select("recorded_at, record_type")
-        .eq("employee_id", empData.id)
-        .gte("recorded_at", startOfMonth)
-        .lte("recorded_at", endOfMonth),
-      (supabase as any).from("absence_justifications")
-        .select("date, reason, status")
-        .eq("employee_id", empData.id)
-        .gte("date", startOfMonthStr)
-        .lte("date", endOfMonthStr),
-      (supabase as any).from("afastamentos")
-        .select("tipo, data_inicio, data_fim")
-        .eq("employee_id", empData.id)
-        .lte("data_inicio", endOfMonthStr)
-        .gte("data_fim", startOfMonthStr),
-    ]);
-
-    const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento"> = {};
-
-    // Dias trabalhados
-    (recordsRes.data || []).forEach((r: any) => {
-      const dia = r.recorded_at.slice(0, 10);
-      if (!dias[dia]) dias[dia] = "trabalhado";
-    });
-
-    // Atestados
-    (justRes.data || []).forEach((j: any) => {
-      if (j.date) dias[j.date] = "atestado";
-    });
-
-    // Afastamentos (férias, abono, licenças, etc.) — prioridade máxima, sobrescreve os anteriores
-    (afastRes.data || []).forEach((a: any) => {
-      let d = a.data_inicio < startOfMonthStr ? startOfMonthStr : a.data_inicio;
-      const fim = a.data_fim > endOfMonthStr ? endOfMonthStr : a.data_fim;
-      const status: "ferias" | "abono" | "afastamento" =
-        a.tipo === "ferias" ? "ferias" : a.tipo === "abono_dia" ? "abono" : "afastamento";
-      while (d <= fim) {
-        dias[d] = status;
-        const dt = new Date(d + "T12:00:00");
-        dt.setDate(dt.getDate() + 1);
-        d = dt.toISOString().slice(0, 10);
-      }
-    });
-
-    setCalendarioDias(dias);
-  } catch {}
-}, []);
-
-const [timesheetSummary, setTimesheetSummary] = useState<{ horas_trabalhadas: number; horas_esperadas: number; diferenca: number; month: number; year: number; } | null>(null);
-
-const fetchTimesheetSummary = useCallback(async (cpf: string) => {
-  const cpfDigits = normalizeCpf(cpf);
-  if (!cpfDigits || !navigator.onLine) return;
-  try {
-    const { data } = await (supabase as any).rpc("get_timesheet_summary_by_cpf", { p_cpf: cpfDigits });
-    if (data && data.length > 0) setTimesheetSummary(data[0]);
-  } catch {}
-}, []);
-
-const fetchAvisos = useCallback(async (employeeId?: string) => {
-  if (!navigator.onLine) return;
-  try {
-    const { data } = await (supabase as any)
-      .from("company_notices")
-      .select("id, titulo, mensagem, tipo, created_at")
-      .eq("ativo", true)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    if (data) setAvisos(data);
-
-    const empId = employeeId || selectedEmployee?.id;
-    if (empId && data && data.length > 0) {
-      const { data: confirmacoes } = await (supabase as any)
-        .from("aviso_confirmacoes")
-        .select("aviso_id, confirmado_em")
-        .eq("employee_id", empId)
-        .in("aviso_id", data.map((a: any) => a.id));
-      const map: Record<string, string> = {};
-      (confirmacoes || []).forEach((c: any) => { map[c.aviso_id] = c.confirmado_em; });
-      setAvisosConfirmados(map);
+  const fetchPendingToolCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingToolCount(0); return; }
+    try {
+      const { data, error } = await supabase.rpc("get_pending_tools_by_cpf" as any, { p_cpf: cpfDigits });
+      if (error) throw error;
+      const arr = Array.isArray(data) ? data : [];
+      setPendingToolCount(arr.length);
+      setPendingTools(arr.map((d: any) => ({ tool_name: d.tool_name, loaned_at: d.loaned_at })));
+    } catch (e) {
+      console.error("Erro ao buscar ferramentas pendentes", e);
     }
-  } catch {}
-}, [selectedEmployee]);
+  }, []);
 
-const confirmarLeituraAviso = async (avisoId: string) => {
-  if (!selectedEmployee) return;
-  try {
-    const { error } = await (supabase as any).from("aviso_confirmacoes").insert({
-      aviso_id: avisoId,
-      employee_id: selectedEmployee.id,
-    });
-    if (error && !error.message.includes("duplicate")) throw error;
-    setAvisosConfirmados(prev => ({ ...prev, [avisoId]: new Date().toISOString() }));
-    toast.success("Leitura confirmada!");
-  } catch (e: any) {
-    toast.error("Erro ao confirmar: " + e.message);
-  }
-};
+  const [calendarioDias, setCalendarioDias] = useState<Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento">>({});
 
-const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
-  const cpfDigits = normalizeCpf(cpf);
-  if (!cpfDigits || !navigator.onLine) { setPendingTimesheetCount(0); return; }
-  try {
-    const { data } = await (supabase as any).rpc("get_pending_timesheets_by_cpf", { p_cpf: cpfDigits });
-    setPendingTimesheetCount(Array.isArray(data) ? data.length : 0);
-  } catch {}
-}, []);
+  const fetchCalendario = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) return;
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      const startOfMonthStr = startOfMonth.slice(0, 10);
+      const endOfMonthStr = endOfMonth.slice(0, 10);
+
+      const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      const { data: empData } = await (supabase as any)
+        .from("employees")
+        .select("id")
+        .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
+        .single();
+
+      if (!empData?.id) return;
+
+      const [recordsRes, justRes, afastRes] = await Promise.all([
+        (supabase as any).from("time_records")
+          .select("recorded_at, record_type")
+          .eq("employee_id", empData.id)
+          .gte("recorded_at", startOfMonth)
+          .lte("recorded_at", endOfMonth),
+        (supabase as any).from("absence_justifications")
+          .select("date, reason, status")
+          .eq("employee_id", empData.id)
+          .gte("date", startOfMonthStr)
+          .lte("date", endOfMonthStr),
+        (supabase as any).from("afastamentos")
+          .select("tipo, data_inicio, data_fim")
+          .eq("employee_id", empData.id)
+          .lte("data_inicio", endOfMonthStr)
+          .gte("data_fim", startOfMonthStr),
+      ]);
+
+      const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento"> = {};
+
+      // Dias trabalhados
+      (recordsRes.data || []).forEach((r: any) => {
+        const dia = r.recorded_at.slice(0, 10);
+        if (!dias[dia]) dias[dia] = "trabalhado";
+      });
+
+      // Atestados
+      (justRes.data || []).forEach((j: any) => {
+        if (j.date) dias[j.date] = "atestado";
+      });
+
+      // Afastamentos (férias, abono, licenças, etc.) — prioridade máxima, sobrescreve os anteriores
+      (afastRes.data || []).forEach((a: any) => {
+        let d = a.data_inicio < startOfMonthStr ? startOfMonthStr : a.data_inicio;
+        const fim = a.data_fim > endOfMonthStr ? endOfMonthStr : a.data_fim;
+        const status: "ferias" | "abono" | "afastamento" =
+          a.tipo === "ferias" ? "ferias" : a.tipo === "abono_dia" ? "abono" : "afastamento";
+        while (d <= fim) {
+          dias[d] = status;
+          const dt = new Date(d + "T12:00:00");
+          dt.setDate(dt.getDate() + 1);
+          d = dt.toISOString().slice(0, 10);
+        }
+      });
+
+      setCalendarioDias(dias);
+    } catch { }
+  }, []);
+
+  const [timesheetSummary, setTimesheetSummary] = useState<{ horas_trabalhadas: number; horas_esperadas: number; diferenca: number; month: number; year: number; } | null>(null);
+
+  interface DayHours { label: string; hours: number; dateStr: string }
+  const [weeklyHours, setWeeklyHours] = useState<DayHours[]>([]);
+
+  const fetchTimesheetSummary = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) return;
+    try {
+      const { data } = await (supabase as any).rpc("get_timesheet_summary_by_cpf", { p_cpf: cpfDigits });
+      if (data && data.length > 0) setTimesheetSummary(data[0]);
+    } catch { }
+  }, []);
+
+  const fetchWeeklyHours = useCallback(async (employeeId: string) => {
+    if (!employeeId || !navigator.onLine) return;
+    try {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+
+      const { data } = await (supabase as any)
+        .from("time_records")
+        .select("record_type, recorded_at")
+        .eq("employee_id", employeeId)
+        .gte("recorded_at", start.toISOString())
+        .lte("recorded_at", today.toISOString());
+
+      const byDay: Record<string, Record<string, string>> = {};
+      (data || []).forEach((r: any) => {
+        const dia = r.recorded_at.slice(0, 10);
+        if (!byDay[dia]) byDay[dia] = {};
+        if (!byDay[dia][r.record_type]) byDay[dia][r.record_type] = r.recorded_at;
+      });
+
+      const DAY_LETTERS = ["D", "S", "T", "Q", "Q", "S", "S"];
+      const result: DayHours[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const recs = byDay[dStr] || {};
+        const entrada = recs["entrada"];
+        const saida = recs["saida"];
+        const intervalo = recs["intervalo"];
+        const retorno = recs["retorno"];
+        let mins = 0;
+        if (entrada && saida) {
+          if (intervalo && retorno) {
+            mins = Math.round(
+              (new Date(intervalo).getTime() - new Date(entrada).getTime()) / 60000 +
+              (new Date(saida).getTime() - new Date(retorno).getTime()) / 60000
+            );
+          } else {
+            mins = Math.round((new Date(saida).getTime() - new Date(entrada).getTime()) / 60000);
+          }
+        }
+        result.push({ label: DAY_LETTERS[d.getDay()], hours: Math.max(0, mins / 60), dateStr: dStr });
+      }
+      setWeeklyHours(result);
+    } catch { }
+  }, []);
+
+  const fetchAvisos = useCallback(async (employeeId?: string) => {
+    if (!navigator.onLine) return;
+    try {
+      const { data } = await (supabase as any)
+        .from("company_notices")
+        .select("id, titulo, mensagem, tipo, created_at")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (data) setAvisos(data);
+
+      const empId = employeeId || selectedEmployee?.id;
+      if (empId && data && data.length > 0) {
+        const { data: confirmacoes } = await (supabase as any)
+          .from("aviso_confirmacoes")
+          .select("aviso_id, confirmado_em")
+          .eq("employee_id", empId)
+          .in("aviso_id", data.map((a: any) => a.id));
+        const map: Record<string, string> = {};
+        (confirmacoes || []).forEach((c: any) => { map[c.aviso_id] = c.confirmado_em; });
+        setAvisosConfirmados(map);
+      }
+    } catch { }
+  }, [selectedEmployee]);
+
+  const confirmarLeituraAviso = async (avisoId: string) => {
+    if (!selectedEmployee) return;
+    try {
+      const { error } = await (supabase as any).from("aviso_confirmacoes").insert({
+        aviso_id: avisoId,
+        employee_id: selectedEmployee.id,
+      });
+      if (error && !error.message.includes("duplicate")) throw error;
+      setAvisosConfirmados(prev => ({ ...prev, [avisoId]: new Date().toISOString() }));
+      toast.success("Leitura confirmada!");
+    } catch (e: any) {
+      toast.error("Erro ao confirmar: " + e.message);
+    }
+  };
+
+  const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
+    const cpfDigits = normalizeCpf(cpf);
+    if (!cpfDigits || !navigator.onLine) { setPendingTimesheetCount(0); return; }
+    try {
+      const { data } = await (supabase as any).rpc("get_pending_timesheets_by_cpf", { p_cpf: cpfDigits });
+      setPendingTimesheetCount(Array.isArray(data) ? data.length : 0);
+    } catch { }
+  }, []);
 
   const resetToStart = useCallback(() => {
     setShowSuccess(false);
@@ -1052,6 +1212,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
       if (activeEmployeeId) {
         await fetchTodayRecords(activeEmployeeId);
+        await fetchWeeklyHours(activeEmployeeId);
       }
       if (validatedContext?.cpf_normalized) {
         await Promise.allSettled([
@@ -1122,27 +1283,32 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     let refreshTimer: number | null = null;
 
     const revalidateHomeData = () => {
-  if (!navigator.onLine) return;
-  void fetchEmployees();
+      if (!navigator.onLine) return;
+      void fetchEmployees();
 
-  const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
-  if (activeEmployeeId) {
-    void fetchTodayRecords(activeEmployeeId);
-  }
+      const activeEmployeeId = selectedEmployee?.id ?? validatedContext?.employee_id;
+      if (activeEmployeeId) {
+        void fetchTodayRecords(activeEmployeeId);
+        void fetchWeeklyHours(activeEmployeeId);
+      }
 
-  if (validatedContext?.cpf_normalized) {
-    void fetchNextStep(validatedContext.cpf_normalized);
-    void fetchPendingEpiCount(validatedContext.cpf_normalized);
-    void fetchPendingPayslipCount(validatedContext.cpf_normalized);
-    void fetchPendingUniformCount(validatedContext.cpf_normalized);
-    void fetchPendingToolCount(validatedContext.cpf_normalized);
-    void fetchPendingDocumentoCount(validatedContext.cpf_normalized);
-  void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
-    void fetchTimesheetSummary(validatedContext.cpf_normalized);
-    void fetchCalendario(validatedContext.cpf_normalized);
-    void fetchAvisos();
-  }
-};
+      if (activeEmployeeId) {
+        void fetchPendingResponseCount(activeEmployeeId);
+      }
+
+      if (validatedContext?.cpf_normalized) {
+        void fetchNextStep(validatedContext.cpf_normalized);
+        void fetchPendingEpiCount(validatedContext.cpf_normalized);
+        void fetchPendingPayslipCount(validatedContext.cpf_normalized);
+        void fetchPendingUniformCount(validatedContext.cpf_normalized);
+        void fetchPendingToolCount(validatedContext.cpf_normalized);
+        void fetchPendingDocumentoCount(validatedContext.cpf_normalized);
+        void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
+        void fetchTimesheetSummary(validatedContext.cpf_normalized);
+        void fetchCalendario(validatedContext.cpf_normalized);
+        void fetchAvisos();
+      }
+    };
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -1170,7 +1336,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       handleAppResume();
     }
 
- const interval = setInterval(() => {
+    const interval = setInterval(() => {
       if (validatedContext?.cpf_normalized) {
         void fetchPendingTimesheetCount(validatedContext.cpf_normalized);
       }
@@ -1190,6 +1356,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   useEffect(() => {
     if (selectedEmployee) {
       fetchTodayRecords(selectedEmployee.id);
+      fetchWeeklyHours(selectedEmployee.id);
+      fetchPendingResponseCount(selectedEmployee.id);
       verificarAniversario(selectedEmployee.id);
       // Always fetch server-driven next step when employee changes
       if (validatedContext?.cpf_normalized) {
@@ -1207,6 +1375,26 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
 
     return () => window.clearTimeout(successTimer);
   }, [showSuccess, resetToStart]);
+
+  // Aviso proativo de jornada quase completa
+  useEffect(() => {
+    if (!selectedEmployee || allDone) return;
+    const expectedMinutes = getExpectedMinutesForToday(selectedEmployee, now);
+    if (!expectedMinutes) return;
+
+    const workedMinutes = getWorkedMinutes();
+    const todayKey = `${selectedEmployee.id}_${getLocalDateKey(now)}`;
+
+    if (workedMinutes >= expectedMinutes - 15 && jornadaAlertShown !== todayKey) {
+      setJornadaAlertShown(todayKey);
+      const h = Math.floor(workedMinutes / 60);
+      const m = workedMinutes % 60;
+      toast.info(
+        `Você está há ${h}h${String(m).padStart(2, "0")} trabalhando hoje — já pode pensar na saída. 🕐`,
+        { duration: 6000 }
+      );
+    }
+  }, [now, selectedEmployee, allDone, jornadaAlertShown]);
 
   const fetchEmployees = async () => {
     const cachedSnapshot = getEmployeesCacheSnapshot();
@@ -1322,7 +1510,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       const todayRecords = allMapped.filter(r => new Date(r.punched_at).getTime() >= todayStart);
       const hasEntradaYesterday = yesterdayRecords.some(r => r.step === "entrada");
       const hasSaida = allMapped.some(r => r.step === "saida");
-      
+
       // Use full journey (yesterday+today) if overnight journey is open
       const relevantRecords = (hasEntradaYesterday && !hasSaida) ? allMapped : todayRecords;
       const pending = getPendingRecordsForEmployee(employeeId, dayKey);
@@ -1575,10 +1763,10 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         });
 
         const localRecord = mapTimeRecordToPunchRecord({
-            id: localPunchId,
-            ...punchData,
-            created_at: recordedAt,
-          });
+          id: localPunchId,
+          ...punchData,
+          created_at: recordedAt,
+        });
 
         setRecords((prev) => mergePunchRecords(prev, [localRecord]));
         setStatusNotice(saved
@@ -1609,7 +1797,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   const getRecordForStep = (key: PunchStep) =>
     sequenceState.accepted.find((r) => r.step === key);
 
-  const getWorkedTime = () => {
+  const getWorkedMinutes = () => {
     const entrada = getRecordForStep("entrada");
     const intervalo = getRecordForStep("intervalo");
     const retorno = getRecordForStep("retorno");
@@ -1630,8 +1818,13 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       const diff = now.getTime() - new Date(retorno.punched_at).getTime();
       if (diff > 0) totalMs += diff;
     }
-    const hours = Math.floor(totalMs / 3600000);
-    const minutes = Math.floor((totalMs % 3600000) / 60000);
+    return Math.floor(totalMs / 60000);
+  };
+
+  const getWorkedTime = () => {
+    const totalMinutes = getWorkedMinutes();
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
     return `${hours.toString().padStart(2, "0")}h ${minutes.toString().padStart(2, "0")}m`;
   };
 
@@ -1662,7 +1855,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
         employee={selectedEmployee}
         cpf={validatedContext.cpf_normalized}
         onClose={() => setShowJustification(false)}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
     );
   }
@@ -1680,14 +1873,14 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   }
 
   if (showDocumentos && selectedEmployee) {
-  return (
-    <MeusDocumentos
-      employeeName={selectedEmployee.name}
-      cpf={validatedContext?.cpf_normalized}
-      onClose={() => setShowDocumentos(false)}
-    />
-  );
-}
+    return (
+      <MeusDocumentos
+        employeeName={selectedEmployee.name}
+        cpf={validatedContext?.cpf_normalized}
+        onClose={() => setShowDocumentos(false)}
+      />
+    );
+  }
 
   if (showUniformAcceptance && selectedEmployee && validatedContext) {
     return (
@@ -1701,7 +1894,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
   }
 
   if (showToolAcceptance && selectedEmployee && validatedContext) {
-   return (
+    return (
       <ToolAcceptance
         cpf={validatedContext.cpf_normalized}
         employeeName={selectedEmployee.name}
@@ -1803,7 +1996,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       setCpfError("");
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
       setStatusNotice("CPF validado offline.");
-     toast.info("CPF validado offline ✓");
+      toast.info("CPF validado offline ✓");
       fetchPendingEpiCount(ctx.cpf_normalized);
       fetchPendingPayslipCount(ctx.cpf_normalized);
       fetchPendingTimesheetCount(ctx.cpf_normalized);
@@ -1971,7 +2164,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     </div>
   );
 
- // Initial loading screen
+  // Initial loading screen
   if (initialLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
@@ -1982,7 +2175,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
-// Error screen with retry
+  // Error screen with retry
   if (loadError && employees.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
@@ -2004,7 +2197,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
-// Success overlay
+  // Success overlay
   if (showSuccess) {
     const stepColors: Record<string, { from: string; to: string; emoji: string }> = {
       entrada: { from: "#16a34a", to: "#22c55e", emoji: "🟢" },
@@ -2078,7 +2271,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
       </div>
     );
   }
-// Confirmation dialog
+  // Confirmation dialog
   if (showConfirm && selectedEmployee && nextAllowedStep) {
     const step = nextAllowedStep;
     return (
@@ -2112,7 +2305,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
- // History screen
+  // History screen
   if (showHistory && selectedEmployee) {
     const journeys = groupRecordsIntoJourneys(historyRecords).reverse();
     const STEP_LABELS: Record<string, string> = { entrada: "Entrada", intervalo: "Intervalo", retorno: "Retorno", saida: "Saída" };
@@ -2147,9 +2340,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
             ].map((t) => (
               <button key={t.key}
                 onClick={() => setHistoryTab(t.key as any)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                  historyTab === t.key ? "text-white" : "text-gray-500 bg-white"
-                }`}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${historyTab === t.key ? "text-white" : "text-gray-500 bg-white"
+                  }`}
                 style={historyTab === t.key ? { background: "linear-gradient(135deg, #1e40af, #0ea5e9)" } : { border: "1px solid #e2e8f0" }}>
                 {t.label}
               </button>
@@ -2202,7 +2394,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
               {timesheetSummary ? (
                 <div className="bg-white rounded-2xl p-5" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
-                    {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
+                    {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
                   </p>
                   <p className="text-4xl font-black tabular-nums mb-1"
                     style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48" }}>
@@ -2381,7 +2573,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
- // ---- SHIFT SELECTION SCREEN ----
+  // ---- SHIFT SELECTION SCREEN ----
   if (!selectedShift) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
@@ -2526,7 +2718,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
     );
   }
 
- // Greeting
+  // Greeting
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 12) return "Bom dia";
     if (currentHour >= 12 && currentHour < 18) return "Boa tarde";
@@ -2562,7 +2754,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </button>
         </div>
 
-{/* Aniversário do funcionário */}
+        {/* Aniversário do funcionário */}
         {aniversarioHoje && (
           <div className="w-full rounded-2xl px-5 py-4 mb-3 relative overflow-hidden"
             style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", boxShadow: "0 4px 16px rgba(217,119,6,0.25)" }}>
@@ -2574,20 +2766,20 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
         )}
 
-{/* Banner sazonal */}
+        {/* Banner sazonal */}
         {(() => {
           const mes = new Date().getMonth() + 1;
           const dia = new Date().getDate();
           const banners: Record<number, { emoji: string; texto: string; bg: string; text: string }> = {
-            1:  { emoji: "🎆", texto: "Feliz Ano Novo! Que 2027 seja incrível!", bg: "#fffbeb", text: "#b45309" },
-            2:  { emoji: "💝", texto: "Mês do amor e da amizade!", bg: "#fff1f2", text: "#be123c" },
-            3:  { emoji: "🌺", texto: "Bem-vindo ao outono! Boas energias!", bg: "#fdf4ff", text: "#7e22ce" },
-            4:  { emoji: "🐣", texto: "Feliz Páscoa a todos os colaboradores!", bg: "#f0fdf4", text: "#15803d" },
-            5:  { emoji: "👷", texto: "Feliz Dia do Trabalhador! Parabéns a você!", bg: "#eff6ff", text: "#1e40af" },
-            6:  { emoji: "🎊", texto: "Arraiá do APA Ponto! Boas festas juninas!", bg: "#fef9c3", text: "#854d0e" },
-            7:  { emoji: "❄️", texto: "Julho chegou! Ótimo mês para bater metas!", bg: "#eff6ff", text: "#1e40af" },
-            8:  { emoji: "👩", texto: "Feliz Dia dos Pais! Homenagem especial!", bg: "#f0fdf4", text: "#15803d" },
-            9:  { emoji: "🇧🇷", texto: "Independência do Brasil! Viva nossa pátria!", bg: "#dcfce7", text: "#15803d" },
+            1: { emoji: "🎆", texto: "Feliz Ano Novo! Que 2027 seja incrível!", bg: "#fffbeb", text: "#b45309" },
+            2: { emoji: "💝", texto: "Mês do amor e da amizade!", bg: "#fff1f2", text: "#be123c" },
+            3: { emoji: "🌺", texto: "Bem-vindo ao outono! Boas energias!", bg: "#fdf4ff", text: "#7e22ce" },
+            4: { emoji: "🐣", texto: "Feliz Páscoa a todos os colaboradores!", bg: "#f0fdf4", text: "#15803d" },
+            5: { emoji: "👷", texto: "Feliz Dia do Trabalhador! Parabéns a você!", bg: "#eff6ff", text: "#1e40af" },
+            6: { emoji: "🎊", texto: "Arraiá do APA Ponto! Boas festas juninas!", bg: "#fef9c3", text: "#854d0e" },
+            7: { emoji: "❄️", texto: "Julho chegou! Ótimo mês para bater metas!", bg: "#eff6ff", text: "#1e40af" },
+            8: { emoji: "👩", texto: "Feliz Dia dos Pais! Homenagem especial!", bg: "#f0fdf4", text: "#15803d" },
+            9: { emoji: "🇧🇷", texto: "Independência do Brasil! Viva nossa pátria!", bg: "#dcfce7", text: "#15803d" },
             10: { emoji: "👧", texto: "Feliz Dia das Crianças! A criança que há em você!", bg: "#fff7ed", text: "#c2410c" },
             11: { emoji: "🕯️", texto: "Novembro da consciência e reflexão.", bg: "#f1f5f9", text: "#475569" },
             12: { emoji: "🎄", texto: "Feliz Natal e boas festas a todos!", bg: "#f0fdf4", text: "#15803d" },
@@ -2631,6 +2823,15 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
               {(selectedEmployee as any).cargo && (
                 <p className="text-[10px] text-blue-400 font-medium">{(selectedEmployee as any).cargo}</p>
               )}
+              {nextHoliday && (
+                <p className="text-[10px] text-amber-500 font-semibold mt-0.5">
+                  🎉 {nextHoliday.daysUntil === 0
+                    ? `Hoje é feriado: ${nextHoliday.label}!`
+                    : nextHoliday.daysUntil === 1
+                      ? `Falta 1 dia para o feriado de ${nextHoliday.label}`
+                      : `Faltam ${nextHoliday.daysUntil} dias para o feriado de ${nextHoliday.label}`}
+                </p>
+              )}
             </div>
           </div>
           <p className="text-2xl font-bold tabular-nums flex-shrink-0" style={{ color: "#1e40af" }}>
@@ -2649,7 +2850,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
               <button onClick={async () => {
                 setIsSyncing(true); setStatusNotice("Atualizando...");
                 try {
-                  if ("serviceWorker" in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const cacheNames = await caches.keys(); await Promise.all(cacheNames.map(n => caches.delete(n))); }
+                  if ("serviceWorker" in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => { }))); const cacheNames = await caches.keys(); await Promise.all(cacheNames.map(n => caches.delete(n))); }
                   await fetchEmployees();
                   if (selectedEmployee) await fetchTodayRecords(selectedEmployee.id);
                   if (validatedContext?.cpf_normalized) { await fetchNextStep(validatedContext.cpf_normalized); await fetchPendingEpiCount(validatedContext.cpf_normalized); }
@@ -2737,11 +2938,39 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                   {timesheetSummary.diferenca >= 0 ? "Saldo positivo" : "Saldo negativo"}
                 </p>
                 <p className="text-[10px] text-gray-400">
-                  {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
+                  {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][timesheetSummary.month - 1]}/{timesheetSummary.year}
                 </p>
               </>
             ) : (
               <p className="text-xs text-gray-400">Sem dados</p>
+            )}
+            {weeklyHours.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-[9px] text-gray-400 mb-1.5">Últimos 7 dias</p>
+                <div className="flex items-end gap-1 h-8">
+                  {weeklyHours.map((d, i) => {
+                    const maxH = Math.max(...weeklyHours.map((w) => w.hours), 1);
+                    const heightPct = Math.max(4, Math.min(100, (d.hours / maxH) * 100));
+                    const isToday = i === weeklyHours.length - 1;
+                    return (
+                      <div key={d.dateStr} className="flex-1 flex flex-col items-center justify-end h-full" title={`${d.label}: ${d.hours.toFixed(1)}h`}>
+                        <div
+                          className="w-full rounded-sm transition-all"
+                          style={{
+                            height: `${heightPct}%`,
+                            background: isToday ? "linear-gradient(180deg, #1e40af, #0ea5e9)" : d.hours > 0 ? "#bfdbfe" : "#f1f5f9",
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-1 mt-1">
+                  {weeklyHours.map((d) => (
+                    <span key={d.dateStr} className="flex-1 text-center text-[8px] text-gray-400">{d.label}</span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -2804,14 +3033,14 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           )}
         </div>
 
-{/* Calendário do mês */}
+        {/* Calendário do mês */}
         {validatedContext && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
               📅 {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
             </p>
             {/* Legenda */}
-         <div className="flex gap-2 mb-3 flex-wrap">
+            <div className="flex gap-2 mb-3 flex-wrap">
               {[
                 { cor: "#bbf7d0", label: "Trabalhado" },
                 { cor: "#fed7aa", label: "Atestado" },
@@ -2839,7 +3068,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
               const feriados = ["2026-06-04"];
               return (
                 <div>
-                <div className="grid grid-cols-7 gap-0.5 mb-1">
+                  <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {diasSemana.map((d, i) => (
                       <p key={i} className="text-[9px] text-center font-bold text-gray-400">{d}</p>
                     ))}
@@ -2999,7 +3228,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
         )}
 
-{/* Avisos da empresa */}
+        {/* Avisos da empresa */}
         {avisos.length > 0 && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">📢 Avisos da Empresa</p>
@@ -3040,12 +3269,27 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
           </div>
         )}
 
-{/* Minhas solicitações */}
+        {/* Minhas solicitações */}
         {selectedEmployee && <MeusSolicitacoes employeeId={selectedEmployee.id} />}
 
         {/* Solicitações rápidas */}
         <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">⚡ Solicitações Rápidas</p>
+          <button
+            onClick={() => {
+              if (pendingResponseCount > 0 && selectedEmployee) {
+                markRequestsAsViewed(selectedEmployee.id);
+              }
+              document.getElementById("minhas-solicitacoes-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            className="flex items-center gap-2 mb-3 -mx-1 px-1"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">⚡ Solicitações Rápidas</p>
+            {pendingResponseCount > 0 && (
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white" style={{ background: "#ef4444" }}>
+                {pendingResponseCount}
+              </span>
+            )}
+          </button>
           <div className="grid grid-cols-2 gap-2">
             {[
               { label: "Férias", icon: "🏖️", color: "#0ea5e9", bg: "#eff6ff" },
