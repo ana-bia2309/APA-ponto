@@ -11,11 +11,7 @@ const isInIframe = (() => {
   }
 })();
 
-const isPreviewHost =
-  window.location.hostname.includes("id-preview--") ||
-  window.location.hostname.includes("lovableproject.com");
-
-if (isPreviewHost || isInIframe) {
+if (isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((registrations) => {
     registrations.forEach((r) => r.unregister());
   });

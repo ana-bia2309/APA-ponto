@@ -874,7 +874,7 @@ const fetchPendingToolCount = useCallback(async (cpf: string) => {
   }
 }, []);
 
-const [calendarioDias, setCalendarioDias] = useState<Record<string, "trabalhado" | "falta" | "atestado" | "ferias">>({});
+const [calendarioDias, setCalendarioDias] = useState<Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento">>({});
 
 const fetchCalendario = useCallback(async (cpf: string) => {
   const cpfDigits = normalizeCpf(cpf);
@@ -883,6 +883,8 @@ const fetchCalendario = useCallback(async (cpf: string) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    const startOfMonthStr = startOfMonth.slice(0, 10);
+    const endOfMonthStr = endOfMonth.slice(0, 10);
 
     const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
     const { data: empData } = await (supabase as any)
@@ -893,7 +895,7 @@ const fetchCalendario = useCallback(async (cpf: string) => {
 
     if (!empData?.id) return;
 
-    const [recordsRes, justRes] = await Promise.all([
+    const [recordsRes, justRes, afastRes] = await Promise.all([
       (supabase as any).from("time_records")
         .select("recorded_at, record_type")
         .eq("employee_id", empData.id)
@@ -902,11 +904,16 @@ const fetchCalendario = useCallback(async (cpf: string) => {
       (supabase as any).from("absence_justifications")
         .select("date, reason, status")
         .eq("employee_id", empData.id)
-        .gte("date", startOfMonth.slice(0, 10))
-        .lte("date", endOfMonth.slice(0, 10)),
+        .gte("date", startOfMonthStr)
+        .lte("date", endOfMonthStr),
+      (supabase as any).from("afastamentos")
+        .select("tipo, data_inicio, data_fim")
+        .eq("employee_id", empData.id)
+        .lte("data_inicio", endOfMonthStr)
+        .gte("data_fim", startOfMonthStr),
     ]);
 
-    const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias"> = {};
+    const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento"> = {};
 
     // Dias trabalhados
     (recordsRes.data || []).forEach((r: any) => {
@@ -914,9 +921,23 @@ const fetchCalendario = useCallback(async (cpf: string) => {
       if (!dias[dia]) dias[dia] = "trabalhado";
     });
 
-    // Atestados e férias
+    // Atestados
     (justRes.data || []).forEach((j: any) => {
       if (j.date) dias[j.date] = "atestado";
+    });
+
+    // Afastamentos (férias, abono, licenças, etc.) — prioridade máxima, sobrescreve os anteriores
+    (afastRes.data || []).forEach((a: any) => {
+      let d = a.data_inicio < startOfMonthStr ? startOfMonthStr : a.data_inicio;
+      const fim = a.data_fim > endOfMonthStr ? endOfMonthStr : a.data_fim;
+      const status: "ferias" | "abono" | "afastamento" =
+        a.tipo === "ferias" ? "ferias" : a.tipo === "abono_dia" ? "abono" : "afastamento";
+      while (d <= fim) {
+        dias[d] = status;
+        const dt = new Date(d + "T12:00:00");
+        dt.setDate(dt.getDate() + 1);
+        d = dt.toISOString().slice(0, 10);
+      }
     });
 
     setCalendarioDias(dias);
@@ -2795,6 +2816,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                 { cor: "#bbf7d0", label: "Trabalhado" },
                 { cor: "#fed7aa", label: "Atestado" },
                 { cor: "#bfdbfe", label: "Férias" },
+                { cor: "#fbcfe8", label: "Abono" },
+                { cor: "#ddd6fe", label: "Afastamento" },
                 { cor: "#fee2e2", label: "Falta" },
                 { cor: "#e2e8f0", label: "Fim de semana" },
                 { cor: "#fef9c3", label: "Feriado" },
@@ -2840,6 +2863,8 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                       else if (status === "trabalhado") { bg = "#bbf7d0"; textColor = "#15803d"; }
                       else if (status === "atestado") { bg = "#fed7aa"; textColor = "#c2410c"; emoji = "📋"; }
                       else if (status === "ferias") { bg = "#bfdbfe"; textColor = "#1e40af"; emoji = "🏖️"; }
+                      else if (status === "abono") { bg = "#fbcfe8"; textColor = "#be185d"; emoji = "📝"; }
+                      else if (status === "afastamento") { bg = "#ddd6fe"; textColor = "#6d28d9"; emoji = "🏥"; }
                       else if (isWeekend) { bg = "#e2e8f0"; textColor = "#64748b"; }
                       else if (!isFuturo && !isWeekend) { bg = "#fee2e2"; textColor = "#dc2626"; }
 
@@ -2852,7 +2877,7 @@ const fetchPendingTimesheetCount = useCallback(async (cpf: string) => {
                             aspectRatio: "1",
                             padding: "2px",
                           }}
-                          title={isFeriado ? "Feriado" : status === "trabalhado" ? "Trabalhado" : status === "atestado" ? "Atestado" : status === "ferias" ? "Férias" : isWeekend ? "Final de semana" : !isFuturo ? "Falta" : ""}>
+                          title={isFeriado ? "Feriado" : status === "trabalhado" ? "Trabalhado" : status === "atestado" ? "Atestado" : status === "ferias" ? "Férias" : status === "abono" ? "Abono" : status === "afastamento" ? "Afastamento" : isWeekend ? "Final de semana" : !isFuturo ? "Falta" : ""}>
                           <span className="text-[10px] font-bold leading-none" style={{ color: textColor }}>{dia}</span>
                           {emoji && <span className="text-[8px] leading-none mt-0.5">{emoji}</span>}
                         </div>
