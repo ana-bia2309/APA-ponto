@@ -222,9 +222,9 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       const { data: { user } } = await supabase.auth.getUser();
       await (supabase as any).from("audit_logs").insert({
         action: "payroll_calculated_all",
-        table_name: "payroll_period",
-        record_id: pid,
-        user_email: user?.email || null,
+        target_type: "payroll_period",
+        target_id: pid,
+        admin_user_id: user?.id || null,
         details: { year, month, processed: ok, total: employees.length },
       });
       await loadPeriod();
@@ -247,9 +247,9 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       const { data: { user } } = await supabase.auth.getUser();
       await (supabase as any).from("audit_logs").insert({
         action: "payroll_calculated_employee",
-        table_name: "payslip",
-        record_id: emp.id,
-        user_email: user?.email || null,
+        target_type: "payslip",
+        target_id: emp.id,
+        admin_user_id: user?.id || null,
         details: { year, month, employee_name: emp.name },
       });
       await loadPeriod();
@@ -268,9 +268,9 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
       const { data: { user } } = await supabase.auth.getUser();
       await (supabase as any).from("audit_logs").insert({
         action: "payroll_period_closed",
-        table_name: "payroll_period",
-        record_id: periodId,
-        user_email: user?.email || null,
+        target_type: "payroll_period",
+        target_id: periodId,
+        admin_user_id: user?.id || null,
         details: { year, month, totals: (data as any)?.totals },
       });
       await loadPeriod();
@@ -288,9 +288,9 @@ export default function PayrollClosingTab({ employees }: { employees: Employee[]
     }).eq("id", periodId);
     await (supabase as any).from("audit_logs").insert({
       action: "payroll_period_reopened",
-      table_name: "payroll_period",
-      record_id: periodId,
-      user_email: user?.email || null,
+      target_type: "payroll_period",
+      target_id: periodId,
+      admin_user_id: user?.id || null,
       details: { year, month },
     });
     setPeriodStatus("aberto");
