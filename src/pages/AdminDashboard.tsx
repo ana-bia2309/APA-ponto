@@ -68,6 +68,30 @@ import ExamesModal from "@/components/admin/ExamesModal";
 
 type Employee = Tables<"employees">;
 
+// Todas as tabelas que referenciam employees.id — usado para verificar
+// se um colaborador tem histórico antes de permitir exclusão definitiva.
+const EMPLOYEE_RELATED_TABLES = [
+  "payroll_closings", "time_records", "epi_deliveries", "hour_bank", "payroll_custom_items",
+  "justifications", "uniform_deliveries", "tool_loans", "timesheet_closings", "employee_documents",
+  "absence_justifications", "manual_punches", "payslips", "agenda_eventos", "agenda_notas",
+  "employee_requests", "payroll_settings", "decimo_terceiro", "historico_salarial", "notifications",
+  "employee_schedules", "dispensas", "aviso_confirmacoes", "adiantamentos", "afastamentos",
+  "trocas_plantao", "ferias", "exames_periodicos", "documento_destinatarios", "escala_excecoes",
+];
+
+async function checkEmployeeHasHistory(id: string): Promise<boolean> {
+  const results = await Promise.all(
+    EMPLOYEE_RELATED_TABLES.map(async (table) => {
+      const { count } = await (supabase as any)
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("employee_id", id);
+      return count || 0;
+    })
+  );
+  return results.some((c) => c > 0);
+}
+
 // Map sidebar tab to page title
 const tabTitles: Record<AdminTab, string> = {
   dashboard: "Dashboard",
@@ -126,11 +150,6 @@ export default function AdminDashboard() {
   const { user, profile, signOut, isAdmin, isRh, role } = useAuth();
   const { isDark, toggle } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [newName, setNewName] = useState("");
-  const [newCpf, setNewCpf] = useState("");
-  const [newPunchMode, setNewPunchMode] = useState<"full" | "simple">("full");
-  const [newShift, setNewShift] = useState<"diurno" | "noturno">("diurno");
-  const [newEscala, setNewEscala] = useState<string>("padrao");
   const [tab, setTab] = useState<AdminTab>("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -138,10 +157,6 @@ export default function AdminDashboard() {
   const [editPunchMode, setEditPunchMode] = useState<"full" | "simple">("full");
   const [editShift, setEditShift] = useState<"diurno" | "noturno">("diurno");
   const [editEscala, setEditEscala] = useState<string>("padrao");
-  const [newCargo, setNewCargo] = useState("");
-  const [newMatricula, setNewMatricula] = useState("");
-  const [newDepartamento, setNewDepartamento] = useState("");
-  const [newEmail, setNewEmail] = useState("");
   const [editCargo, setEditCargo] = useState("");
   const [editMatricula, setEditMatricula] = useState("");
   const [editDepartamento, setEditDepartamento] = useState("");
@@ -245,21 +260,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const addEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    const { error } = await supabase.from("employees").insert({
-      name: newName.trim(), punch_mode: newPunchMode, cpf: newCpf.trim() || null, shift: newShift,
-      cargo: newCargo.trim(), matricula: newMatricula.trim(), departamento: newDepartamento.trim(),
-      escala: newEscala,
-    } as any);
-    if (error) { toast.error("Erro ao adicionar funcionário"); return; }
-    toast.success("Funcionário adicionado!");
-    setNewName(""); setNewCpf(""); setNewPunchMode("full"); setNewShift("diurno"); setNewEscala("padrao");
-    setNewCargo(""); setNewMatricula(""); setNewDepartamento(""); setNewEmail("");
-    fetchEmployees();
-  };
-
   const startEditing = async (emp: Employee) => {
     setEditName(emp.name);
     setEditCpf((emp as any).cpf || "");
@@ -291,62 +291,58 @@ export default function AdminDashboard() {
     setEditingId(emp.id);
   };
 
-  const saveEdit = async () => {
-    if (!editingId || !editName.trim()) return;
-    const { error } = await supabase.from("employees").update({
-      name: editName.trim(), cpf: editCpf.trim() || null, punch_mode: editPunchMode, shift: editShift,
-      cargo: editCargo.trim(), matricula: editMatricula.trim(), departamento: editDepartamento.trim(),
-      escala: editEscala,
-    } as any).eq("id", editingId);
-    if (error) { toast.error("Erro ao atualizar"); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("audit_logs").insert({
-      admin_user_id: user?.id, action: "update_employee", target_type: "employees",
-      target_id: editingId, details: { name: editName.trim() },
-    } as any);
-    toast.success("Atualizado!");
-    setEditingId(null);
-    fetchEmployees();
-  };
-
   const toggleEmployee = async (emp: Employee) => {
+    if (emp.active) {
+      const confirmMsg = `Desligar "${emp.name}"?\n\nEle deixará de aparecer nas listagens ativas (login, folha do mês, etc.), mas todo o histórico — ponto, holerites, férias, afastamentos — continua preservado e acessível.`;
+      if (!confirm(confirmMsg)) return;
+    }
     await supabase.from("employees").update({ active: !emp.active }).eq("id", emp.id);
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
       admin_user_id: user?.id, action: "toggle_employee", target_type: "employees",
       target_id: emp.id, details: { name: emp.name, active: !emp.active },
     } as any);
+    toast.success(emp.active ? "Colaborador desligado." : "Colaborador reativado.");
     fetchEmployees();
   };
 
   const deleteEmployee = async (id: string) => {
-    if (!confirm("Tem certeza? Os registros de ponto serão excluídos.")) return;
+    const emp = employees.find(e => e.id === id);
+    if (!emp) return;
+
+    if (emp.active) {
+      toast.error("Desligue o colaborador primeiro (botão de ativar/desativar) antes de tentar excluir.");
+      return;
+    }
+
+    if (!confirm(`Excluir definitivamente "${emp.name}"?\n\nEsta ação não pode ser desfeita. Só é permitida se o colaborador não tiver nenhum histórico no sistema.`)) return;
+
     try {
-      const emp = employees.find(e => e.id === id);
-      await supabase.from("time_records").delete().eq("employee_id", id);
-      await supabase.from("punch_records").delete().eq("employee_id", id);
-      await supabase.from("manual_punches").delete().eq("employee_id", id);
-      await supabase.from("absence_justifications").delete().eq("employee_id", id);
+      const hasHistory = await checkEmployeeHasHistory(id);
+      if (hasHistory) {
+        toast.error("Este colaborador possui histórico (ponto, folha, férias, etc.) e não pode ser excluído definitivamente. Mantenha-o desligado — o histórico fica preservado.");
+        return;
+      }
+
       const { error } = await supabase.from("employees").delete().eq("id", id);
       if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("audit_logs").insert({
         admin_user_id: user?.id, action: "delete_employee", target_type: "employees",
-        target_id: id, details: { name: emp?.name },
+        target_id: id, details: { name: emp.name },
       } as any);
-      toast.success("Funcionário excluído!");
+
+      toast.success("Colaborador excluído (não possuía histórico).");
       fetchEmployees();
-    } catch { toast.error("Erro ao excluir funcionário."); }
+    } catch (err: any) {
+      toast.error("Erro ao verificar/excluir colaborador: " + (err?.message || "erro desconhecido"));
+    }
   };
 
   const logout = async () => {
     await signOut();
     navigate("/admin/login");
-  };
-
-  const formatCpf = (cpf: string) => {
-    const digits = cpf.replace(/\D/g, "").slice(0, 11);
-    return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
   const handleDownloadFicha = async (emp: Employee, format: "pdf" | "excel" = "pdf") => {
@@ -904,7 +900,7 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-3">
                                 <button onClick={() => toggleEmployee(emp)}
                                   className="text-muted-foreground hover:text-foreground transition-colors"
-                                  title={emp.active ? "Desativar" : "Ativar"}>
+                                  title={emp.active ? "Desligar colaborador" : "Reativar colaborador"}>
                                   {emp.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
                                 </button>
                                 <div>
@@ -1039,7 +1035,8 @@ export default function AdminDashboard() {
                                   <Pencil className="w-4 h-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => deleteEmployee(emp.id)}
-                                  className="text-destructive hover:text-destructive">
+                                  className="text-destructive hover:text-destructive"
+                                  title="Excluir definitivamente (somente se desligado e sem histórico)">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
