@@ -11,7 +11,7 @@ import {
   Pencil, Trash2, Plus, Calendar, X, Check
 } from "lucide-react";
 import { mapTimeRecordToPunchRecord, type DisplayPunchRecord, type TimeRecordRow } from "@/lib/time-records";
-import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
+import { generateMonthlyReport, generateMonthlyExcel, generateRangeReport, generateRangeExcel } from "@/lib/generateReport";
 import { groupByEmployeeJourneys } from "@/lib/group-journeys";
 import { PhotoModal } from "@/components/admin/PhotoModal";
 import type { Tables } from "@/integrations/supabase/types";
@@ -84,6 +84,11 @@ export default function RecordsTab({ employees }: Props) {
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [showRangeExport, setShowRangeExport] = useState(false);
+  const [rangeStart, setRangeStart] = useState(`${new Date().getFullYear()}-01`);
+  const [rangeEnd, setRangeEnd] = useState(new Date().toISOString().slice(0, 7));
+  const [rangeEmployeeId, setRangeEmployeeId] = useState("");
+  const [rangeExporting, setRangeExporting] = useState(false);
   const [addEmployeeId, setAddEmployeeId] = useState("");
   const [addStep, setAddStep] = useState("entrada");
   const [addDate, setAddDate] = useState(new Date().toISOString().split("T")[0]);
@@ -454,7 +459,89 @@ export default function RecordsTab({ employees }: Props) {
             ))}
           </select>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setShowRangeExport(!showRangeExport)}>
+          <Calendar className="w-4 h-4 mr-1" /> Período
+        </Button>
       </div>
+
+      {/* Export by month range (e.g. Janeiro até Agosto) */}
+      {showRangeExport && (
+        <Card className="p-4 border-primary/30">
+          <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> Baixar folha de ponto por período
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            <select value={rangeEmployeeId} onChange={(e) => setRangeEmployeeId(e.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm col-span-2">
+              <option value="">Selecionar funcionário</option>
+              {employees.filter(e => e.active).map((e) => (
+                <option key={e.id} value={e.id}>{e.name}</option>
+              ))}
+            </select>
+            <div>
+              <label className="text-[11px] text-muted-foreground block mb-1">De</label>
+              <Input type="month" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[11px] text-muted-foreground block mb-1">Até</label>
+              <Input type="month" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={!rangeEmployeeId || rangeExporting}
+              onClick={async () => {
+                const emp = employees.find((em) => em.id === rangeEmployeeId);
+                if (!emp) return;
+                const [sy, sm] = rangeStart.split("-").map(Number);
+                const [ey, em2] = rangeEnd.split("-").map(Number);
+                if (sy > ey || (sy === ey && sm > em2)) {
+                  toast.error("O período inicial deve ser anterior ao final");
+                  return;
+                }
+                setRangeExporting(true);
+                toast.info("Gerando folha de ponto do período...");
+                try {
+                  await generateRangeReport(emp, sy, sm, ey, em2);
+                  toast.success("PDF do período gerado!");
+                } catch { toast.error("Erro ao gerar PDF do período"); }
+                setRangeExporting(false);
+              }}
+            >
+              📄 Baixar PDF completo
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-emerald-600"
+              disabled={!rangeEmployeeId || rangeExporting}
+              onClick={async () => {
+                const emp = employees.find((em) => em.id === rangeEmployeeId);
+                if (!emp) return;
+                const [sy, sm] = rangeStart.split("-").map(Number);
+                const [ey, em2] = rangeEnd.split("-").map(Number);
+                if (sy > ey || (sy === ey && sm > em2)) {
+                  toast.error("O período inicial deve ser anterior ao final");
+                  return;
+                }
+                setRangeExporting(true);
+                toast.info("Gerando Excel do período...");
+                try {
+                  await generateRangeExcel(emp, sy, sm, ey, em2);
+                  toast.success("Excel do período gerado!");
+                } catch { toast.error("Erro ao gerar Excel do período"); }
+                setRangeExporting(false);
+              }}
+            >
+              📊 Baixar Excel completo
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowRangeExport(false)}>
+              <X className="w-4 h-4 mr-1" /> Fechar
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Admin manual correction form */}
       {showAddRecord && (

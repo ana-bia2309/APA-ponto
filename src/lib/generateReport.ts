@@ -223,7 +223,8 @@ const C = {
   accentBlue: [41, 98, 170] as [number, number, number],
 };
 
-export async function generateMonthlyReport(
+async function renderMonthlyReportPage(
+  doc: jsPDF,
   employee: Employee,
   year: number,
   month: number
@@ -268,7 +269,6 @@ export async function generateMonthlyReport(
   const escalaLabel = escala === "12x36" ? "12×36" : "Padrão";
   const shiftLabel = shift === "noturno" ? "Noturno" : "Diurno";
 
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 12;
@@ -621,15 +621,66 @@ export async function generateMonthlyReport(
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 200, 230);
   doc.text(`APA Ponto v2.0  |  Documento: ${docCode}  |  Emitido em: ${new Date().toLocaleString("pt-BR")}  |  Este documento é válido apenas com assinatura.`, W / 2, footY, { align: "center" });
-
-  doc.save(`Ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.pdf`);
 }
 
-export async function generateMonthlyExcel(
+/** Gera a folha de ponto em PDF de um único mês. */
+export async function generateMonthlyReport(
   employee: Employee,
   year: number,
   month: number
 ) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  await renderMonthlyReportPage(doc, employee, year, month);
+  doc.save(`Ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.pdf`);
+}
+
+/** Lista de {year, month} do mês/ano inicial até o mês/ano final (inclusive). */
+function buildMonthRange(
+  startYear: number, startMonth: number,
+  endYear: number, endMonth: number
+): { year: number; month: number }[] {
+  const months: { year: number; month: number }[] = [];
+  let y = startYear, m = startMonth;
+  // Proteção contra período invertido ou período absurdamente longo
+  let guard = 0;
+  while ((y < endYear || (y === endYear && m <= endMonth)) && guard < 120) {
+    months.push({ year: y, month: m });
+    m++;
+    if (m > 12) { m = 1; y++; }
+    guard++;
+  }
+  return months;
+}
+
+/**
+ * Gera a folha de ponto em PDF cobrindo um período de meses (ex: Janeiro a Agosto),
+ * um mês por página dentro do mesmo arquivo.
+ */
+export async function generateRangeReport(
+  employee: Employee,
+  startYear: number, startMonth: number,
+  endYear: number, endMonth: number
+) {
+  const months = buildMonthRange(startYear, startMonth, endYear, endMonth);
+  if (months.length === 0) throw new Error("Período inválido");
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  for (let i = 0; i < months.length; i++) {
+    if (i > 0) doc.addPage();
+    await renderMonthlyReportPage(doc, employee, months[i].year, months[i].month);
+  }
+
+  const startLabel = `${MONTHS[startMonth - 1]}_${startYear}`;
+  const endLabel = `${MONTHS[endMonth - 1]}_${endYear}`;
+  doc.save(`Ponto_${employee.name.replace(/\s+/g, "_")}_${startLabel}_a_${endLabel}.pdf`);
+}
+
+/** Monta as linhas (CSV) de um único mês para um funcionário. */
+async function buildMonthlyExcelRows(
+  employee: Employee,
+  year: number,
+  month: number
+): Promise<string[][]> {
   const daysInMonth = getDaysInMonth(year, month);
   const byDay = await fetchAndGroupRecords(employee, year, month);
   const holidays = getBrazilianHolidays(year);
@@ -684,15 +735,53 @@ export async function generateMonthlyExcel(
   rows.push([]);
   rows.push(["TOTAL", "", ...steps.map(() => ""), `${String(totalH).padStart(2, "0")}:${String(totalM).padStart(2, "0")}`, `${workedDays} dias`]);
 
+  return rows;
+}
+
+function downloadCsv(rows: string[][], filename: string) {
   const csvContent = rows.map((row) => row.map((cell) => `"${cell}"`).join(";")).join("\n");
   const BOM = "\uFEFF";
   const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.csv`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Gera a folha de ponto em Excel/CSV de um único mês. */
+export async function generateMonthlyExcel(
+  employee: Employee,
+  year: number,
+  month: number
+) {
+  const rows = await buildMonthlyExcelRows(employee, year, month);
+  downloadCsv(rows, `ponto_${employee.name.replace(/\s+/g, "_")}_${MONTHS[month - 1]}_${year}.csv`);
+}
+
+/**
+ * Gera a folha de ponto em Excel/CSV cobrindo um período de meses (ex: Janeiro a Agosto),
+ * com um bloco por mês dentro do mesmo arquivo.
+ */
+export async function generateRangeExcel(
+  employee: Employee,
+  startYear: number, startMonth: number,
+  endYear: number, endMonth: number
+) {
+  const months = buildMonthRange(startYear, startMonth, endYear, endMonth);
+  if (months.length === 0) throw new Error("Período inválido");
+
+  const allRows: string[][] = [];
+  for (let i = 0; i < months.length; i++) {
+    if (i > 0) allRows.push([], []);
+    const monthRows = await buildMonthlyExcelRows(employee, months[i].year, months[i].month);
+    allRows.push(...monthRows);
+  }
+
+  const startLabel = `${MONTHS[startMonth - 1]}_${startYear}`;
+  const endLabel = `${MONTHS[endMonth - 1]}_${endYear}`;
+  downloadCsv(allRows, `ponto_${employee.name.replace(/\s+/g, "_")}_${startLabel}_a_${endLabel}.csv`);
 }
 export async function generatePayrollReport(
   year: number,
