@@ -1121,13 +1121,10 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
         .limit(3);
       if (data) setAvisos(data);
 
-      const empId = employeeId || selectedEmployee?.id;
-      if (empId && data && data.length > 0) {
+      const empCpf = selectedEmployee?.cpf;
+      if (empCpf && data && data.length > 0) {
         const { data: confirmacoes } = await (supabase as any)
-          .from("aviso_confirmacoes")
-          .select("aviso_id, confirmado_em")
-          .eq("employee_id", empId)
-          .in("aviso_id", data.map((a: any) => a.id));
+          .rpc("get_avisos_confirmados_by_cpf", { p_cpf: empCpf, p_aviso_ids: data.map((a: any) => a.id) });
         const map: Record<string, string> = {};
         (confirmacoes || []).forEach((c: any) => { map[c.aviso_id] = c.confirmado_em; });
         setAvisosConfirmados(map);
@@ -1136,13 +1133,11 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
   }, [selectedEmployee]);
 
   const confirmarLeituraAviso = async (avisoId: string) => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee?.cpf) return;
     try {
-      const { error } = await (supabase as any).from("aviso_confirmacoes").insert({
-        aviso_id: avisoId,
-        employee_id: selectedEmployee.id,
-      });
-      if (error && !error.message.includes("duplicate")) throw error;
+      const { error } = await (supabase as any)
+        .rpc("confirmar_leitura_aviso_by_cpf", { p_cpf: selectedEmployee.cpf, p_aviso_id: avisoId });
+      if (error) throw error;
       setAvisosConfirmados(prev => ({ ...prev, [avisoId]: new Date().toISOString() }));
       toast.success("Leitura confirmada!");
     } catch (e: any) {
@@ -2082,8 +2077,8 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     try {
       const [saldoRes, feriasRes, afastRes] = await Promise.all([
         (supabase as any).rpc("get_saldo_ferias", { p_employee_id: selectedEmployee.id }),
-        (supabase as any).from("ferias").select("*").eq("employee_id", selectedEmployee.id).order("created_at", { ascending: false }),
-        (supabase as any).from("afastamentos").select("*").eq("employee_id", selectedEmployee.id).order("data_inicio", { ascending: false }),
+        (supabase as any).rpc("get_ferias_historico_by_cpf", { p_cpf: selectedEmployee.cpf }),
+        (supabase as any).rpc("get_afastamentos_historico_by_cpf", { p_cpf: selectedEmployee.cpf }),
       ]);
       if (saldoRes.data && saldoRes.data.length > 0) setFeriasSaldo(saldoRes.data[0]);
       if (feriasRes.data) setFeriasHistorico(feriasRes.data);

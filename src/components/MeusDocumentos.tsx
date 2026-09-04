@@ -58,12 +58,7 @@ export default function MeusDocumentos({ employeeName, cpf, onClose }: Props) {
         if (empId) {
           // Espelhos de ponto assinados
           const { data: espelhos } = await (supabase as any)
-            .from("timesheet_closings")
-            .select("id, month, year, accepted_at, status, signature_url")
-            .eq("employee_id", empId)
-            .in("status", ["assinado", "fechado"])
-            .order("year", { ascending: false })
-            .order("month", { ascending: false });
+            .rpc("get_signed_timesheets_by_cpf", { p_cpf: cpfDigits });
 
           if (espelhos) {
             espelhos.forEach((e: any) => {
@@ -79,10 +74,7 @@ export default function MeusDocumentos({ employeeName, cpf, onClose }: Props) {
 
           // Documentos administrativos
           const { data: docData } = await (supabase as any)
-            .from("employee_documents")
-            .select("*")
-            .eq("employee_id", empId)
-            .order("created_at", { ascending: false });
+            .rpc("get_employee_documents_by_cpf", { p_cpf: cpfDigits });
 
           if (docData) {
             docData.forEach((d: any) => {

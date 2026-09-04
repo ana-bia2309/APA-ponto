@@ -65,13 +65,14 @@ export default function TimesheetSign({ cpf, employeeName, onClose, onSigned }: 
     try {
       const fileName = `timesheet_${selected.closing_id}_${Date.now()}.png`;
       await supabase.storage.from("epi-signatures").upload(fileName, blob, { contentType: "image/png" });
-      await (supabase as any).from("timesheet_closings").update({
-        status: "assinado",
-        signature_url: fileName,
-        signature_method: "desenho",
-        accepted_at: new Date().toISOString(),
-        accepted_device: navigator.userAgent,
-      }).eq("id", selected.closing_id);
+      await (supabase as any).rpc("sign_timesheet_closing_by_cpf", {
+        p_cpf: cpf,
+        p_closing_id: selected.closing_id,
+        p_status: "assinado",
+        p_signature_url: fileName,
+        p_signature_method: "desenho",
+        p_accepted_device: navigator.userAgent,
+      });
       toast.success("Espelho de ponto assinado com sucesso!");
       resetSelection();
       onSigned();
@@ -171,11 +172,12 @@ export default function TimesheetSign({ cpf, employeeName, onClose, onSigned }: 
                       if (!motivoRecusa.trim()) { toast.error("Informe o motivo da recusa"); return; }
                       setSubmitting(true);
                       try {
-                        await (supabase as any).from("timesheet_closings").update({
-                          status: "recusado",
-                          recusa_motivo: motivoRecusa,
-                          accepted_at: new Date().toISOString(),
-                        }).eq("id", selected.closing_id);
+                        await (supabase as any).rpc("sign_timesheet_closing_by_cpf", {
+                          p_cpf: cpf,
+                          p_closing_id: selected.closing_id,
+                          p_status: "recusado",
+                          p_recusa_motivo: motivoRecusa,
+                        });
                         toast.success("Espelho recusado. O admin será notificado.");
                         resetSelection();
                         fetchPending();

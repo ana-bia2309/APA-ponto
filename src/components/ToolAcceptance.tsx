@@ -60,13 +60,13 @@ export default function ToolAcceptance({ cpf, employeeName, onClose, onAccepted 
     try {
       const fileName = `tool_${selected.id}_${Date.now()}.png`;
       await supabase.storage.from("epi-signatures").upload(fileName, blob, { contentType: "image/png" });
-      await (supabase as any).from("tool_loans").update({
-        status: "confirmada",
-        signature_url: fileName,
-        signature_method: "desenho",
-        accepted_at: new Date().toISOString(),
-        accepted_device: navigator.userAgent,
-      }).eq("id", selected.id);
+      await (supabase as any).rpc("accept_tool_loan_by_cpf", {
+        p_cpf: cpf,
+        p_loan_id: selected.id,
+        p_signature_url: fileName,
+        p_signature_method: "desenho",
+        p_accepted_device: navigator.userAgent,
+      });
       toast.success("Ferramenta confirmada!");
       resetSelection();
       onAccepted();

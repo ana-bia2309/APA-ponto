@@ -60,13 +60,13 @@ export default function UniformAcceptance({ cpf, employeeName, onClose, onAccept
     try {
       const fileName = `uniform_${selected.id}_${Date.now()}.png`;
       await supabase.storage.from("epi-signatures").upload(fileName, blob, { contentType: "image/png" });
-      await (supabase as any).from("uniform_deliveries").update({
-        status: "aceito",
-        accepted_at: new Date().toISOString(),
-        signature_url: fileName,
-        signature_method: "desenho",
-        accepted_device: navigator.userAgent,
-      }).eq("id", selected.id);
+      await (supabase as any).rpc("accept_uniform_delivery_by_cpf", {
+        p_cpf: cpf,
+        p_delivery_id: selected.id,
+        p_signature_url: fileName,
+        p_signature_method: "desenho",
+        p_accepted_device: navigator.userAgent,
+      });
       toast.success("Uniforme confirmado!");
       resetSelection();
       onAccepted();
