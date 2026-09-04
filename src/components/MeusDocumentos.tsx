@@ -49,14 +49,11 @@ export default function MeusDocumentos({ employeeName, cpf, onClose }: Props) {
         const cpfDigits = cpf.replace(/\D/g, "");
         
         // Busca employee_id pelo CPF
-const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-const { data: empData } = await (supabase as any)
-  .from("employees")
-  .select("id")
-  .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
-  .single();
+        const { data: empRows } = await (supabase as any)
+          .rpc("get_active_employee_by_cpf", { p_cpf: cpfDigits });
+        const empData = Array.isArray(empRows) ? empRows[0] : empRows;
 
-const empId = empData?.id;
+        const empId = empData?.id;
 
         if (empId) {
           // Espelhos de ponto assinados
@@ -130,11 +127,11 @@ const empId = empData?.id;
           .gte("recorded_at", start)
           .lt("recorded_at", end)
           .order("recorded_at", { ascending: true }),
-        (supabase as any).from("employees").select("name, cpf, cargo, matricula").eq("id", empId).single(),
+        (supabase as any).rpc("get_employee_profile", { p_employee_id: empId }),
       ]);
 
       const records = recRes.data || [];
-      const emp = empRes.data;
+      const emp = Array.isArray(empRes.data) ? empRes.data[0] : empRes.data;
 
       // Busca assinatura
       let signatureDataUrl: string | null = null;

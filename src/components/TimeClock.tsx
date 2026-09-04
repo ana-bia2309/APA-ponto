@@ -818,16 +818,14 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     if (!navigator.onLine) return;
     try {
       const { data } = await (supabase as any)
-        .from("employees")
-        .select("data_nascimento")
-        .eq("id", employeeId)
-        .maybeSingle();
-      if (data?.data_nascimento) {
+        .rpc("get_employee_birthdate", { p_employee_id: employeeId });
+      const nascimento = Array.isArray(data) ? data[0]?.data_nascimento : data?.data_nascimento;
+      if (nascimento) {
         const hoje = new Date();
         const mesHoje = hoje.getMonth() + 1;
         const diaHoje = hoje.getDate();
-        const mesNasc = parseInt(data.data_nascimento.slice(5, 7));
-        const diaNasc = parseInt(data.data_nascimento.slice(8, 10));
+        const mesNasc = parseInt(nascimento.slice(5, 7));
+        const diaNasc = parseInt(nascimento.slice(8, 10));
         setAniversarioHoje(mesNasc === mesHoje && diaNasc === diaHoje);
       }
     } catch { }
@@ -993,12 +991,9 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       const startOfMonthStr = startOfMonth.slice(0, 10);
       const endOfMonthStr = endOfMonth.slice(0, 10);
 
-      const cpfFormatted = cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-      const { data: empData } = await (supabase as any)
-        .from("employees")
-        .select("id")
-        .or(`cpf.eq.${cpfDigits},cpf.eq.${cpfFormatted}`)
-        .single();
+      const { data: empRows } = await (supabase as any)
+        .rpc("get_active_employee_by_cpf", { p_cpf: cpfDigits });
+      const empData = Array.isArray(empRows) ? empRows[0] : empRows;
 
       if (!empData?.id) return;
 

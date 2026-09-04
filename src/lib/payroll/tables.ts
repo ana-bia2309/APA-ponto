@@ -12,9 +12,9 @@ export const INSS_TETO = "8475.55";
 
 export const IRRF_TABLE_2025 = [
   { ate: "2428.80", aliquota: "0", deducao: "0" },
-  { ate: "2826.65", aliquota: "0.075", deducao: "169.44" },
-  { ate: "3751.05", aliquota: "0.15", deducao: "381.44" },
-  { ate: "4664.68", aliquota: "0.225", deducao: "662.77" },
+  { ate: "2826.65", aliquota: "0.075", deducao: "182.16" },
+  { ate: "3751.05", aliquota: "0.15", deducao: "394.16" },
+  { ate: "4664.68", aliquota: "0.225", deducao: "675.49" },
   { ate: "999999999", aliquota: "0.275", deducao: "908.73" },
 ];
 export const IRRF_DEDUCAO_DEPENDENTE = "189.59";
