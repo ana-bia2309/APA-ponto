@@ -108,23 +108,19 @@ export default function ManualPunch({ employee, cpf, onClose, onSuccess }: Manua
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-    const { count } = await supabase
-      .from("manual_punches")
-      .select("*", { count: "exact", head: true })
-      .eq("employee_id", employee.id)
-      .gte("created_at", startOfMonth)
-      .lte("created_at", endOfMonth);
-    setRemainingCorrections(5 - (count || 0));
+    const { data: count } = await (supabase as any)
+      .rpc("get_manual_punches_count_by_cpf", { p_cpf: cpf, p_start: startOfMonth, p_end: endOfMonth });
+    setRemainingCorrections(5 - (Number(count) || 0));
   };
 
   const fetchTodayRecords = async () => {
     const todayStr = new Date().toISOString().split("T")[0];
     const { data } = await (supabase as any)
-      .from("time_records")
-      .select("record_type, recorded_at")
-      .eq("employee_id", employee.id)
-      .gte("recorded_at", `${todayStr}T00:00:00`)
-      .lte("recorded_at", `${todayStr}T23:59:59`);
+      .rpc("get_time_records_by_employee_id", {
+        p_employee_id: employee.id,
+        p_start: `${todayStr}T00:00:00`,
+        p_end: `${todayStr}T23:59:59`,
+      });
     if (data) {
       const times: Record<string, string | null> = { entrada: null, intervalo: null, retorno: null, saida: null };
       (data as TimeRecordRow[]).forEach((r) => {

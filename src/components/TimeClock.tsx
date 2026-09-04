@@ -555,19 +555,19 @@ function getPendingRecordsForEmployee(employeeId: string, dayKey: string = getDa
 
 async function timeRecordExists(punch: OfflinePunch): Promise<boolean> {
   const { data, error } = await (supabase as any)
-    .from("time_records")
-    .select("id")
-    .eq("employee_id", punch.employee_id)
-    .eq("record_type", punch.record_type)
-    .eq("recorded_at", punch.recorded_at)
-    .limit(1);
+    .rpc("time_record_exists_by_cpf", {
+      p_cpf: punch.cpf,
+      p_employee_id: punch.employee_id,
+      p_record_type: punch.record_type,
+      p_recorded_at: punch.recorded_at,
+    });
 
   if (error) {
     console.warn("DEBUG OFFLINE [dedupe]: não foi possível verificar duplicidade remotamente", error);
     return false;
   }
 
-  return Array.isArray(data) && data.length > 0;
+  return data === true;
 }
 
 async function syncOfflineQueue(): Promise<SyncOfflineResult> {
@@ -998,22 +998,19 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       if (!empData?.id) return;
 
       const [recordsRes, justRes, afastRes] = await Promise.all([
-        (supabase as any).from("time_records")
-          .select("recorded_at, record_type")
-          .eq("employee_id", empData.id)
-          .gte("recorded_at", startOfMonth)
-          .lte("recorded_at", endOfMonth),
-        (supabase as any).from("absence_justifications")
-          .select("date, reason, status")
-          .eq("employee_id", empData.id)
-          .gte("date", startOfMonthStr)
-          .lte("date", endOfMonthStr),
-        (supabase as any).from("afastamentos")
-          .select("tipo, data_inicio, data_fim")
-          .eq("employee_id", empData.id)
-          .lte("data_inicio", endOfMonthStr)
-          .gte("data_fim", startOfMonthStr),
+        (supabase as any).rpc("get_time_records_by_cpf", {
+          p_cpf: cpfDigits, p_start: startOfMonth, p_end: endOfMonth,
+        }),
+        (supabase as any).rpc("get_absence_justifications_by_cpf", {
+          p_cpf: cpfDigits, p_start: startOfMonthStr, p_end: endOfMonthStr,
+        }),
+        (supabase as any).rpc("get_afastamentos_historico_by_cpf", { p_cpf: cpfDigits }),
       ]);
+      // get_afastamentos_historico_by_cpf devolve tudo; filtra overlap com o mês aqui
+      if (afastRes.data) {
+        afastRes.data = afastRes.data.filter((a: any) =>
+          a.data_inicio <= endOfMonthStr && a.data_fim >= startOfMonthStr);
+      }
 
       const dias: Record<string, "trabalhado" | "falta" | "atestado" | "ferias" | "abono" | "afastamento"> = {};
 
@@ -1069,11 +1066,11 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       start.setHours(0, 0, 0, 0);
 
       const { data } = await (supabase as any)
-        .from("time_records")
-        .select("record_type, recorded_at")
-        .eq("employee_id", employeeId)
-        .gte("recorded_at", start.toISOString())
-        .lte("recorded_at", today.toISOString());
+        .rpc("get_time_records_by_employee_id", {
+          p_employee_id: employeeId,
+          p_start: start.toISOString(),
+          p_end: today.toISOString(),
+        });
 
       const byDay: Record<string, Record<string, string>> = {};
       (data || []).forEach((r: any) => {
@@ -1726,12 +1723,13 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
 
         // Salva foto e endereço direto no time_records
         if (returnedId && (uploadedPhotoPath || location?.address)) {
-          const { error: updError } = await (supabase as any).from("time_records")
-            .update({
-              photo_url: uploadedPhotoPath ?? null,
-              address: location?.address ?? null,
-            })
-            .eq("id", returnedId);
+          const { error: updError } = await (supabase as any)
+            .rpc("update_time_record_media_by_cpf", {
+              p_cpf: cpfDigits,
+              p_record_id: returnedId,
+              p_photo_url: uploadedPhotoPath ?? null,
+              p_address: location?.address ?? null,
+            });
           if (updError) {
             console.warn("DEBUG PONTO [foto/endereço]: erro ao salvar:", updError.message);
           }
@@ -2062,16 +2060,16 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
 
   // Fetch history for employee (last 30 days)
   const fetchHistory = async () => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee?.cpf) return;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const { data } = await (supabase as any)
-      .from("time_records")
-      .select("*")
-      .eq("employee_id", selectedEmployee.id)
-      .gte("recorded_at", thirtyDaysAgo.toISOString())
-      .order("recorded_at", { ascending: false });
-    if (data) setHistoryRecords((data as TimeRecordRow[]).map(mapTimeRecordToPunchRecord));
+      .rpc("get_time_records_by_cpf", {
+        p_cpf: selectedEmployee.cpf,
+        p_start: thirtyDaysAgo.toISOString(),
+        p_end: new Date().toISOString(),
+      });
+    if (data) setHistoryRecords((data as TimeRecordRow[]).slice().reverse().map(mapTimeRecordToPunchRecord));
 
     // Busca saldo e histórico de férias
     try {

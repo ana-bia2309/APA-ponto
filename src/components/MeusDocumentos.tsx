@@ -110,15 +110,12 @@ export default function MeusDocumentos({ employeeName, cpf, onClose }: Props) {
 
       // Busca registros do mês
       const start = new Date(year, month - 1, 1).toISOString();
-      const end = new Date(year, month, 1).toISOString();
+      const end = new Date(new Date(year, month, 1).getTime() - 1).toISOString();
 
       const [recRes, empRes] = await Promise.all([
-        (supabase as any).from("time_records")
-          .select("id, record_type, recorded_at")
-          .eq("employee_id", empId)
-          .gte("recorded_at", start)
-          .lt("recorded_at", end)
-          .order("recorded_at", { ascending: true }),
+        (supabase as any).rpc("get_time_records_by_employee_id", {
+          p_employee_id: empId, p_start: start, p_end: end,
+        }),
         (supabase as any).rpc("get_employee_profile", { p_employee_id: empId }),
       ]);
 
