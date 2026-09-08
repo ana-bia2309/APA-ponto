@@ -104,19 +104,17 @@ export default function AvisosTab() {
   };
 
   const toggleAtivo = async (id: string, ativo: boolean) => {
-    try {
-      await (supabase as any).from("company_notices").update({ ativo: !ativo }).eq("id", id);
-      load();
-    } catch {}
+    const { error } = await (supabase as any).from("company_notices").update({ ativo: !ativo }).eq("id", id);
+    if (error) { toast.error("Erro ao alterar aviso: " + error.message); return; }
+    load();
   };
 
   const excluir = async (id: string) => {
     if (!confirm("Excluir este aviso?")) return;
-    try {
-      await (supabase as any).from("company_notices").delete().eq("id", id);
-      toast.success("Aviso excluído.");
-      load();
-    } catch {}
+    const { error } = await (supabase as any).from("company_notices").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Aviso excluído.");
+    load();
   };
 
   const tipoAtual = TIPOS.find(t => t.value === tipo) || TIPOS[0];

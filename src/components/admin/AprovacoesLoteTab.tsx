@@ -48,6 +48,7 @@ export default function AprovacoesLoteTab({ employees }: { employees: Employee[]
       const start = new Date(year, month - 1, 1).toISOString();
       const end = new Date(year, month, 1).toISOString();
 
+      const referenceMonth = `${year}-${String(month).padStart(2, "0")}`;
       const [closingsRes, recordsRes, bancoRes] = await Promise.all([
         (supabase as any).from("timesheet_closings")
           .select("id, employee_id, status, closed_at, accepted_at")
@@ -55,14 +56,18 @@ export default function AprovacoesLoteTab({ employees }: { employees: Employee[]
         (supabase as any).from("time_records")
           .select("employee_id, record_type, recorded_at")
           .gte("recorded_at", start).lt("recorded_at", end),
-        (supabase as any).from("banco_horas")
-          .select("employee_id, descricao")
-          .ilike("descricao", `%${MONTH_NAMES[month - 1]}/${year}%`),
+        (supabase as any).from("hour_bank")
+          .select("employee_id, extra_hours, debit_hours")
+          .eq("reference_month", referenceMonth),
       ]);
 
       const closings = closingsRes.data || [];
       const records = recordsRes.data || [];
-      const bancoImportados = new Set((bancoRes.data || []).map((b: any) => b.employee_id));
+      const bancoImportados = new Set(
+        (bancoRes.data || [])
+          .filter((b: any) => Number(b.extra_hours) !== 0 || Number(b.debit_hours) !== 0)
+          .map((b: any) => b.employee_id)
+      );
 
       const newRows: EmployeeRow[] = await Promise.all(
         employees.filter(e => e.active).map(async emp => {
@@ -140,11 +145,13 @@ export default function AprovacoesLoteTab({ employees }: { employees: Employee[]
           closed_at: new Date().toISOString(),
           closed_by: user?.email || "admin",
         };
+        let error;
         if (row.espelhoId) {
-          await (supabase as any).from("timesheet_closings").update(payload).eq("id", row.espelhoId);
+          ({ error } = await (supabase as any).from("timesheet_closings").update(payload).eq("id", row.espelhoId));
         } else {
-          await (supabase as any).from("timesheet_closings").insert(payload);
+          ({ error } = await (supabase as any).from("timesheet_closings").insert(payload));
         }
+        if (error) throw error;
         ok++;
       } catch {}
       setProgress(p => p + 1);
@@ -167,16 +174,30 @@ export default function AprovacoesLoteTab({ employees }: { employees: Employee[]
     setProgressLabel("Importando banco de horas...");
 
     let ok = 0;
+    const referenceMonth = `${year}-${String(month).padStart(2, "0")}`;
     for (const row of targets) {
       try {
-        const tipo = row.diferenca >= 0 ? "credito" : "debito";
-        await (supabase as any).from("banco_horas").insert({
+        const { data: existente } = await (supabase as any)
+          .from("hour_bank")
+          .select("extra_hours, debit_hours")
+          .eq("employee_id", row.id)
+          .eq("reference_month", referenceMonth)
+          .maybeSingle();
+
+        const extraAtual = Number(existente?.extra_hours || 0);
+        const debitoAtual = Number(existente?.debit_hours || 0);
+        const novoExtra = extraAtual + (row.diferenca > 0 ? row.diferenca : 0);
+        const novoDebito = debitoAtual + (row.diferenca < 0 ? Math.abs(row.diferenca) : 0);
+
+        const { error } = await (supabase as any).from("hour_bank").upsert({
           employee_id: row.id,
-          data: `${year}-${String(month).padStart(2, "0")}-01`,
-          tipo,
-          horas: Math.abs(row.diferenca),
-          descricao: `Cálculo automático — ${MONTH_NAMES[month - 1]}/${year}`,
-        });
+          reference_month: referenceMonth,
+          extra_hours: novoExtra,
+          debit_hours: novoDebito,
+          balance: novoExtra - novoDebito,
+        }, { onConflict: "employee_id,reference_month" });
+
+        if (error) throw error;
         ok++;
       } catch {}
       setProgress(p => p + 1);

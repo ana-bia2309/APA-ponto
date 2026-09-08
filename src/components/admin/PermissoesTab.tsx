@@ -115,11 +115,13 @@ export default function PermissoesTab() {
       toast.error("Você não pode desativar sua própria conta!");
       return;
     }
-    try {
-      await (supabase as any).from("profiles").update({ active: !active }).eq("id", profileId);
-      toast.success(!active ? "Usuário ativado!" : "Usuário desativado!");
-      load();
-    } catch {}
+    const { error } = await (supabase as any).from("profiles").update({ active: !active }).eq("id", profileId);
+    if (error) {
+      toast.error("Erro ao alterar status: " + error.message);
+      return;
+    }
+    toast.success(!active ? "Usuário ativado!" : "Usuário desativado!");
+    load();
   };
 
   return (
