@@ -154,7 +154,7 @@ export default function RecordsTab({ employees }: Props) {
 
      const { data, error: fetchError } = await (supabase as any)
         .from("time_records")
-        .select("*, employees(name)")
+        .select("*, employees(name, shift, escala)")
         .gte("recorded_at", start)
         .lte("recorded_at", end)
         .order("recorded_at", { ascending: false });
@@ -600,17 +600,35 @@ export default function RecordsTab({ employees }: Props) {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-muted-foreground capitalize">{journey.label}</span>
                       {(() => {
-                        // Check if journey spans multiple days
+                        // Turno real do funcionário decide se é plantão (noturno/12x36)
+                        const empInfo = journey.records[0]?.employees as
+                          | { shift?: string; escala?: string }
+                          | undefined;
+                        const isPlantao =
+                          empInfo?.shift === "noturno" ||
+                          (empInfo?.escala || "").toLowerCase().replace("×", "x").includes("12x36");
+
                         const first = new Date(journey.records[0].punched_at);
                         const last = new Date(journey.records[journey.records.length - 1].punched_at);
-                        if (first.toDateString() !== last.toDateString()) {
+                        const datasDiferentes = first.toDateString() !== last.toDateString();
+
+                        if (!datasDiferentes) return null;
+
+                        if (isPlantao) {
                           return (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">
                               Jornada noturna
                             </span>
                           );
                         }
-                        return null;
+
+                        // Funcionário diurno com registros em datas diferentes:
+                        // provável ponto esquecido/batido atrasado, não turno noturno real.
+                        return (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-medium">
+                            ⚠️ Revisar: datas divergentes
+                          </span>
+                        );
                       })()}
                       {!journey.complete && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-medium">Jornada aberta</span>

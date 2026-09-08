@@ -10,7 +10,7 @@ export interface TimeRecordRow {
   mode: string;
   sync_status: string;
   created_at: string;
-  employees?: { name: string } | { name: string }[] | null;
+  employees?: { name: string; shift?: string; escala?: string } | { name: string; shift?: string; escala?: string }[] | null;
 }
 
 export interface TimeRecordInsert {
@@ -35,7 +35,7 @@ export interface DisplayPunchRecord {
   created_at: string;
   mode?: string;
   sync_status?: string;
-  employees?: { name: string };
+  employees?: { name: string; shift?: string; escala?: string };
 }
 
 export const mapTimeRecordToPunchRecord = (
