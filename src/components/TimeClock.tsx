@@ -640,23 +640,16 @@ function MeusSolicitacoes({ employeeId }: { employeeId: string }) {
   useEffect(() => {
     const load = async () => {
       const { data } = await (supabase as any)
-        .from("employee_requests")
-        .select("id, tipo, status, observacao, created_at")
-        .eq("employee_id", employeeId)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .rpc("get_minhas_solicitacoes_by_employee_id", { p_employee_id: employeeId });
       setSolicitacoes(data || []);
     };
     load();
 
-    const channel = (supabase as any)
-      .channel(`solicitacoes-${employeeId}`)
-      .on("postgres_changes", {
-        event: "*", schema: "public", table: "employee_requests",
-        filter: `employee_id=eq.${employeeId}`
-      }, () => load())
-      .subscribe();
-    return () => { (supabase as any).removeChannel(channel); };
+    // Realtime não funciona aqui: a tabela employee_requests exige papel
+    // authenticated para SELECT, e o portal do funcionário roda como anon.
+    // Atualiza periodicamente em vez de assinar mudanças em tempo real.
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
   }, [employeeId]);
 
   if (solicitacoes.length === 0) return null;
@@ -791,25 +784,18 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
   const fetchPendingResponseCount = useCallback(async (employeeId: string) => {
     if (!employeeId || !navigator.onLine) return;
     try {
-      const { count } = await (supabase as any)
-        .from("employee_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("employee_id", employeeId)
-        .in("status", ["aprovado", "recusado"])
-        .is("visualizado_em", null);
-      setPendingResponseCount(count || 0);
+      const { data: count } = await (supabase as any)
+        .rpc("get_pending_response_count_by_employee_id", { p_employee_id: employeeId });
+      setPendingResponseCount(Number(count) || 0);
     } catch { }
   }, []);
 
   const markRequestsAsViewed = useCallback(async (employeeId: string) => {
     if (!employeeId) return;
     try {
-      await (supabase as any)
-        .from("employee_requests")
-        .update({ visualizado_em: new Date().toISOString() })
-        .eq("employee_id", employeeId)
-        .in("status", ["aprovado", "recusado"])
-        .is("visualizado_em", null);
+      const { error } = await (supabase as any)
+        .rpc("marcar_solicitacoes_visualizadas_by_employee_id", { p_employee_id: employeeId });
+      if (error) throw error;
       setPendingResponseCount(0);
     } catch { }
   }, []);
