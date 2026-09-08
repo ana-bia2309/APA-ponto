@@ -14,7 +14,7 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import { generateMonthlyReport, generateMonthlyExcel } from "@/lib/generateReport";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import AdminSidebar, { type AdminTab } from "@/components/admin/AdminSidebar";
+import AdminSidebar, { type AdminTab, PERMISSIONS } from "@/components/admin/AdminSidebar";
 import JustificationsTab from "@/components/admin/JustificationsTab";
 import DashboardTab from "@/components/admin/DashboardTab";
 import RecordsTab from "@/components/admin/RecordsTab";
@@ -151,6 +151,19 @@ export default function AdminDashboard() {
   const { isDark, toggle } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tab, setTab] = useState<AdminTab>("dashboard");
+
+  // Garante que a aba atual é permitida para o papel do usuário — não basta
+  // esconder o botão no menu, já que activeTab pode ser alterado por outros
+  // caminhos (ex: onNavigate do DashboardTab). Sem isso, o menu escondia o
+  // botão mas o conteúdo da aba continuava acessível se alcançado de outro jeito.
+  useEffect(() => {
+    if (!role || role === "admin") return;
+    const permitidas = PERMISSIONS[role as keyof typeof PERMISSIONS];
+    if (permitidas && permitidas.length > 0 && !permitidas.includes(tab)) {
+      setTab(permitidas[0]);
+    }
+  }, [role, tab]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCpf, setEditCpf] = useState("");
@@ -570,7 +583,7 @@ export default function AdminDashboard() {
           isAdmin={isAdmin}
           isRh={isRh}
           userName={profile?.full_name || user?.email}
-          userRole={isAdmin ? "admin" : isRh ? "rh" : "supervisor"}
+          userRole={(role === "admin" || role === "rh" || role === "supervisor" || role === "operacional") ? role : "operacional"}
         />
 
         <div className="flex-1 flex flex-col min-w-0">

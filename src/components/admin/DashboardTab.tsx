@@ -105,7 +105,7 @@ function detectarInconsistencias(
   return inconsistencias;
 }
 
-export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: string) => void; role?: "admin" | "rh" | "usuario" | null }) {
+export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: string) => void; role?: "admin" | "rh" | "supervisor" | "operacional" | "usuario" | null }) {
   const [statuses, setStatuses] = useState<EmployeeStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

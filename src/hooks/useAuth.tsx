@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: { full_name: string; email: string; active: boolean } | null;
-  role: "admin" | "rh" | "usuario" | null;
+  role: "admin" | "rh" | "supervisor" | "operacional" | "usuario" | null;
   isRh: boolean;
   isAdmin: boolean;
   loading: boolean;
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
-  const [role, setRole] = useState<"admin" | "rh" | "usuario" | null>(null);
+  const [role, setRole] = useState<AuthContextType["role"]>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfileAndRole = useCallback(async (userId: string) => {
@@ -40,11 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileRes.data) {
         setProfile(profileRes.data as any);
       }
-      if (roleRes.data) {
-        setRole((roleRes.data as any).role as "admin" | "rh" | "usuario");
-      } else {
-        setRole("usuario");
-      }
+      const roleValidos = ["admin", "rh", "supervisor", "operacional", "usuario"];
+      const roleDb = (roleRes.data as any)?.role;
+      setRole(roleValidos.includes(roleDb) ? roleDb : "usuario");
     } catch {
       setRole("usuario");
     }

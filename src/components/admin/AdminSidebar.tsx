@@ -40,7 +40,7 @@ interface Props {
   userEmail?: string;
 }
 
-const PERMISSIONS: Record<UserRole, AdminTab[]> = {
+export const PERMISSIONS: Record<UserRole, AdminTab[]> = {
   admin: [],
   rh: [
     "dashboard", "employees", "records", "justifications", "documentos",
