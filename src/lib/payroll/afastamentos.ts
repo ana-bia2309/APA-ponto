@@ -26,12 +26,24 @@ export async function getDatasAfastamentoSemDesconto(
   primeiroDia: string, // YYYY-MM-DD
   ultimoDia: string,   // YYYY-MM-DD
 ): Promise<Set<string>> {
-  const { data } = await supabase
-    .from("afastamentos" as any)
-    .select("tipo, data_inicio, data_fim")
-    .eq("employee_id", employeeId)
-    .lte("data_inicio", ultimoDia)
-    .gte("data_fim", primeiroDia);
+  const [{ data }, { data: justificativas }] = await Promise.all([
+    supabase
+      .from("afastamentos" as any)
+      .select("tipo, data_inicio, data_fim")
+      .eq("employee_id", employeeId)
+      .lte("data_inicio", ultimoDia)
+      .gte("data_fim", primeiroDia),
+    // Atestados/justificativas avulsas de um dia só, já aprovadas pelo admin,
+    // também não podem gerar desconto de falta — antes essa checagem só
+    // olhava "afastamentos" (licenças de período) e ignorava esta tabela.
+    supabase
+      .from("absence_justifications" as any)
+      .select("date")
+      .eq("employee_id", employeeId)
+      .eq("status", "aprovado")
+      .lte("date", ultimoDia)
+      .gte("date", primeiroDia),
+  ]);
 
   const datas = new Set<string>();
   const inicioPeriodo = new Date(primeiroDia + "T12:00:00");
@@ -47,5 +59,10 @@ export async function getDatasAfastamentoSemDesconto(
       datas.add(d.toISOString().slice(0, 10));
     }
   }
+
+  for (const j of (justificativas as any[]) || []) {
+    datas.add(j.date);
+  }
+
   return datas;
 }

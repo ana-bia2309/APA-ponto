@@ -458,15 +458,6 @@ export function summarizeWorkFromRecords(
     faltas_dias: faltas.toFixed(0),
     atrasos_minutos: 0,
   };
-
-  return {
-    horas_trabalhadas: (totalMin / 60).toFixed(2),
-    horas_extras_50: (extras50Min / 60).toFixed(2),
-    horas_extras_100: (extras100Min / 60).toFixed(2),
-    horas_noturnas: (noturnasMin / 60).toFixed(2),
-    faltas_dias: faltas.toFixed(0),
-    atrasos_minutos: 0,
-  };
 }
 
 /**
