@@ -39,7 +39,7 @@ export interface DisplayPunchRecord {
 }
 
 export const mapTimeRecordToPunchRecord = (
-  record: TimeRecordRow,
+  record: TimeRecordRow & { address?: string | null; photo_url?: string | null },
 ): DisplayPunchRecord => ({
   id: record.id,
   employee_id: record.employee_id,
@@ -47,8 +47,8 @@ export const mapTimeRecordToPunchRecord = (
   punched_at: record.recorded_at,
   latitude: record.latitude,
   longitude: record.longitude,
-  address: null,
-  photo_url: null,
+  address: record.address ?? null,
+  photo_url: record.photo_url ?? null,
   created_at: record.created_at,
   mode: record.mode,
   sync_status: record.sync_status,
