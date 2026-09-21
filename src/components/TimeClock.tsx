@@ -28,6 +28,7 @@ import {
   Wind,
   Moon,
   HelpCircle,
+  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -698,6 +699,9 @@ export default function TimeClock() {
   const [now, setNow] = useState(new Date());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedShift, setSelectedShift] = useState<"diurno" | "noturno" | null>(null);
+  // Fluxo antigo (equipe -> lista de nomes) agora é só um atalho de apoio,
+  // acessado a partir da tela de CPF direto. Por padrão fica desligado.
+  const [showNameFallback, setShowNameFallback] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [validatedEmployee, setValidatedEmployee] = useState<Employee | null>(null);
   const [records, setRecords] = useState<PunchRecord[]>([]);
@@ -1925,11 +1929,12 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
   };
 
   const verifyCpf = async () => {
-    if (!pendingEmployee) return;
     const cpfDigits = normalizeCpf(cpfInput);
 
     console.log("DEBUG PONTO [verifyCpf]: CPF digitado:", cpfInput, "| normalizado:", cpfDigits);
-    console.log("DEBUG PONTO [verifyCpf]: colaborador selecionado:", pendingEmployee.name, "| id:", pendingEmployee.id);
+    if (pendingEmployee) {
+      console.log("DEBUG PONTO [verifyCpf]: colaborador selecionado:", pendingEmployee.name, "| id:", pendingEmployee.id);
+    }
 
     if (!cpfDigits || cpfDigits.length < 11) {
       setCpfError("CPF deve ter 11 dígitos.");
@@ -1944,7 +1949,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
         console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
         return;
       }
-      if (offlineMatch.id !== pendingEmployee.id) {
+      if (pendingEmployee && offlineMatch.id !== pendingEmployee.id) {
         setValidatedEmployee(null);
         setValidatedContext(null);
         setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
@@ -1982,7 +1987,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
       console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
 
-      if (employeeFromCpf.id !== pendingEmployee.id) {
+      if (pendingEmployee && employeeFromCpf.id !== pendingEmployee.id) {
         setValidatedCpf("");
         setValidatedEmployee(null);
         setValidatedContext(null);
@@ -2492,6 +2497,75 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     );
   }
 
+  // ---- LOGIN SCREEN: CPF direto (padrão) ----
+  // O funcionário digita o próprio CPF e entra direto, sem navegar por
+  // uma lista com o nome de todo mundo. A antiga tela de equipe + lista
+  // de nomes agora só aparece se a pessoa clicar em "Buscar pelo nome".
+  if (!selectedEmployee && !pendingEmployee && !showNameFallback) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
+        <ConnectionIndicator />
+
+        <div className="w-full max-w-sm flex flex-col items-center" style={{ marginTop: "28px" }}>
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-6">
+            <img src={logo} alt="APA" className="w-40 h-40 object-contain mb-3" style={{ filter: "drop-shadow(0 4px 24px rgba(30,64,175,0.35))" }} />
+            <p className="font-bold text-xl text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
+            <p className="text-sm text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
+          </div>
+
+          {/* Relógio */}
+          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-6 text-center" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+            <p className="text-4xl font-black tabular-nums" style={{ color: "#1e40af" }}>{formatTime(now)}</p>
+            <p className="text-sm text-gray-400 capitalize mt-1">{formatDate(now)}</p>
+          </div>
+
+          {/* Card de login */}
+          <div className="w-full bg-white rounded-2xl px-6 py-6 space-y-4" style={{ boxShadow: "0 2px 16px rgba(30,64,175,0.10)" }}>
+            <div className="text-center mb-2">
+              <p className="text-lg font-bold text-gray-700">Informe seu CPF para entrar</p>
+              <p className="text-xs text-gray-400 mt-1">Somente você tem acesso à sua conta</p>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              autoFocus
+              placeholder="000.000.000-00"
+              value={cpfInput}
+              onChange={(e) => { setCpfInput(formatCpfInput(e.target.value)); setCpfError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
+              className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all text-gray-800 bg-gray-50"
+            />
+
+            {cpfError && (
+              <p className="text-sm text-red-500 text-center font-medium">{cpfError}</p>
+            )}
+
+            <button
+              onClick={verifyCpf}
+              className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white"
+              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+            >
+              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+            </button>
+
+            <button
+              className="w-full py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
+              onClick={() => { setShowNameFallback(true); setCpfInput(""); setCpfError(""); }}
+            >
+              <Search className="w-3.5 h-3.5" /> Não sabe seu CPF? Buscar pelo nome
+            </button>
+          </div>
+
+          <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-6">
+            <Shield className="w-3 h-3" /> APA Refrigeração e Climatização — Tecnologia e confiança
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // CPF verification screen
   if (pendingEmployee) {
     return (
@@ -2541,14 +2615,24 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             >
               <ArrowLeft className="w-4 h-4" /> Voltar
             </button>
+
+            <button
+              className="w-full py-1 text-xs font-medium text-gray-300 hover:text-gray-500 transition-colors"
+              onClick={() => {
+                setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError("");
+                setShowNameFallback(false); setSelectedShift(null);
+              }}
+            >
+              Digitar meu CPF direto
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  // ---- SHIFT SELECTION SCREEN ----
-  if (!selectedShift) {
+  // ---- SHIFT SELECTION SCREEN (fallback: só quem não sabe o CPF cai aqui) ----
+  if (showNameFallback && !selectedShift) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
@@ -2614,7 +2698,14 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             </div>
           </div>
 
-          <p className="text-[10px] text-gray-400 flex items-center gap-1">
+          <button
+            className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={() => setShowNameFallback(false)}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Voltar para login com CPF
+          </button>
+
+          <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-2">
             <Shield className="w-3 h-3" /> APA Refrigeração e Climatização — Tecnologia e confiança
           </p>
         </div>
@@ -2622,8 +2713,8 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     );
   }
 
-  // ---- EMPLOYEE LIST SCREEN (filtered by shift) ----
-  if (!selectedEmployee) {
+  // ---- EMPLOYEE LIST SCREEN (fallback, filtrado por equipe) ----
+  if (showNameFallback && !selectedEmployee) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
@@ -2961,16 +3052,14 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           </div>
           {showDropdown && (
             <div className="absolute mt-1 rounded-xl shadow-xl z-20 min-w-[180px] border border-gray-100 overflow-hidden bg-white">
-              {filteredEmployees.map((emp) => (
-                <button key={emp.id} onClick={() => {
-                  setServerStepInfo(null);
-                  if (!emp.has_cpf) { setSelectedEmployee(emp); setValidatedEmployee(emp); setValidatedCpf(""); setRecords([]); setShowDropdown(false); }
-                  else { setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf(""); setPendingEmployee(emp); setCpfInput(""); setCpfError(""); setShowDropdown(false); }
-                }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 text-gray-700">{emp.name}</button>
-              ))}
-              <button onClick={() => { setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf(""); setSelectedShift(null); setRecords([]); setShowDropdown(false); }}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-400 border-t border-gray-100 flex items-center gap-1">
-                <ArrowLeft className="w-3 h-3" /> Trocar equipe
+              {/* Não lista mais os nomes dos outros colaboradores aqui — cada
+                  pessoa só sai da própria conta e digita o próprio CPF de novo. */}
+              <button onClick={() => {
+                setServerStepInfo(null);
+                setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf("");
+                setSelectedShift(null); setShowNameFallback(false); setRecords([]); setShowDropdown(false);
+              }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-600 flex items-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" /> Sair / Trocar CPF
               </button>
             </div>
           )}
