@@ -225,6 +225,37 @@ function normalizeCpf(raw: string): string {
   return (raw || "").replace(/\D/g, "");
 }
 
+/**
+ * Valida o CPF pelo algoritmo oficial (dígitos verificadores), não só o
+ * tamanho. Pega erro de digitação na hora, sem precisar consultar o banco.
+ */
+function isCpfChecksumValid(raw: string): boolean {
+  const cpf = normalizeCpf(raw);
+  if (cpf.length !== 11) return false;
+  // Rejeita sequências como 000.000.000-00, 111.111.111-11, etc.
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+  const digits = cpf.split("").map(Number);
+  const calcCheckDigit = (base: number[]): number => {
+    let sum = 0;
+    let weight = base.length + 1;
+    for (const d of base) {
+      sum += d * weight;
+      weight -= 1;
+    }
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+
+  const firstCheck = calcCheckDigit(digits.slice(0, 9));
+  if (firstCheck !== digits[9]) return false;
+
+  const secondCheck = calcCheckDigit(digits.slice(0, 10));
+  if (secondCheck !== digits[10]) return false;
+
+  return true;
+}
+
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "intervalo", label: "Intervalo", icon: Coffee },
@@ -710,6 +741,7 @@ export default function TimeClock() {
   const [validatedCpf, setValidatedCpf] = useState("");
   const [validatedContext, setValidatedContext] = useState<ValidatedContext | null>(null);
   const [cpfError, setCpfError] = useState("");
+  const [verifyingCpf, setVerifyingCpf] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -1917,6 +1949,9 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
   };
 
   const verifyCpf = async () => {
+    // Evita duplo clique / duplo Enter disparando duas verificações ao mesmo tempo.
+    if (verifyingCpf) return;
+
     const cpfDigits = normalizeCpf(cpfInput);
 
     console.log("DEBUG PONTO [verifyCpf]: CPF digitado:", cpfInput, "| normalizado:", cpfDigits);
@@ -1926,72 +1961,83 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       return;
     }
 
-    // OFFLINE: validate CPF using local cache
-    if (!navigator.onLine) {
-      const offlineMatch = findEmployeeByCpfOffline(cpfInput);
-      if (!offlineMatch) {
-        setCpfError("CPF não encontrado nos dados locais.");
-        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
-        return;
-      }
-      const ctx: ValidatedContext = {
-        employee_id: offlineMatch.id,
-        name: offlineMatch.name,
-        cpf_normalized: normalizeCpf(offlineMatch.cpf || cpfInput),
-        punch_mode: offlineMatch.punch_mode,
-        shift: offlineMatch.shift,
-        validated_at: new Date().toISOString(),
-        source: "offline",
-      };
-      const empFromCache = mapCachedEmployeeToEmployee(offlineMatch);
-      setValidatedContext(ctx);
-      setValidatedCpf(ctx.cpf_normalized);
-      setSelectedEmployee(empFromCache);
-      setValidatedEmployee(empFromCache);
-      setCpfInput("");
-      setCpfError("");
-      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
-      setStatusNotice("CPF validado offline.");
-      toast.info("CPF validado offline ✓");
-      fetchPendingEpiCount(ctx.cpf_normalized);
-      fetchPendingPayslipCount(ctx.cpf_normalized);
-      fetchPendingTimesheetCount(ctx.cpf_normalized);
-      fetchTimesheetSummary(ctx.cpf_normalized);
+    if (!isCpfChecksumValid(cpfDigits)) {
+      setCpfError("CPF inválido. Confira os números digitados.");
+      console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO — dígito verificador do CPF não confere");
       return;
     }
-    // ONLINE: validate CPF via database
-    try {
-      const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
-      console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
 
-      const ctx: ValidatedContext = {
-        employee_id: employeeFromCpf.id,
-        name: employeeFromCpf.name,
-        cpf_normalized: normalizeCpf((employeeFromCpf as any).cpf || cpfInput),
-        punch_mode: (employeeFromCpf as any).punch_mode || "full",
-        shift: (employeeFromCpf as any).shift || "diurno",
-        validated_at: new Date().toISOString(),
-        source: "online",
-      };
-      setValidatedContext(ctx);
-      setValidatedCpf(ctx.cpf_normalized);
-      setSelectedEmployee(employeeFromCpf);
-      setValidatedEmployee(employeeFromCpf);
-      setCpfInput("");
-      setCpfError("");
-      setStatusNotice(null);
-      console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
-      // Fetch server-driven next step
-      await fetchNextStep(ctx.cpf_normalized);
-      fetchPendingEpiCount(ctx.cpf_normalized);
-      fetchPendingPayslipCount(ctx.cpf_normalized);
-      fetchTimesheetSummary(ctx.cpf_normalized);
-    } catch (error: any) {
-      setValidatedCpf("");
-      setValidatedEmployee(null);
-      setValidatedContext(null);
-      setCpfError(error?.message || "CPF incorreto. Tente novamente.");
-      console.log("DEBUG PONTO [verifyCpf]: ERRO na validação:", error?.message);
+    setVerifyingCpf(true);
+    try {
+      // OFFLINE: validate CPF using local cache
+      if (!navigator.onLine) {
+        const offlineMatch = findEmployeeByCpfOffline(cpfInput);
+        if (!offlineMatch) {
+          setCpfError("CPF não encontrado nos dados locais.");
+          console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
+          return;
+        }
+        const ctx: ValidatedContext = {
+          employee_id: offlineMatch.id,
+          name: offlineMatch.name,
+          cpf_normalized: normalizeCpf(offlineMatch.cpf || cpfInput),
+          punch_mode: offlineMatch.punch_mode,
+          shift: offlineMatch.shift,
+          validated_at: new Date().toISOString(),
+          source: "offline",
+        };
+        const empFromCache = mapCachedEmployeeToEmployee(offlineMatch);
+        setValidatedContext(ctx);
+        setValidatedCpf(ctx.cpf_normalized);
+        setSelectedEmployee(empFromCache);
+        setValidatedEmployee(empFromCache);
+        setCpfInput("");
+        setCpfError("");
+        console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
+        setStatusNotice("CPF validado offline.");
+        toast.info("CPF validado offline ✓");
+        fetchPendingEpiCount(ctx.cpf_normalized);
+        fetchPendingPayslipCount(ctx.cpf_normalized);
+        fetchPendingTimesheetCount(ctx.cpf_normalized);
+        fetchTimesheetSummary(ctx.cpf_normalized);
+        return;
+      }
+      // ONLINE: validate CPF via database
+      try {
+        const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
+        console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
+
+        const ctx: ValidatedContext = {
+          employee_id: employeeFromCpf.id,
+          name: employeeFromCpf.name,
+          cpf_normalized: normalizeCpf((employeeFromCpf as any).cpf || cpfInput),
+          punch_mode: (employeeFromCpf as any).punch_mode || "full",
+          shift: (employeeFromCpf as any).shift || "diurno",
+          validated_at: new Date().toISOString(),
+          source: "online",
+        };
+        setValidatedContext(ctx);
+        setValidatedCpf(ctx.cpf_normalized);
+        setSelectedEmployee(employeeFromCpf);
+        setValidatedEmployee(employeeFromCpf);
+        setCpfInput("");
+        setCpfError("");
+        setStatusNotice(null);
+        console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado online:", JSON.stringify(ctx));
+        // Fetch server-driven next step
+        await fetchNextStep(ctx.cpf_normalized);
+        fetchPendingEpiCount(ctx.cpf_normalized);
+        fetchPendingPayslipCount(ctx.cpf_normalized);
+        fetchTimesheetSummary(ctx.cpf_normalized);
+      } catch (error: any) {
+        setValidatedCpf("");
+        setValidatedEmployee(null);
+        setValidatedContext(null);
+        setCpfError(error?.message || "CPF incorreto. Tente novamente.");
+        console.log("DEBUG PONTO [verifyCpf]: ERRO na validação:", error?.message);
+      }
+    } finally {
+      setVerifyingCpf(false);
     }
   };
 
@@ -2497,11 +2543,12 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               type="text"
               inputMode="numeric"
               autoFocus
+              disabled={verifyingCpf}
               placeholder="000.000.000-00"
               value={cpfInput}
               onChange={(e) => { setCpfInput(formatCpfInput(e.target.value)); setCpfError(""); }}
               onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
-              className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all text-gray-800 bg-gray-50"
+              className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all text-gray-800 bg-gray-50 disabled:opacity-60"
             />
 
             {cpfError && (
@@ -2510,10 +2557,19 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
 
             <button
               onClick={verifyCpf}
-              className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white"
+              disabled={verifyingCpf}
+              className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
             >
-              Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+              {verifyingCpf ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Verificando...
+                </>
+              ) : (
+                <>
+                  Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
+                </>
+              )}
             </button>
           </div>
 
