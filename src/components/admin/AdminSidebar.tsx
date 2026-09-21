@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users, Clock, FileText, HardHat, Shield, Activity, Calendar,
   Package, Truck, AlertTriangle, History, LogOut, ChevronDown, Shirt, Wrench,
  DollarSign, Settings as SettingsIcon, Calculator, Receipt, BarChart2, FolderOpen, Wallet, FileSignature, MessageSquareWarning,
-  Sparkles, MapPin, FileDown, CheckCircle2, TrendingUp, Building2, Brain,
+  Sparkles, MapPin, FileDown, CheckCircle2, TrendingUp, Building2, Brain, Search, X,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -12,7 +12,17 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+
+/** Remove acentos e caixa pra comparar texto de busca sem frescura. */
+function normalizeSearchText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 export type AdminTab =
   | "dashboard" | "employees" | "records" | "justifications"
@@ -57,6 +67,20 @@ export const PERMISSIONS: Record<UserRole, AdminTab[]> = {
   ],
   operacional: ["dashboard", "records"],
 };
+
+/**
+ * Aplica a permissão do papel e, se houver busca ativa, o filtro de texto.
+ * Usado por todos os grupos do menu pra decidir o que mostrar.
+ */
+function filterForSearch<T extends { key: AdminTab; label: string }>(
+  items: T[],
+  allowedTabs: AdminTab[] | undefined,
+  query: string
+): T[] {
+  const visible = allowedTabs ? items.filter((i) => allowedTabs.includes(i.key)) : items;
+  if (!query) return visible;
+  return visible.filter((i) => normalizeSearchText(i.label).includes(query));
+}
 
 const principalItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: Activity },
@@ -165,12 +189,17 @@ function MenuGroup({ items, activeTab, onTabChange, collapsed, badges, allowedTa
   );
 }
 
-function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed, badge }: {
+function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed, badge, forceOpen, hidden }: {
   label: string; icon: any; children: React.ReactNode; defaultOpen?: boolean; collapsed: boolean; badge?: number;
+  forceOpen?: boolean; hidden?: boolean;
 }) {
+  if (hidden) return null;
   return (
     <SidebarGroup>
-      <Collapsible defaultOpen={defaultOpen}>
+      {/* A key muda quando a busca liga/desliga, forçando o Collapsible a
+          remontar já aberto (ou voltar ao estado padrão) sem precisar
+          controlar o "open" manualmente. */}
+      <Collapsible key={forceOpen ? "search-open" : "default"} defaultOpen={forceOpen || defaultOpen}>
         <CollapsibleTrigger className="w-full">
           <SidebarGroupLabel className="flex items-center justify-between w-full cursor-pointer hover:text-foreground transition-colors">
             <span className="flex items-center gap-2">
@@ -232,6 +261,20 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
 
   const allowedTabs = userRole === "admin" ? undefined : PERMISSIONS[userRole];
 
+  const [menuSearch, setMenuSearch] = useState("");
+  const searchQuery = normalizeSearchText(menuSearch);
+  const isSearchingMenu = searchQuery.length > 0;
+
+  const filteredPrincipal = useMemo(() => filterForSearch(principalItems, allowedTabs, searchQuery), [allowedTabs, searchQuery]);
+  const filteredPessoas = useMemo(() => filterForSearch(pessoasItems, allowedTabs, searchQuery), [allowedTabs, searchQuery]);
+  const filteredRelatorios = useMemo(() => filterForSearch(relatoriosItems, allowedTabs, searchQuery), [allowedTabs, searchQuery]);
+  const filteredPayroll = useMemo(() => filterForSearch(payrollItems, allowedTabs, searchQuery), [allowedTabs, searchQuery]);
+  const filteredSystem = useMemo(() => filterForSearch(systemItems, undefined, searchQuery), [searchQuery]);
+  const filteredEpi = useMemo(() => filterForSearch(patrimonioEpiItems, undefined, searchQuery), [searchQuery]);
+  const filteredUniform = useMemo(() => filterForSearch(patrimonioUniformItems, undefined, searchQuery), [searchQuery]);
+  const filteredTools = useMemo(() => filterForSearch(patrimonioToolItems, undefined, searchQuery), [searchQuery]);
+  const patrimonioHasMatch = filteredEpi.length > 0 || filteredUniform.length > 0 || filteredTools.length > 0;
+
   const isPessoasActive = [
     "justifications","documentos","aprovacoes-lote","solicitacoes",
     "agenda","avisos","onboarding","mapa-localizacao","calendario-ausencias",
@@ -279,53 +322,98 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
         )}
       </SidebarHeader>
 
+      {!collapsed && (
+        <div className="px-3 py-2 border-b border-border">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={menuSearch}
+              onChange={(e) => setMenuSearch(e.target.value)}
+              placeholder="Buscar no menu..."
+              className="h-8 pl-8 pr-7 text-xs"
+            />
+            {menuSearch && (
+              <button
+                onClick={() => setMenuSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <SidebarContent>
         {/* Principal */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <MenuGroup items={principalItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} allowedTabs={allowedTabs} />
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Pessoas & Gestão */}
-        <CollapsibleGroup label="Pessoas & Gestão" icon={Users} defaultOpen={isPessoasActive} collapsed={collapsed} badge={solicitacoesPendentes}>
-          <MenuGroup items={pessoasItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} badges={pessoasBadges} allowedTabs={allowedTabs} />
-        </CollapsibleGroup>
-
-        {/* Relatórios & IA */}
-        <CollapsibleGroup label="Relatórios & IA" icon={Brain} defaultOpen={isRelatoriosActive} collapsed={collapsed}>
-          <MenuGroup items={relatoriosItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} allowedTabs={allowedTabs} />
-        </CollapsibleGroup>
-
-        {/* Patrimônio */}
-        <CollapsibleGroup label="Patrimônio" icon={HardHat} defaultOpen={isPatrimonioActive} collapsed={collapsed}>
-          {(allowedTabs === undefined) && (
-            <>
-              <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">EPIs</p>
-              <MenuGroup items={patrimonioEpiItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
-              <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">Uniformes</p>
-              <MenuGroup items={patrimonioUniformItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
-              <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">Ferramentas</p>
-              <MenuGroup items={patrimonioToolItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
-            </>
-          )}
-        </CollapsibleGroup>
-
-        {/* Folha de Pagamento */}
-        <CollapsibleGroup label="Folha de Pagamento" icon={DollarSign} defaultOpen={isPayrollActive} collapsed={collapsed}>
-          <MenuGroup items={payrollItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} allowedTabs={allowedTabs} />
-        </CollapsibleGroup>
-
-        {/* Sistema */}
-        {isAdmin && (
+        {(!isSearchingMenu || filteredPrincipal.length > 0) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Sistema</SidebarGroupLabel>
+            <SidebarGroupLabel>Principal</SidebarGroupLabel>
             <SidebarGroupContent>
-              <MenuGroup items={systemItems} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              <MenuGroup items={filteredPrincipal} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        {/* Pessoas & Gestão */}
+        <CollapsibleGroup label="Pessoas & Gestão" icon={Users} defaultOpen={isPessoasActive} collapsed={collapsed} badge={solicitacoesPendentes}
+          forceOpen={isSearchingMenu} hidden={isSearchingMenu && filteredPessoas.length === 0}>
+          <MenuGroup items={filteredPessoas} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} badges={pessoasBadges} />
+        </CollapsibleGroup>
+
+        {/* Relatórios & IA */}
+        <CollapsibleGroup label="Relatórios & IA" icon={Brain} defaultOpen={isRelatoriosActive} collapsed={collapsed}
+          forceOpen={isSearchingMenu} hidden={isSearchingMenu && filteredRelatorios.length === 0}>
+          <MenuGroup items={filteredRelatorios} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+        </CollapsibleGroup>
+
+        {/* Patrimônio */}
+        {(allowedTabs === undefined) && (
+          <CollapsibleGroup label="Patrimônio" icon={HardHat} defaultOpen={isPatrimonioActive} collapsed={collapsed}
+            forceOpen={isSearchingMenu} hidden={isSearchingMenu && !patrimonioHasMatch}>
+            {filteredEpi.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">EPIs</p>
+                <MenuGroup items={filteredEpi} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              </>
+            )}
+            {filteredUniform.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">Uniformes</p>
+                <MenuGroup items={filteredUniform} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              </>
+            )}
+            {filteredTools.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold text-muted-foreground px-3 pt-2 pb-1">Ferramentas</p>
+                <MenuGroup items={filteredTools} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+              </>
+            )}
+          </CollapsibleGroup>
+        )}
+
+        {/* Folha de Pagamento */}
+        <CollapsibleGroup label="Folha de Pagamento" icon={DollarSign} defaultOpen={isPayrollActive} collapsed={collapsed}
+          forceOpen={isSearchingMenu} hidden={isSearchingMenu && filteredPayroll.length === 0}>
+          <MenuGroup items={filteredPayroll} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+        </CollapsibleGroup>
+
+        {/* Sistema */}
+        {isAdmin && (!isSearchingMenu || filteredSystem.length > 0) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Sistema</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <MenuGroup items={filteredSystem} activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {isSearchingMenu &&
+          filteredPrincipal.length === 0 && filteredPessoas.length === 0 && filteredRelatorios.length === 0 &&
+          !patrimonioHasMatch && filteredPayroll.length === 0 && filteredSystem.length === 0 && (
+            <p className="px-4 py-6 text-xs text-center text-muted-foreground">Nenhum item encontrado.</p>
+          )}
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border">
