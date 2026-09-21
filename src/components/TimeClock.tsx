@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import {
   Clock,
   LogIn,
@@ -2863,28 +2863,38 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               </button>
             </div>
           )}
-          <div className="space-y-2">
+          {/* Barra de progresso do dia: mostra as etapas lado a lado, ligadas
+              por uma linha que preenche conforme a pessoa bate o ponto —
+              no lugar da lista vertical antiga, ocupa menos altura e dá
+              pra ver de relance em que ponto do dia a pessoa está. */}
+          <div className="flex items-start">
             {STEPS.map((step, index) => {
               const record = getRecordForStep(step.key);
               const isActive = index === currentStepIndex;
               const isDone = !!record;
               const Icon = step.icon;
               return (
-                <div key={step.key} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={isDone ? { background: "#dcfce7" } : isActive ? { background: "#eff6ff" } : { background: "#f1f5f9" }}>
-                    {isDone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Icon className="w-3.5 h-3.5" style={{ color: isActive ? BRAND.blue : "#94a3b8" }} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: isDone ? "#16a34a" : isActive ? BRAND.blue : "#94a3b8" }}>
+                <Fragment key={step.key}>
+                  <div className="flex flex-col items-center flex-shrink-0" style={{ width: 62 }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                      style={isDone ? { background: BRAND.blue } : isActive ? { background: "#eff6ff", border: `2px solid ${BRAND.blue}` } : { background: "#f1f5f9" }}>
+                      {isDone ? <Check className="w-4 h-4 text-white" /> : <Icon className="w-3.5 h-3.5" style={{ color: isActive ? BRAND.blue : "#94a3b8" }} />}
+                    </div>
+                    <p className="text-[10px] font-semibold text-center mt-1.5 leading-tight" style={{ color: isDone ? BRAND.blue : isActive ? BRAND.blue : "#94a3b8" }}>
                       {STEP_LABELS_MAP[step.key] || step.label}
                     </p>
-                    {record && <p className="text-[10px] text-gray-400 tabular-nums">{new Date(record.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>}
+                    {record ? (
+                      <p className="text-[9px] text-gray-400 tabular-nums">{new Date(record.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    ) : isActive ? (
+                      <span className="text-[9px] font-bold" style={{ color: BRAND.blue }}>agora</span>
+                    ) : (
+                      <span className="text-[9px] text-gray-300">—</span>
+                    )}
                   </div>
-                  {isActive && !isDone && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#eff6ff", color: BRAND.blue }}>próximo</span>
+                  {index < STEPS.length - 1 && (
+                    <div className="flex-1 h-0.5 rounded-full transition-colors" style={{ marginTop: "15px", background: isDone ? BRAND.blue : "#e5e7eb" }} />
                   )}
-                </div>
+                </Fragment>
               );
             })}
           </div>
@@ -3000,96 +3010,109 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           </div>
         )}
 
-        {/* Cards de pendências */}
-        {pendingEpiCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}>
-                <HardHat className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-amber-800">{pendingEpiCount === 1 ? "EPI pendente de aceite" : `${pendingEpiCount} EPIs pendentes`}</p>
-                {pendingEpis[0] && <p className="text-xs text-amber-600">🦺 {pendingEpis[0].epi_name}</p>}
-              </div>
-              <button onClick={() => setShowEpiAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#f59e0b", color: "white" }}>Assinar</button>
-            </div>
-          </div>
-        )}
+        {/* Central de Pendências — as 6 caixas separadas de pendência
+            viraram uma lista dentro de um único cartão, com um contador
+            no topo. Cada linha mantém a cor e a ação de antes; só a
+            embalagem visual (uma caixa em vez de seis) mudou. */}
+        {(() => {
+          type PendenciaItem = {
+            key: string;
+            icon: typeof FileText;
+            iconColor: string;
+            iconBg: string;
+            labelColor: string;
+            label: string;
+            subColor?: string;
+            sub?: string;
+            buttonBg: string;
+            buttonLabel: string;
+            onAction: () => void;
+          };
 
-        {pendingPayslipCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#dbeafe" }}>
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-blue-800">{pendingPayslipCount === 1 ? "Holerite para assinar" : `${pendingPayslipCount} holerites pendentes`}</p>
-                <p className="text-xs text-blue-500">Assine digitalmente para confirmar.</p>
-              </div>
-              <button onClick={() => setShowPayslipSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: BRAND.blue, color: "white" }}>Assinar</button>
-            </div>
-          </div>
-        )}
+          const pendencias: PendenciaItem[] = [];
 
-        {pendingUniformCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#f5f3ff", borderColor: "#ddd6fe" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#ede9fe" }}>
-                <FileText className="w-5 h-5 text-violet-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-violet-800">{pendingUniformCount === 1 ? "Uniforme para confirmar" : `${pendingUniformCount} uniformes pendentes`}</p>
-                {pendingUniform[0] && <p className="text-xs text-violet-500">👕 {pendingUniform[0].uniform_name}</p>}
-              </div>
-              <button onClick={() => setShowUniformAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#7c3aed", color: "white" }}>Confirmar</button>
-            </div>
-          </div>
-        )}
+          if (pendingEpiCount > 0) {
+            pendencias.push({
+              key: "epi", icon: HardHat, iconColor: "text-amber-600", iconBg: "#fef3c7",
+              labelColor: "text-amber-800", label: pendingEpiCount === 1 ? "EPI pendente de aceite" : `${pendingEpiCount} EPIs pendentes`,
+              subColor: "text-amber-600", sub: pendingEpis[0] ? `🦺 ${pendingEpis[0].epi_name}` : undefined,
+              buttonBg: "#f59e0b", buttonLabel: "Assinar", onAction: () => setShowEpiAcceptance(true),
+            });
+          }
+          if (pendingPayslipCount > 0) {
+            pendencias.push({
+              key: "payslip", icon: FileText, iconColor: "text-blue-600", iconBg: "#dbeafe",
+              labelColor: "text-blue-800", label: pendingPayslipCount === 1 ? "Holerite para assinar" : `${pendingPayslipCount} holerites pendentes`,
+              subColor: "text-blue-500", sub: "Assine digitalmente para confirmar.",
+              buttonBg: BRAND.blue, buttonLabel: "Assinar", onAction: () => setShowPayslipSign(true),
+            });
+          }
+          if (pendingUniformCount > 0) {
+            pendencias.push({
+              key: "uniform", icon: FileText, iconColor: "text-violet-600", iconBg: "#ede9fe",
+              labelColor: "text-violet-800", label: pendingUniformCount === 1 ? "Uniforme para confirmar" : `${pendingUniformCount} uniformes pendentes`,
+              subColor: "text-violet-500", sub: pendingUniform[0] ? `👕 ${pendingUniform[0].uniform_name}` : undefined,
+              buttonBg: "#7c3aed", buttonLabel: "Confirmar", onAction: () => setShowUniformAcceptance(true),
+            });
+          }
+          if (pendingToolCount > 0) {
+            pendencias.push({
+              key: "tool", icon: FileText, iconColor: "text-orange-600", iconBg: "#ffedd5",
+              labelColor: "text-orange-800", label: pendingToolCount === 1 ? "Ferramenta para confirmar" : `${pendingToolCount} ferramentas pendentes`,
+              subColor: "text-orange-500", sub: pendingTools[0] ? `🔧 ${pendingTools[0].tool_name}` : undefined,
+              buttonBg: "#ea580c", buttonLabel: "Confirmar", onAction: () => setShowToolAcceptance(true),
+            });
+          }
+          if (pendingTimesheetCount > 0) {
+            pendencias.push({
+              key: "timesheet", icon: FileText, iconColor: "text-blue-600", iconBg: "#dbeafe",
+              labelColor: "text-blue-800", label: pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos pendentes`,
+              subColor: "text-blue-500", sub: "Seu espelho foi fechado e aguarda assinatura.",
+              buttonBg: BRAND.blue, buttonLabel: "Assinar", onAction: () => setShowTimesheetSign(true),
+            });
+          }
+          if (pendingDocumentoCount > 0) {
+            pendencias.push({
+              key: "documento", icon: FileText, iconColor: "text-sky-600", iconBg: "#e0f2fe",
+              labelColor: "text-sky-800", label: pendingDocumentoCount === 1 ? "Documento para assinar" : `${pendingDocumentoCount} documentos pendentes`,
+              subColor: "text-sky-500", sub: "Leia e assine para confirmar.",
+              buttonBg: "#0284c7", buttonLabel: "Assinar", onAction: () => setShowDocumentoSign(true),
+            });
+          }
 
-        {pendingToolCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#fff7ed", borderColor: "#fed7aa" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#ffedd5" }}>
-                <FileText className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-orange-800">{pendingToolCount === 1 ? "Ferramenta para confirmar" : `${pendingToolCount} ferramentas pendentes`}</p>
-                {pendingTools[0] && <p className="text-xs text-orange-500">🔧 {pendingTools[0].tool_name}</p>}
-              </div>
-              <button onClick={() => setShowToolAcceptance(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#ea580c", color: "white" }}>Confirmar</button>
-            </div>
-          </div>
-        )}
+          if (pendencias.length === 0) return null;
 
-        {pendingTimesheetCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#dbeafe" }}>
-                <FileText className="w-5 h-5 text-blue-600" />
+          return (
+            <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex-1">📋 Central de Pendências</p>
+                <span className="text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full text-white flex items-center justify-center flex-shrink-0"
+                  style={{ background: "#dc2626" }}>
+                  {pendencias.length}
+                </span>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-blue-800">{pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos pendentes`}</p>
-                <p className="text-xs text-blue-500">Seu espelho foi fechado e aguarda assinatura.</p>
+              <div className="space-y-2">
+                {pendencias.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.key} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: item.iconBg }}>
+                        <Icon className={`w-5 h-5 ${item.iconColor}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold ${item.labelColor}`}>{item.label}</p>
+                        {item.sub && <p className={`text-xs ${item.subColor}`}>{item.sub}</p>}
+                      </div>
+                      <button onClick={item.onAction} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex-shrink-0" style={{ background: item.buttonBg }}>
+                        {item.buttonLabel}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <button onClick={() => setShowTimesheetSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: BRAND.blue, color: "white" }}>Assinar</button>
             </div>
-          </div>
-        )}
-
-        {pendingDocumentoCount > 0 && (
-          <div className="w-full rounded-2xl border mb-3 overflow-hidden" style={{ background: "#f0f9ff", borderColor: "#bae6fd" }}>
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e0f2fe" }}>
-                <FileText className="w-5 h-5 text-sky-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-sky-800">{pendingDocumentoCount === 1 ? "Documento para assinar" : `${pendingDocumentoCount} documentos pendentes`}</p>
-                <p className="text-xs text-sky-500">Leia e assine para confirmar.</p>
-              </div>
-              <button onClick={() => setShowDocumentoSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#0284c7", color: "white" }}>Assinar</button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Avisos da empresa */}
         {avisos.length > 0 && (
