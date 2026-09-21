@@ -28,7 +28,6 @@ import {
   Wind,
   Moon,
   HelpCircle,
-  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -698,10 +697,6 @@ function MeusSolicitacoes({ employeeId }: { employeeId: string }) {
 export default function TimeClock() {
   const [now, setNow] = useState(new Date());
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedShift, setSelectedShift] = useState<"diurno" | "noturno" | null>(null);
-  // Fluxo antigo (equipe -> lista de nomes) agora é só um atalho de apoio,
-  // acessado a partir da tela de CPF direto. Por padrão fica desligado.
-  const [showNameFallback, setShowNameFallback] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [validatedEmployee, setValidatedEmployee] = useState<Employee | null>(null);
   const [records, setRecords] = useState<PunchRecord[]>([]);
@@ -711,7 +706,6 @@ export default function TimeClock() {
   const [showCamera, setShowCamera] = useState(false);
   const [showManualPunch, setShowManualPunch] = useState(false);
   const [showJustification, setShowJustification] = useState(false);
-  const [pendingEmployee, setPendingEmployee] = useState<Employee | null>(null);
   const [cpfInput, setCpfInput] = useState("");
   const [validatedCpf, setValidatedCpf] = useState("");
   const [validatedContext, setValidatedContext] = useState<ValidatedContext | null>(null);
@@ -820,10 +814,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       }
     } catch { }
   }, []);
-
-  const filteredEmployees = selectedShift
-    ? employees.filter((e) => (e as any).shift?.toLowerCase() === selectedShift)
-    : employees;
 
   const punchMode = selectedEmployee?.punch_mode ?? validatedContext?.punch_mode ?? "full";
   const STEPS = punchMode === "simple" ? SIMPLE_STEPS : ALL_STEPS;
@@ -1147,9 +1137,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     setSelectedEmployee(null);
     setValidatedEmployee(null);
     setValidatedContext(null);
-    setSelectedShift(null);
     setRecords([]);
-    setPendingEmployee(null);
     setCpfInput("");
     setValidatedCpf("");
     setCpfError("");
@@ -1932,9 +1920,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     const cpfDigits = normalizeCpf(cpfInput);
 
     console.log("DEBUG PONTO [verifyCpf]: CPF digitado:", cpfInput, "| normalizado:", cpfDigits);
-    if (pendingEmployee) {
-      console.log("DEBUG PONTO [verifyCpf]: colaborador selecionado:", pendingEmployee.name, "| id:", pendingEmployee.id);
-    }
 
     if (!cpfDigits || cpfDigits.length < 11) {
       setCpfError("CPF deve ter 11 dígitos.");
@@ -1947,13 +1932,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       if (!offlineMatch) {
         setCpfError("CPF não encontrado nos dados locais.");
         console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — CPF não encontrado no cache");
-        return;
-      }
-      if (pendingEmployee && offlineMatch.id !== pendingEmployee.id) {
-        setValidatedEmployee(null);
-        setValidatedContext(null);
-        setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
-        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO offline — id do cache:", offlineMatch.id, "≠ selecionado:", pendingEmployee.id);
         return;
       }
       const ctx: ValidatedContext = {
@@ -1970,7 +1948,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(empFromCache);
       setValidatedEmployee(empFromCache);
-      setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
       console.log("DEBUG PONTO [verifyCpf]: ✓ contexto validado offline:", JSON.stringify(ctx));
@@ -1987,15 +1964,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       const employeeFromCpf = await resolveEmployeeByCpf(cpfInput);
       console.log("DEBUG PONTO [verifyCpf]: colaborador encontrado no banco:", employeeFromCpf.name, "| id:", employeeFromCpf.id);
 
-      if (pendingEmployee && employeeFromCpf.id !== pendingEmployee.id) {
-        setValidatedCpf("");
-        setValidatedEmployee(null);
-        setValidatedContext(null);
-        setCpfError("O CPF informado não corresponde ao colaborador selecionado.");
-        console.log("DEBUG PONTO [verifyCpf]: BLOQUEIO — id banco:", employeeFromCpf.id, "≠ selecionado:", pendingEmployee.id);
-        return;
-      }
-
       const ctx: ValidatedContext = {
         employee_id: employeeFromCpf.id,
         name: employeeFromCpf.name,
@@ -2009,7 +1977,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
       setValidatedCpf(ctx.cpf_normalized);
       setSelectedEmployee(employeeFromCpf);
       setValidatedEmployee(employeeFromCpf);
-      setPendingEmployee(null);
       setCpfInput("");
       setCpfError("");
       setStatusNotice(null);
@@ -2497,11 +2464,10 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     );
   }
 
-  // ---- LOGIN SCREEN: CPF direto (padrão) ----
-  // O funcionário digita o próprio CPF e entra direto, sem navegar por
-  // uma lista com o nome de todo mundo. A antiga tela de equipe + lista
-  // de nomes agora só aparece se a pessoa clicar em "Buscar pelo nome".
-  if (!selectedEmployee && !pendingEmployee && !showNameFallback) {
+  // ---- LOGIN SCREEN: CPF direto ----
+  // O funcionário digita o próprio CPF e entra direto na própria conta,
+  // sem navegar por nenhuma lista com nome de outros colegas.
+  if (!selectedEmployee) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
         <ConnectionIndicator />
@@ -2549,13 +2515,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             >
               Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
             </button>
-
-            <button
-              className="w-full py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
-              onClick={() => { setShowNameFallback(true); setCpfInput(""); setCpfError(""); }}
-            >
-              <Search className="w-3.5 h-3.5" /> Não sabe seu CPF? Buscar pelo nome
-            </button>
           </div>
 
           <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-6">
@@ -2566,222 +2525,6 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
     );
   }
 
-  // CPF verification screen
-  if (pendingEmployee) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
-        <ConnectionIndicator />
-
-        <div className="w-full max-w-sm flex flex-col items-center" style={{ marginTop: "28px" }}>
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-6">
-            <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-2" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
-            <p className="font-bold text-lg text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
-            <p className="text-xs text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
-          </div>
-
-          {/* Card */}
-          <div className="w-full bg-white rounded-2xl px-6 py-6 space-y-4" style={{ boxShadow: "0 2px 16px rgba(30,64,175,0.10)" }}>
-            <div className="text-center mb-2">
-              <p className="text-xl font-black text-gray-800">{pendingEmployee.name}</p>
-              <p className="text-sm text-gray-400 mt-1">Informe seu CPF para continuar</p>
-            </div>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="000.000.000-00"
-              value={cpfInput}
-              onChange={(e) => { setCpfInput(formatCpfInput(e.target.value)); setCpfError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && verifyCpf()}
-              className="flex h-14 w-full rounded-xl px-4 py-2 text-lg text-center tracking-widest border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all text-gray-800 bg-gray-50"
-            />
-
-            {cpfError && (
-              <p className="text-sm text-red-500 text-center font-medium">{cpfError}</p>
-            )}
-
-            <button
-              onClick={verifyCpf}
-              className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white"
-              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
-            >
-              Confirmar
-            </button>
-
-            <button
-              className="w-full py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1"
-              onClick={() => { setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError(""); }}
-            >
-              <ArrowLeft className="w-4 h-4" /> Voltar
-            </button>
-
-            <button
-              className="w-full py-1 text-xs font-medium text-gray-300 hover:text-gray-500 transition-colors"
-              onClick={() => {
-                setPendingEmployee(null); setValidatedEmployee(null); setCpfInput(""); setCpfError("");
-                setShowNameFallback(false); setSelectedShift(null);
-              }}
-            >
-              Digitar meu CPF direto
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ---- SHIFT SELECTION SCREEN (fallback: só quem não sabe o CPF cai aqui) ----
-  if (showNameFallback && !selectedShift) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
-        <ConnectionIndicator />
-
-        <div className="w-full max-w-md flex flex-col items-center" style={{ marginTop: "28px" }}>
-          {/* Logo destacada sem card */}
-          <div className="flex flex-col items-center mb-4">
-            <img src={logo} alt="APA" className="w-44 h-44 object-contain mb-3" style={{ filter: "drop-shadow(0 4px 24px rgba(30,64,175,0.35))" }} />
-            <p className="font-bold text-xl text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
-            <p className="text-sm text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
-
-            {weather && (
-              <div className="mt-3 flex items-center gap-3 bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100">
-                <WeatherIcon code={weather.weatherCode} hour={currentHour} />
-                <span className="font-bold text-gray-700">{weather.temp}°C</span>
-                <span className="text-gray-300">|</span>
-                <Droplets className="w-4 h-4 text-blue-400" />
-                <span className="text-gray-500 text-sm">{weather.humidity}%</span>
-                <Wind className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-500 text-sm">{weather.windspeed} km/h</span>
-              </div>
-            )}
-            {weather && (
-              <p className="text-gray-400 text-xs italic mt-2">{getDynamicPhrase(currentHour, weather.weatherCode)}</p>
-            )}
-          </div>
-
-          {/* Relógio */}
-          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-6 text-center" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-            <p className="text-4xl font-black tabular-nums" style={{ color: "#1e40af" }}>{formatTime(now)}</p>
-            <p className="text-sm text-gray-400 capitalize mt-1">{formatDate(now)}</p>
-          </div>
-
-          {/* Título */}
-          <p className="text-lg font-bold text-gray-700 mb-4">Selecione sua equipe</p>
-
-          {/* Cards de turno */}
-          <div className="w-full grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 border border-blue-100"
-              style={{ boxShadow: "0 2px 12px rgba(30,64,175,0.08)" }}
-              onClick={() => setSelectedShift("diurno")}>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#eff6ff" }}>
-                <Sun className="w-6 h-6 text-yellow-500" />
-              </div>
-              <p className="font-bold text-sm text-gray-700">EQUIPE DIURNA</p>
-              <button className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 12px rgba(30,64,175,0.3)" }}>
-                Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
-              </button>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 border border-indigo-100"
-              style={{ boxShadow: "0 2px 12px rgba(99,102,241,0.08)" }}
-              onClick={() => setSelectedShift("noturno")}>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#eef2ff" }}>
-                <Moon className="w-6 h-6 text-indigo-500" />
-              </div>
-              <p className="font-bold text-sm text-gray-700">EQUIPE NOTURNA</p>
-              <button className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 4px 12px rgba(79,70,229,0.3)" }}>
-                Entrar <LogIn className="w-4 h-4 ml-1 inline-block" />
-              </button>
-            </div>
-          </div>
-
-          <button
-            className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
-            onClick={() => setShowNameFallback(false)}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Voltar para login com CPF
-          </button>
-
-          <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-2">
-            <Shield className="w-3 h-3" /> APA Refrigeração e Climatização — Tecnologia e confiança
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ---- EMPLOYEE LIST SCREEN (fallback, filtrado por equipe) ----
-  if (showNameFallback && !selectedEmployee) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: "#F0F4F8" }}>
-        <ConnectionIndicator />
-
-        <div className="w-full max-w-md flex flex-col items-center" style={{ marginTop: "28px" }}>
-          {/* Logo destacada sem card */}
-          <div className="flex flex-col items-center mb-5">
-            <img src={logo} alt="APA" className="w-32 h-32 object-contain mb-2" style={{ filter: "drop-shadow(0 4px 20px rgba(30,64,175,0.3))" }} />
-            <p className="font-bold text-lg text-gray-800 tracking-tight">APA Refrigeração e Climatização</p>
-            <p className="text-xs text-gray-400 tracking-wider">Sistema de Registro de Ponto</p>
-          </div>
-
-          {/* Turno selecionado */}
-          <div className="w-full bg-white rounded-2xl px-5 py-4 mb-4 flex items-center justify-between" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Equipe</p>
-              <p className="text-lg font-black" style={{ color: "#1e40af" }}>
-                {selectedShift === "diurno" ? "☀️ Diurna" : "🌙 Noturna"}
-              </p>
-            </div>
-            <p className="text-xl font-bold tabular-nums text-gray-700">{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
-          </div>
-
-          <p className="text-base font-bold text-gray-700 mb-3">Selecione seu nome</p>
-
-          {/* Lista de funcionários */}
-          <div className="w-full space-y-2 mb-4">
-            {filteredEmployees.map((emp) => (
-              <button
-                key={emp.id}
-                className="w-full h-14 text-base text-left px-5 rounded-xl border border-gray-100 bg-white transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 font-medium text-gray-700 flex items-center justify-between"
-                style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
-                onClick={() => {
-                  if (!emp.has_cpf) {
-                    setSelectedEmployee(emp);
-                    setValidatedEmployee(emp);
-                    setValidatedCpf("");
-                    setShowDropdown(false);
-                  } else {
-                    setSelectedEmployee(null);
-                    setValidatedEmployee(null);
-                    setValidatedCpf("");
-                    setPendingEmployee(emp);
-                    setCpfInput("");
-                    setCpfError("");
-                  }
-                }}
-              >
-                <span>{emp.name}</span>
-                <LogIn className="w-4 h-4 text-blue-400" />
-              </button>
-            ))}
-            {filteredEmployees.length === 0 && (
-              <p className="text-center py-8 text-gray-400">Nenhum funcionário neste turno.</p>
-            )}
-          </div>
-
-          <button
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-            onClick={() => setSelectedShift(null)}
-          >
-            <ArrowLeft className="w-4 h-4" /> Voltar para seleção de equipe
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Greeting
   const getGreeting = () => {
@@ -3057,7 +2800,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               <button onClick={() => {
                 setServerStepInfo(null);
                 setSelectedEmployee(null); setValidatedEmployee(null); setValidatedCpf("");
-                setSelectedShift(null); setShowNameFallback(false); setRecords([]); setShowDropdown(false);
+                setRecords([]); setShowDropdown(false);
               }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-600 flex items-center gap-1.5">
                 <ArrowLeft className="w-3.5 h-3.5" /> Sair / Trocar CPF
               </button>
