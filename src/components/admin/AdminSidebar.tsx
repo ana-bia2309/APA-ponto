@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { BRAND } from "@/lib/theme";
 
 /** Remove acentos e caixa pra comparar texto de busca sem frescura. */
 function normalizeSearchText(text: string): string {
@@ -228,7 +229,7 @@ function CollapsibleGroup({ label, icon: Icon, children, defaultOpen, collapsed,
 }
 
 const ROLE_LABELS: Record<UserRole, { label: string; color: string; bg: string }> = {
-  admin:       { label: "Administrador", color: "#1e40af", bg: "#eff6ff" },
+  admin:       { label: "Administrador", color: BRAND.blue, bg: "#eff6ff" },
   rh:          { label: "RH",            color: "#7c3aed", bg: "#f5f3ff" },
   supervisor:  { label: "Supervisor",    color: "#15803d", bg: "#f0fdf4" },
   operacional: { label: "Operacional",   color: "#b45309", bg: "#fffbeb" },
@@ -302,7 +303,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
             </h2>
             <div className="mt-3 flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                style={{ background: BRAND.gradient }}>
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
@@ -316,7 +317,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onLogout, isAdmin
           </div>
         ) : (
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white mx-auto"
-            style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+            style={{ background: BRAND.gradient }}>
             {initials}
           </div>
         )}

@@ -58,6 +58,7 @@ import {
   type TimeRecordRow,
 } from "@/lib/time-records";
 import { groupRecordsIntoJourneys } from "@/lib/group-journeys";
+import { BRAND } from "@/lib/theme";
 
 type PunchStep = "entrada" | "intervalo" | "retorno" | "saida";
 type Employee = Tables<"employees"> & { has_cpf?: boolean };
@@ -2180,7 +2181,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           <button
             onClick={loadInitialData}
             className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:shadow-lg"
-            style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+            style={{ background: BRAND.gradient, boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
           >
             Tentar novamente
           </button>
@@ -2271,11 +2272,11 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
         <ConnectionIndicator />
         <div className="w-full max-w-sm p-8 rounded-2xl border border-gray-100 bg-white text-center" style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#eff6ff" }}>
-            <step.icon className="w-8 h-8" style={{ color: "#1e40af" }} />
+            <step.icon className="w-8 h-8" style={{ color: BRAND.blue }} />
           </div>
           <h3 className="text-lg font-black text-gray-800 mb-2">Confirmar registro?</h3>
           <p className="text-sm text-gray-500 mb-6">
-            Registrar <strong style={{ color: "#1e40af" }}>{step.label}</strong> para {selectedEmployee.name}
+            Registrar <strong style={{ color: BRAND.blue }}>{step.label}</strong> para {selectedEmployee.name}
           </p>
           <div className="flex gap-3">
             <button
@@ -2287,7 +2288,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             <button
               onClick={confirmPunch}
               className="flex-1 h-12 rounded-xl font-bold text-sm text-white transition-all hover:shadow-lg"
-              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+              style={{ background: BRAND.gradient, boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
             >
               Confirmar
             </button>
@@ -2334,7 +2335,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                 onClick={() => setHistoryTab(t.key as any)}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${historyTab === t.key ? "text-white" : "text-gray-500 bg-white"
                   }`}
-                style={historyTab === t.key ? { background: "linear-gradient(135deg, #1e40af, #0ea5e9)" } : { border: "1px solid #e2e8f0" }}>
+                style={historyTab === t.key ? { background: BRAND.gradient } : { border: "1px solid #e2e8f0" }}>
                 {t.label}
               </button>
             ))}
@@ -2362,7 +2363,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                     <div className="space-y-2">
                       {journey.records.map((rec) => (
                         <div key={rec.id} className="flex items-center justify-between">
-                          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: "#eff6ff", color: "#1e40af" }}>
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: "#eff6ff", color: BRAND.blue }}>
                             {STEP_LABELS[rec.step] || rec.step}
                           </span>
                           <div className="flex items-center gap-2">
@@ -2497,7 +2498,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                         </p>
                       </div>
                       {ativo && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1e40af" }}>Ativo</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: BRAND.blue }}>Ativo</span>
                       )}
                     </div>
                   );
@@ -2528,7 +2529,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
 
           {/* Relógio */}
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-6 text-center" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-            <p className="text-4xl font-black tabular-nums" style={{ color: "#1e40af" }}>{formatTime(now)}</p>
+            <p className="text-4xl font-black tabular-nums" style={{ color: BRAND.blue }}>{formatTime(now)}</p>
             <p className="text-sm text-gray-400 capitalize mt-1">{formatDate(now)}</p>
           </div>
 
@@ -2559,7 +2560,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               onClick={verifyCpf}
               disabled={verifyingCpf}
               className="w-full h-14 rounded-xl text-base font-bold tracking-wide transition-all duration-200 hover:shadow-lg text-white disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
+              style={{ background: BRAND.gradient, boxShadow: "0 4px 16px rgba(30,64,175,0.3)" }}
             >
               {verifyingCpf ? (
                 <>
@@ -2639,9 +2640,9 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             2: { emoji: "💝", texto: "Mês do amor e da amizade!", bg: "#fff1f2", text: "#be123c" },
             3: { emoji: "🌺", texto: "Bem-vindo ao outono! Boas energias!", bg: "#fdf4ff", text: "#7e22ce" },
             4: { emoji: "🐣", texto: "Feliz Páscoa a todos os colaboradores!", bg: "#f0fdf4", text: "#15803d" },
-            5: { emoji: "👷", texto: "Feliz Dia do Trabalhador! Parabéns a você!", bg: "#eff6ff", text: "#1e40af" },
+            5: { emoji: "👷", texto: "Feliz Dia do Trabalhador! Parabéns a você!", bg: "#eff6ff", text: BRAND.blue },
             6: { emoji: "🎊", texto: "Arraiá do APA Ponto! Boas festas juninas!", bg: "#fef9c3", text: "#854d0e" },
-            7: { emoji: "❄️", texto: "Julho chegou! Ótimo mês para bater metas!", bg: "#eff6ff", text: "#1e40af" },
+            7: { emoji: "❄️", texto: "Julho chegou! Ótimo mês para bater metas!", bg: "#eff6ff", text: BRAND.blue },
             8: { emoji: "👩", texto: "Feliz Dia dos Pais! Homenagem especial!", bg: "#f0fdf4", text: "#15803d" },
             9: { emoji: "🇧🇷", texto: "Independência do Brasil! Viva nossa pátria!", bg: "#dcfce7", text: "#15803d" },
             10: { emoji: "👧", texto: "Feliz Dia das Crianças! A criança que há em você!", bg: "#fff7ed", text: "#c2410c" },
@@ -2675,7 +2676,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                 className="w-12 h-12 rounded-full object-cover border-2 border-blue-100 flex-shrink-0" />
             ) : (
               <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg font-black text-white"
-                style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                style={{ background: BRAND.gradient }}>
                 {selectedEmployee.name.charAt(0)}
               </div>
             )}
@@ -2698,7 +2699,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               )}
             </div>
           </div>
-          <p className="text-2xl font-bold tabular-nums flex-shrink-0" style={{ color: "#1e40af" }}>
+          <p className="text-2xl font-bold tabular-nums flex-shrink-0" style={{ color: BRAND.blue }}>
             {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
@@ -2740,13 +2741,13 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
               </div>
             ) : !allDone && nextAllowedStep ? (
               <>
-                <p className="text-3xl font-black mb-1" style={{ color: "#1e40af" }}>{nextAllowedStep.label.toUpperCase()}</p>
+                <p className="text-3xl font-black mb-1" style={{ color: BRAND.blue }}>{nextAllowedStep.label.toUpperCase()}</p>
                 <p className="text-xs text-gray-400 mb-4">Registre seu ponto para {nextAllowedStep.label === "Entrada" ? "iniciar sua jornada" : nextAllowedStep.label === "Intervalo" ? "pausar para o almoço" : nextAllowedStep.label === "Retorno" ? "retomar a jornada" : "encerrar o dia"}</p>
                 <button
                   onClick={() => setShowConfirm(true)}
                   disabled={loading}
                   className="w-full h-14 text-base font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)", color: "white", boxShadow: "0 4px 16px rgba(30,64,175,0.35)" }}
+                  style={{ background: BRAND.gradient, color: "white", boxShadow: "0 4px 16px rgba(30,64,175,0.35)" }}
                 >
                   <Camera className="w-5 h-5" />
                   {loading ? "Registrando..." : "REGISTRAR PONTO"}
@@ -2775,10 +2776,10 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             {lastRecord ? (
               <>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2" style={{ background: "#eff6ff" }}>
-                  {(() => { const Icon = STEPS.find(s => s.key === lastRecord.step)?.icon || Check; return <Icon className="w-4 h-4" style={{ color: "#1e40af" }} />; })()}
+                  {(() => { const Icon = STEPS.find(s => s.key === lastRecord.step)?.icon || Check; return <Icon className="w-4 h-4" style={{ color: BRAND.blue }} />; })()}
                 </div>
                 <p className="text-sm font-bold text-gray-800">{STEP_LABELS_MAP[lastRecord.step] || lastRecord.step}</p>
-                <p className="text-lg font-black tabular-nums" style={{ color: "#1e40af" }}>{new Date(lastRecord.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="text-lg font-black tabular-nums" style={{ color: BRAND.blue }}>{new Date(lastRecord.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
                 <p className="text-[10px] text-gray-400">Hoje, {new Date(lastRecord.punched_at).toLocaleDateString("pt-BR")}</p>
               </>
             ) : (
@@ -2822,7 +2823,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                           className="w-full rounded-sm transition-all"
                           style={{
                             height: `${heightPct}%`,
-                            background: isToday ? "linear-gradient(180deg, #1e40af, #0ea5e9)" : d.hours > 0 ? "#bfdbfe" : "#f1f5f9",
+                            background: isToday ? BRAND.gradientVertical : d.hours > 0 ? "#bfdbfe" : "#f1f5f9",
                           }}
                         />
                       </div>
@@ -2845,7 +2846,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sua Jornada de Hoje</p>
             <button onClick={() => setShowDropdown(!showDropdown)}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border"
-              style={{ background: "#f8fafc", color: "#1e40af", borderColor: "#bfdbfe" }}>
+              style={{ background: "#f8fafc", color: BRAND.blue, borderColor: "#bfdbfe" }}>
               {selectedEmployee.name.split(" ")[0]} <ChevronDown className="w-3 h-3" />
             </button>
           </div>
@@ -2872,16 +2873,16 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                 <div key={step.key} className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
                     style={isDone ? { background: "#dcfce7" } : isActive ? { background: "#eff6ff" } : { background: "#f1f5f9" }}>
-                    {isDone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Icon className="w-3.5 h-3.5" style={{ color: isActive ? "#1e40af" : "#94a3b8" }} />}
+                    {isDone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Icon className="w-3.5 h-3.5" style={{ color: isActive ? BRAND.blue : "#94a3b8" }} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: isDone ? "#16a34a" : isActive ? "#1e40af" : "#94a3b8" }}>
+                    <p className="text-xs font-semibold" style={{ color: isDone ? "#16a34a" : isActive ? BRAND.blue : "#94a3b8" }}>
                       {STEP_LABELS_MAP[step.key] || step.label}
                     </p>
                     {record && <p className="text-[10px] text-gray-400 tabular-nums">{new Date(record.punched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>}
                   </div>
                   {isActive && !isDone && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#eff6ff", color: "#1e40af" }}>próximo</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#eff6ff", color: BRAND.blue }}>próximo</span>
                   )}
                 </div>
               );
@@ -2890,7 +2891,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           {records.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
               <span className="text-xs text-gray-400">Horas trabalhadas</span>
-              <span className="text-sm font-bold" style={{ color: "#1e40af" }}>{getWorkedTime()}</span>
+              <span className="text-sm font-bold" style={{ color: BRAND.blue }}>{getWorkedTime()}</span>
             </div>
           )}
         </div>
@@ -2953,7 +2954,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                       if (isFeriado) { bg = "#fef9c3"; textColor = "#854d0e"; emoji = "🎉"; }
                       else if (status === "trabalhado") { bg = "#bbf7d0"; textColor = "#15803d"; }
                       else if (status === "atestado") { bg = "#fed7aa"; textColor = "#c2410c"; emoji = "📋"; }
-                      else if (status === "ferias") { bg = "#bfdbfe"; textColor = "#1e40af"; emoji = "🏖️"; }
+                      else if (status === "ferias") { bg = "#bfdbfe"; textColor = BRAND.blue; emoji = "🏖️"; }
                       else if (status === "abono") { bg = "#fbcfe8"; textColor = "#be185d"; emoji = "📝"; }
                       else if (status === "afastamento") { bg = "#ddd6fe"; textColor = "#6d28d9"; emoji = "🏥"; }
                       else if (isWeekend) { bg = "#e2e8f0"; textColor = "#64748b"; }
@@ -2964,7 +2965,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                           className="rounded-lg flex flex-col items-center justify-center relative"
                           style={{
                             background: bg,
-                            border: isHoje ? "2px solid #1e40af" : "1px solid transparent",
+                            border: isHoje ? `2px solid ${BRAND.blue}` : "1px solid transparent",
                             aspectRatio: "1",
                             padding: "2px",
                           }}
@@ -3025,7 +3026,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                 <p className="text-sm font-bold text-blue-800">{pendingPayslipCount === 1 ? "Holerite para assinar" : `${pendingPayslipCount} holerites pendentes`}</p>
                 <p className="text-xs text-blue-500">Assine digitalmente para confirmar.</p>
               </div>
-              <button onClick={() => setShowPayslipSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#1e40af", color: "white" }}>Assinar</button>
+              <button onClick={() => setShowPayslipSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: BRAND.blue, color: "white" }}>Assinar</button>
             </div>
           </div>
         )}
@@ -3070,7 +3071,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                 <p className="text-sm font-bold text-blue-800">{pendingTimesheetCount === 1 ? "Espelho de ponto para assinar" : `${pendingTimesheetCount} espelhos pendentes`}</p>
                 <p className="text-xs text-blue-500">Seu espelho foi fechado e aguarda assinatura.</p>
               </div>
-              <button onClick={() => setShowTimesheetSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#1e40af", color: "white" }}>Assinar</button>
+              <button onClick={() => setShowTimesheetSign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: BRAND.blue, color: "white" }}>Assinar</button>
             </div>
           </div>
         )}
@@ -3097,7 +3098,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
             <div className="space-y-2">
               {avisos.map((aviso: any) => {
                 const cores: Record<string, { bg: string; text: string; icon: string }> = {
-                  info: { bg: "#eff6ff", text: "#1e40af", icon: "ℹ️" },
+                  info: { bg: "#eff6ff", text: BRAND.blue, icon: "ℹ️" },
                   alerta: { bg: "#fff7ed", text: "#c2410c", icon: "⚠️" },
                   urgente: { bg: "#fff1f2", text: "#be123c", icon: "🚨" },
                   evento: { bg: "#f0fdf4", text: "#15803d", icon: "📅" },
@@ -3154,7 +3155,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           </button>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "Férias", icon: "🏖️", color: "#0ea5e9", bg: "#eff6ff" },
+              { label: "Férias", icon: "🏖️", color: BRAND.cyan, bg: "#eff6ff" },
               { label: "Abono", icon: "📝", color: "#7c3aed", bg: "#f5f3ff" },
               { label: "Declaração", icon: "📄", color: "#15803d", bg: "#f0fdf4" },
               { label: "Ajuste de Ponto", icon: "⏱️", color: "#ea580c", bg: "#fff7ed" },
@@ -3196,7 +3197,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
                   onClick={() => enviarSolicitacao(showSolicitacao)}
                   disabled={enviandoSolicitacao}
                   className="flex-1 h-12 rounded-xl text-sm font-bold text-white transition-all hover:shadow-lg disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #1e40af, #0ea5e9)" }}>
+                  style={{ background: BRAND.gradient }}>
                   {enviandoSolicitacao ? "Enviando..." : "Enviar Solicitação"}
                 </button>
               </div>
@@ -3214,7 +3215,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           ].map(({ label, icon: Icon, action }) => (
             <button key={label} onClick={action}
               className="flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-all hover:shadow-md active:scale-95"
-              style={{ background: "white", borderColor: "#e2e8f0", color: "#1e40af" }}>
+              style={{ background: "white", borderColor: "#e2e8f0", color: BRAND.blue }}>
               <Icon className="w-5 h-5" />
               <span className="text-[10px] font-semibold text-gray-600">{label}</span>
             </button>
