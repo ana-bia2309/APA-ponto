@@ -257,6 +257,21 @@ function isCpfChecksumValid(raw: string): boolean {
   return true;
 }
 
+/**
+ * Vibração curta ao confirmar o ponto — feedback tátil pra quem bate o
+ * ponto rápido sem prestar atenção na tela (celular no bolso, luva de
+ * trabalho, etc.). navigator.vibrate só existe em navegadores mobile que
+ * suportam a API; em desktop/iOS Safari simplesmente não faz nada, sem
+ * gerar erro.
+ */
+function vibrarConfirmacao() {
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(80);
+    }
+  } catch { /* API indisponível — segue o app normalmente */ }
+}
+
 const ALL_STEPS: { key: PunchStep; label: string; icon: typeof Clock }[] = [
   { key: "entrada", label: "Entrada", icon: LogIn },
   { key: "intervalo", label: "Intervalo", icon: Coffee },
@@ -1752,6 +1767,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
         setStatusNotice(null);
         setSuccessMessage(`${step.label} registrada com sucesso!`);
         setShowSuccess(true);
+        vibrarConfirmacao();
       } else {
         const saved = addToOfflineQueue({
           id: localPunchId,
@@ -1773,6 +1789,7 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
           : "Este registro offline já estava salvo localmente.");
         setSuccessMessage(`${step.label} salva offline — será sincronizada automaticamente.`);
         setShowSuccess(true);
+        vibrarConfirmacao();
       }
     } catch (err: any) {
       console.error("DEBUG PONTO [insert]: ERRO:", err);
@@ -2909,9 +2926,36 @@ const [jornadaAlertShown, setJornadaAlertShown] = useState<string | null>(null);
         {/* Calendário do mês */}
         {validatedContext && (
           <div className="w-full bg-white rounded-2xl px-5 py-4 mb-3" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
               📅 {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
             </p>
+            {/* Resumo do mês numa frase só — usa os mesmos dados que já
+                alimentam o calendário logo abaixo, sem nenhuma consulta nova. */}
+            {Object.keys(calendarioDias).length > 0 && (() => {
+              const contagem = Object.values(calendarioDias).reduce((acc, status) => {
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              const partes: string[] = [];
+              if (contagem.trabalhado) partes.push(`${contagem.trabalhado} dia${contagem.trabalhado > 1 ? "s" : ""} trabalhado${contagem.trabalhado > 1 ? "s" : ""}`);
+              if (contagem.atestado) partes.push(`${contagem.atestado} atestado${contagem.atestado > 1 ? "s" : ""}`);
+              if (contagem.ferias) partes.push(`${contagem.ferias} dia${contagem.ferias > 1 ? "s" : ""} de férias`);
+              if (contagem.afastamento) partes.push(`${contagem.afastamento} dia${contagem.afastamento > 1 ? "s" : ""} de afastamento`);
+              if (partes.length === 0) return null;
+              return (
+                <p className="text-xs text-gray-600 mb-3">
+                  Este mês: {partes.join(" · ")}
+                  {timesheetSummary && (
+                    <>
+                      {" · "}
+                      <span style={{ color: timesheetSummary.diferenca >= 0 ? "#16a34a" : "#e11d48", fontWeight: 600 }}>
+                        {timesheetSummary.diferenca >= 0 ? "+" : ""}{Math.floor(Math.abs(timesheetSummary.diferenca))}h{String(Math.round((Math.abs(timesheetSummary.diferenca) % 1) * 60)).padStart(2, "0")} no banco de horas
+                      </span>
+                    </>
+                  )}
+                </p>
+              );
+            })()}
             {/* Legenda */}
             <div className="flex gap-2 mb-3 flex-wrap">
               {[

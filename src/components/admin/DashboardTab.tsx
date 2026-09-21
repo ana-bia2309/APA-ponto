@@ -113,6 +113,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [bancoCriticos, setBancoCriticos] = useState<{ name: string; saldo: number }[]>([]);
   const [atestadosPendentes, setAtestadosPendentes] = useState(0);
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
   const [horaExtraTotal, setHoraExtraTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [comportamentos, setComportamentos] = useState<{ id: string; name: string; alertas: string[] }[]>([]);
@@ -148,7 +149,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
       const endOfDay = new Date(`${todayStr}T23:59:59-03:00`).toISOString();
 
       const todayForAfastamento = new Date().toISOString().slice(0, 10);
-      const [empRes, recordsRes, bancoRes, justRes, afastRes] = await Promise.all([
+      const [empRes, recordsRes, bancoRes, justRes, afastRes, solicitacoesRes] = await Promise.all([
         supabase.from("employees").select("id, name, shift, escala").eq("active", true).order("name"),
         (supabase as any).from("time_records")
           .select("id, employee_id, record_type, recorded_at")
@@ -160,6 +161,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         (supabase as any).from("afastamentos").select("employee_id, tipo, data_inicio, data_fim")
           .lte("data_inicio", todayForAfastamento)
           .gte("data_fim", todayForAfastamento),
+        (supabase as any).from("employee_requests").select("id", { count: "exact", head: true }).eq("status", "pendente"),
       ]);
 
       const employees = empRes.data || [];
@@ -312,6 +314,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         .sort((a, b) => Math.abs(b.saldo) - Math.abs(a.saldo));
       setBancoCriticos(criticos);
       setAtestadosPendentes(justRes.count || 0);
+      setSolicitacoesPendentes(solicitacoesRes.count || 0);
 
       const dow = now.getDay();
       const isWorkDay = dow !== 0;
@@ -1378,6 +1381,7 @@ export default function DashboardTab({ onNavigate, role }: { onNavigate?: (tab: 
         });
         if (semSaida.length > 0) pendencias.push({ icon: "🚪", label: `${semSaida.length} funcionário${semSaida.length > 1 ? "s" : ""} sem saída após 18h`, cor: "#dc2626", bg: "#fee2e2", action: "records" });
         if (atestadosPendentes > 0) pendencias.push({ icon: "📋", label: `${atestadosPendentes} atestado${atestadosPendentes > 1 ? "s" : ""} aguardando aprovação`, cor: "#7c3aed", bg: "#f5f3ff", action: "justifications" });
+        if (solicitacoesPendentes > 0) pendencias.push({ icon: "⚡", label: `${solicitacoesPendentes} solicitaç${solicitacoesPendentes > 1 ? "ões" : "ão"} de funcionário${solicitacoesPendentes > 1 ? "s" : ""} sem resposta`, cor: "#0369a1", bg: "#f0f9ff", action: "solicitacoes" });
         if (bancoCriticos.length > 0) pendencias.push({ icon: "🏦", label: `${bancoCriticos.length} funcionário${bancoCriticos.length > 1 ? "s" : ""} com banco de horas crítico`, cor: "#b45309", bg: "#fef3c7", action: "banco-horas" });
         if (comInconsistencias.length > 0) pendencias.push({ icon: "⚠️", label: `${comInconsistencias.length} inconsistência${comInconsistencias.length > 1 ? "s" : ""} nos registros hoje`, cor: "#ea580c", bg: "#fff7ed", action: "records" });
         if (pendencias.length === 0) return null;
