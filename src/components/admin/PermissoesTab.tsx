@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
+import { safeQuery } from "@/lib/safe-query";
 
 interface UserProfile {
   id: string;
@@ -115,11 +116,11 @@ export default function PermissoesTab() {
       toast.error("Você não pode desativar sua própria conta!");
       return;
     }
-    const { error } = await (supabase as any).from("profiles").update({ active: !active }).eq("id", profileId);
-    if (error) {
-      toast.error("Erro ao alterar status: " + error.message);
-      return;
-    }
+    const result = await safeQuery(
+      (supabase as any).from("profiles").update({ active: !active }).eq("id", profileId),
+      { errorMessage: "Erro ao alterar status" }
+    );
+    if (result === null) return; // safeQuery já mostrou o toast de erro
     toast.success(!active ? "Usuário ativado!" : "Usuário desativado!");
     load();
   };
